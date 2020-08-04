@@ -1,0 +1,35 @@
+Package: autoforecast
+Type: Package
+Title: Functions for advanced statistical forecasting
+Version: 0.1.0
+Authors@R:
+    person(given = "Obryan", family = "Poyser",
+           role = c("aut", "cre"),
+           email = "obryan.poyser@sanofi.com")
+    person(given = "Ignasi", family = "Pascual",
+           role = c("aut","cre"),
+           email = "ignasi.pascual@sanofi.com")
+Description: This package provides functions and tools for advanced statistical forecasting
+License: Proprietary 
+Encoding: UTF-8
+LazyData: true
+Depends: 
+    R (>= 3.6),
+    dplyr,
+    forecast,
+    tidyverse,
+    seastests,
+    tsfeatures,
+    dplyr,
+    lubridate,
+    zoo,
+    DescTools,
+    dvmisc,
+    ggplot2,
+    tsibble,
+    prophet,
+    imputeTS,
+    glmnet,
+    fastDummies,
+    tictoc
+RoxygenNote: 7.1.1
