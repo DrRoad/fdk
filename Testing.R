@@ -1,13 +1,17 @@
 
 # autoforecast - testing
 
-# load_pkgs --------------
+# If needed: load_pkgs --------------
 
-require(pacman)
+# require(pacman)
+# pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
+#                lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
+#                prophet,imputeTS,glmnet, tictoc, fastDummies,
+#                devtools,git2r)
 
-pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
-               lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
-               prophet,imputeTS,glmnet, tictoc, fastDummies)
+# pkg <- "https://emea-aws-gitlab.sanofi.com:3001/statistical_forecasting/packages/autoforecast.git"
+# cred <- git2r::cred_user_pass(rstudioapi::askForPassword("Username"), rstudioapi::askForPassword("Password"))
+# devtools::install_git(pkg, credentials = cred)
 
 # Skus --------------
 

@@ -9,12 +9,12 @@ autoforecast(
   frequency = 12,
   models,
   algo_study = TRUE,
-  output_models = 1,
-  parameters = NULL,
-  clean_series = FALSE,
-  allow_seas = TRUE,
   test_size = 6,
   lag = 4,
+  output_models = c(1:3),
+  clean_series = TRUE,
+  parameters = NULL,
+  allow_seas = TRUE,
   plot_output = TRUE,
   h = 36
 )
@@ -28,17 +28,17 @@ autoforecast(
 
 \item{algo_study}{By default: TRUE. The function will automatically select the best models from the list of models of input and forecast. If it’s in FALSE, the function will just forecast with the selected models.}
 
-\item{output_models}{By default: 1. How many models for forecasting. You can select which models you want to output: Ex: (1,2,3) = Three best models.}
-
-\item{parameters}{By default: All options in NULL. You can select different parameters for some algorithms}
-
-\item{clean_series}{By default: TRUE. This will perform Kalman’s method where there is an attached regressor. (More methods in progress). This option will also remove 0’s before the time series.}
-
-\item{allow_seas}{By default: TRUE. This will allow seasonal models to be explored and forecasted.}
-
 \item{test_size}{By default: 6. It’s for the Algo study configuration}
 
 \item{lag}{By default: 4. It’s for the Algo study configuration}
+
+\item{output_models}{By default: 1. How many models for forecasting. You can select which models you want to output: Ex: (1,2,3) = Three best models.}
+
+\item{clean_series}{By default: TRUE. This will perform Kalman’s method where there is an attached regressor. (More methods in progress). This option will also remove 0’s before the time series.}
+
+\item{parameters}{By default: All options in NULL. You can select different parameters for some algorithms}
+
+\item{allow_seas}{By default: TRUE. This will allow seasonal models to be explored and forecasted.}
 
 \item{plot_output}{By default: TRUE. This will save the plots in memory.}
 
