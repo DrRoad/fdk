@@ -23,8 +23,8 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
 
   for(i in 1:test_size){
 
-    xd1 <- ts_split_1(train[[1]], test_size, lag, i) # Time Series
-    xd2 <- ts_split_2(train[[2]], test_size, lag, i) # Tibble
+    xd1 <- ts_split_all(train[[1]], test_size, lag, i) # Time Series
+    xd2 <- ts_split_all(train[[2]], test_size, lag, i) # Tibble
 
     # Stat Models --------------
 

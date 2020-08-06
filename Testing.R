@@ -3,12 +3,13 @@
 
 # If needed: load_pkgs --------------
 
-# require(pacman)
-# pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
-#                lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
-#                prophet,imputeTS,glmnet, tictoc, fastDummies,
-#                devtools,git2r)
+require(pacman)
+pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
+               lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
+               prophet,imputeTS,glmnet, tictoc, fastDummies,
+               devtools,git2r)
 
+# Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS=TRUE)
 # pkg <- "https://emea-aws-gitlab.sanofi.com:3001/statistical_forecasting/packages/autoforecast.git"
 # cred <- git2r::cred_user_pass(rstudioapi::askForPassword("Username"), rstudioapi::askForPassword("Password"))
 # devtools::install_git(pkg, credentials = cred)
@@ -16,6 +17,7 @@
 # Skus --------------
 
 Skus <- c("SE: 198026", "DK: 578280", "DK: 688222")
+Skus <- Skus[1]
 
 # Data --------------
 
@@ -42,24 +44,35 @@ list_models <- c("naive","snaive","croston","ets","theta",
 
 # Get best model with algo study with cleansing (Default)
 
-obj1 <- autoforecast(data, models = list_models, algo_study = TRUE)
+# obj1 <- autoforecast(data, models = list_models, algo_study = TRUE)
+# 
+# # Get best model with algo study without cleansing
+# 
+# obj1 <- autoforecast(data, models = list_models, algo_study = TRUE, clean_series = FALSE)
+# 
+# # Get best 3 models with algo study
+# 
+# obj3 <- autoforecast(data, models = list_models, output_models = c(1,2,3), algo_study = TRUE)
+# 
+# # Just forecast with all models
+# 
+# obj4 <- autoforecast(data, models = list_models, algo_study = FALSE)
+# 
+# # Get 3 best models working with a list
+# 
+# data2 <- list(y = as.numeric(AirPassengers), start_date = "2010-01-01")
+# 
+# obj5 <- autoforecast(data2, models = list_models, output_models = c(1,2,3))
 
-# Get best model with algo study without cleansing
+# Testing frequencies --------------
 
-obj1 <- autoforecast(data, models = list_models, algo_study = TRUE, clean_series = FALSE)
+list_models <- c("naive","snaive","croston","ets","theta",
+                 "arima","tbats","nn","prophet")
 
-# Get best 3 models with algo study
+freq <- 52
 
-obj3 <- autoforecast(data, models = list_models, output_models = c(1,2,3), algo_study = TRUE)
+test <- data %>% build_ts(frequency = freq) %>% gen_fcst(models=list_models,h=36)
 
-# Just forecast with all models
-
-obj4 <- autoforecast(data, models = list_models, algo_study = FALSE)
-
-# Get 3 best models working with a list
-
-data2 <- list(y = as.numeric(AirPassengers), start_date = "2010-01-01")
-
-obj5 <- autoforecast(data2, models = list_models, output_models = c(1,2,3))
+obj1 <- autoforecast(data, frequency = freq, models = list_models, algo_study = TRUE, clean_series = FALSE)
 
 #---

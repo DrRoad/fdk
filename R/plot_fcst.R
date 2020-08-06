@@ -1,7 +1,7 @@
 
 # plot_fcst
 
-plot_fcst <- function(data, forecast, key = NULL){
+plot_fcst <- function(data, forecast, key = NULL, breaks = "2 month", labels = "%Y-%m-%d"){
 
 if(!is.null(key)){
   subtitle <- paste0("Key:"," ",key)
@@ -28,7 +28,7 @@ plot <- ggplot() +
         legend.title = element_text(size = 15),
         legend.text = element_text(size = 13)) +
   labs(x="Time",y="Sales", title = "Forecast Results", subtitle = subtitle, color = "Model") +
-  scale_x_date(expand = c(0,0), date_breaks = "2 month", date_labels = "%b-%y")
+  scale_x_date(expand = c(0,0), date_breaks = breaks, date_labels = labels)
 
 # Plotting
 

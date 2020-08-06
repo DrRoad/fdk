@@ -28,9 +28,8 @@ build_ts <- function(data, frequency = 12){
     tmp <- tibble(date = seq.Date(from = start_date, by = temporal, length.out = nrow(data)),
                   y = round(data$y,3), reg = data$reg)
     tmp <- tmp %>%
-      mutate(date = yearmonth(date), time_seas = as.factor(factor_gen(date))) %>%
-      as_tsibble(index = date) %>%
-      fill_gaps(value = 0)
+      mutate(date = date, time_seas = as.factor(factor_gen(date))) %>%
+      as_tsibble(index = date)
     tmp$date <- as.Date(tmp$date, format = "%Y-%m-%d")
     # Give temporal attribute to objects ---------------------
     attr(ts, "frequency") <- temporal
@@ -62,9 +61,8 @@ build_ts <- function(data, frequency = 12){
     tmp <- tibble(date = seq.Date(from = start_date, by = temporal, length.out = length(data$y)),
                   y = round(data$y,3), reg = rep(0,length(data$y)))
     tmp <- tmp %>%
-      mutate(date = yearmonth(date), time_seas = as.factor(factor_gen(date))) %>%
-      as_tsibble(index = date) %>%
-      fill_gaps(value = 0)
+      mutate(date = date, time_seas = as.factor(factor_gen(date))) %>%
+      as_tsibble(index = date) 
     tmp$date <- as.Date(tmp$date, format = "%Y-%m-%d")
     # Give temporal attribute to objects ---------------------
     attr(ts, "frequency") <- temporal

@@ -108,12 +108,9 @@ get_trend_discounts <- function(data_length, trend_discount, horizon=NULL, lag =
     data_length
   }
   if(length(trend_discount)!=1) stop("Only one trend discount value should be provided")
-  
   if(is.null(lag)==F & length(lag) != 1) stop("Only one lag value should be provided")
-  
   if(is.null(horizon)==T){
     trend_discount <- data_length + cumsum(trend_discount^(0:(data_length-1)))
-    
     if(is.null(lag)==T){
       return(trend_discount)
     } else {
@@ -148,7 +145,23 @@ make_reg_matrix <- function(fit_output, horizon){
 
 # Splits -------------------------------
 
-# For glmnet
+# Main ts_split function
+
+ts_split_all <- function(data, test_size, lag, i){
+  if(class(data)[1] == "ts"){
+    ts_len <- length(data)
+    train <- subset(data, end = ts_len-test_size-lag+i)
+    test <- subset(data, start = ts_len-test_size+i, end = ts_len-test_size+i)
+    train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
+  }else{
+    ts_len <- length(data[,1][[1]])
+    train <- data[1:(ts_len-test_size-lag+i),]
+    test <- data[ts_len-test_size+i,]
+    train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
+  }
+}
+
+# ts split for glmnet & mlr (Map)
 
 ts_split <- function(data, test_size, lag){
   ts_split_helper <- function(data, test_size, lag, iter){
@@ -158,24 +171,6 @@ ts_split <- function(data, test_size, lag){
     list(train = train, test = test, pars = list(lag = lag, iter = iter))
   }
   map(1:test_size, ~ts_split_helper(data = data, test_size = test_size, lag = lag, iter = .x))
-}
-
-# For Time Series
-
-ts_split_1 <- function(data, test_size, lag, i){
-  ts_len <- length(data)
-  train <- subset(data, end = ts_len-test_size-lag+i)
-  test <- subset(data, start = ts_len-test_size+i, end = ts_len-test_size+i)
-  train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
-}
-
-# For tibble
-
-ts_split_2 <- function(data, test_size, lag, i){
-  ts_len <- length(data[,1][[1]])
-  train <- data[1:(ts_len-test_size-lag+i),]
-  test <- data[ts_len-test_size+i,]
-  train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
 }
 
 # mape -------------------------------

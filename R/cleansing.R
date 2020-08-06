@@ -1,5 +1,5 @@
 
-# cleansing
+# cleansing + tscut()
 
 cleansing <- function(data, regressors = "reg", method = "kalman", keep_old = FALSE){
   # Impute function
