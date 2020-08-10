@@ -1,7 +1,8 @@
 
-# cleansing + tscut()
+# cleansing
 
 cleansing <- function(data, regressors = "reg", method = "kalman", keep_old = FALSE){
+  # Impute
   # Impute function
   impute_int <- function(x, method){
     ts_tmp <- ts(x, frequency = 12, start = c(1, 1))

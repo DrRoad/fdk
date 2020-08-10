@@ -22,36 +22,38 @@ check_inputs <- function(data){
 
 # check seasonality -------------------------------
 
-seas_test_kw <- function(ts){
-  kwtest <- kw(ts)
-  if(kwtest$Pval < 0.05){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
-seas_test_ftrs <- function(ts){
-  # Calculate Seasonality Strength and reformat
-  features <- as.data.frame(t(stl_features(ts)))
-  if(features$seasonal_strength>0.7){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
-seas_test_lm <- function(ts){
-  # Add 1 diff
-  lm.1=lm(y~factor(time_seas),data=ts)
-  p.vals=summary(lm.1)
-  p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
-                p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
-  if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
 detect_seasonality <- function(data){
+  # Aux functions
+  seas_test_kw <- function(ts){
+    kwtest <- kw(ts)
+    if(kwtest$Pval < 0.05){
+      return(TRUE)
+    }else{
+      return(FALSE)
+    }
+  }
+  seas_test_ftrs <- function(ts){
+    # Calculate Seasonality Strength and reformat
+    features <- as.data.frame(t(stl_features(ts)))
+    if(features$seasonal_strength>0.7){
+      return(TRUE)
+    }else{
+      return(FALSE)
+    }
+  }
+  seas_test_lm <- function(ts){
+    # Add 1 diff
+    lm.1=lm(y~factor(time_seas),data=ts)
+    p.vals=summary(lm.1)
+    p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
+                  p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
+    if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
+      return(TRUE)
+    }else{
+      return(FALSE)
+    }
+  }
+  # Main test
   Count <- 0
   # Test1: Kruskal-Wallis
   if(seas_test_kw(data[[1]])){

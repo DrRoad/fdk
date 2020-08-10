@@ -3,21 +3,47 @@
 
 gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
 
-  # # Check seasonality --------------
-  #
-  # if(is.null(seas)){
-  #   seas <- detect_seasonality(data)
-  # }
-
   # Results --------------
 
   results <- data.frame(matrix(nrow = 0,ncol = 6))
   colnames(results) <- c("model","time","predicted","real","mape","parameters")
-
+  
+  # Frequency Handling --------------
+  
+  if(is.null(attributes(data)$frequency)){
+    yearly_seasonality <- "auto"
+    weekly_seasonality <- FALSE
+    daily_seasonality <- FALSE
+    time_freq <- "month"
+  }else{
+    yearly_seasonality <- weekly_seasonality <- daily_seasonality <- FALSE
+    seas_param <- attributes(data)$frequency
+    # For prophet 
+    if(seas_param == 12){
+      yearly_seasonality <- TRUE
+      time_freq <- "month"
+    }
+    if(seas_param == 52){
+      weekly_seasonality <- TRUE
+      time_freq <- "week"
+    }
+    if(seas_param == 365){
+      daily_seasonality <- TRUE
+      time_freq <- "day"
+    }
+  }
+  
   # Models --------------
 
   xd1 <- data[[1]] # Time Series
   xd2 <- data[[2]] # Tibble
+  
+  # Time attributes for tibble
+  
+  attr(xd2,"yearly_seasonality") <- yearly_seasonality
+  attr(xd2,"weekly_seasonality") <- weekly_seasonality
+  attr(xd2,"daily_seasonality") <- daily_seasonality
+  attr(xd2,"time_freq") <- time_freq
 
   # Stat Models --------------
 

@@ -69,10 +69,10 @@ list_models <- c("naive","snaive","croston","ets","theta",
 list_models <- c("naive","snaive","croston","ets","theta",
                  "arima","tbats","nn","prophet")
 
-freq <- 52
+freq <- 365
 
 test <- data %>% build_ts(frequency = freq) %>% gen_fcst(models=list_models,h=36)
 
-obj1 <- autoforecast(data, frequency = freq, models = list_models, algo_study = TRUE, clean_series = FALSE)
+obj1 <- autoforecast(data, frequency = freq, models = list_models, algo_study = FALSE)
 
 #---

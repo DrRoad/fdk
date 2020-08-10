@@ -7,17 +7,36 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
   # Train data --------------
 
   train <- data
-
-  # # Check seasonality --------------
-  #
-  # if(is.null(seas)){
-  #   seas <- detect_seasonality(train)
-  # }
-
+  
   # Results --------------
 
   results <- data.frame(matrix(nrow = 0,ncol = 6))
   colnames(results) <- c("model","time","predicted","real","mape","parameter")
+  
+  # Frequency Handling --------------
+  
+  if(is.null(attributes(data)$frequency)){
+    yearly_seasonality <- "auto"
+    weekly_seasonality <- FALSE
+    daily_seasonality <- FALSE
+    time_freq <- "month"
+  }else{
+    yearly_seasonality <- weekly_seasonality <- daily_seasonality <- FALSE
+    seas_param <- attributes(data)$frequency
+    # For prophet 
+    if(seas_param == 12){
+      yearly_seasonality <- TRUE
+      time_freq <- "month"
+    }
+    if(seas_param == 52){
+      weekly_seasonality <- TRUE
+      time_freq <- "week"
+    }
+    if(seas_param == 365){
+      daily_seasonality <- TRUE
+      time_freq <- "day"
+    }
+  }
 
   # Split Training Data & Run --------------
 
@@ -25,6 +44,13 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
 
     xd1 <- ts_split_all(train[[1]], test_size, lag, i) # Time Series
     xd2 <- ts_split_all(train[[2]], test_size, lag, i) # Tibble
+    
+    # Time attributes for tibble
+    
+    attr(xd2,"yearly_seasonality") <- yearly_seasonality
+    attr(xd2,"weekly_seasonality") <- weekly_seasonality
+    attr(xd2,"daily_seasonality") <- daily_seasonality
+    attr(xd2,"time_freq") <- time_freq
 
     # Stat Models --------------
 
