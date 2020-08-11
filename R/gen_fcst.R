@@ -2,11 +2,6 @@
 # gen_fcst
 
 gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
-
-  # Results --------------
-
-  results <- data.frame(matrix(nrow = 0,ncol = 6))
-  colnames(results) <- c("model","time","predicted","real","mape","parameters")
   
   # Frequency Handling --------------
   
@@ -32,6 +27,11 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
       time_freq <- "day"
     }
   }
+  
+  # Results --------------
+  
+  results <- data.frame(matrix(nrow = 0,ncol = 6))
+  colnames(results) <- c("model","time","predicted","real","mape","parameters")
   
   # Models --------------
 
@@ -88,10 +88,22 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
     output <- get_tbats(xd = xd1, h = h, mode = "fcst")
     results <- rbind(results,output)
   }
+  
+  # ensemble
+  if("ensemble" %in% models){
+    output <- get_ensemble(xd = xd1, h = h, mode = "fcst")
+    results <- rbind(results,output)
+  }
 
   # nnetar
   if("nn" %in% models){
     output <- get_nn(xd = xd1, h = h, mode = "fcst")
+    results <- rbind(results,output)
+  }
+  
+  # tslm
+  if("tslm" %in% models){
+    output <- get_tslm(xd = xd1, h = h, mode = "fcst")
     results <- rbind(results,output)
   }
 
@@ -101,7 +113,7 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
     results <- rbind(results,output)
   }
 
-  # Machine Learning Models
+  # Machine Learning Models --------------
 
   # glmnet
   if("glmnet" %in% models){

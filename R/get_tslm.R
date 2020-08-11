@@ -1,23 +1,12 @@
 
-# ensemble
+# tslm
 
-eat_ensemble <- function(y, h){
-  require(forecast)
-  fets <- forecast(ets(y), h)
-  farima <- forecast(auto.arima(y), h)
-  ftheta <- thetaf(y, h)
-  comb <- fets
-  comb$mean <-(fets$mean + farima$mean + ftheta$mean)/3
-  comb$method <- "ETS-ARIMA-Theta Combination"
-  return(comb)
-}
-
-#---
-
-get_ensemble <- function(xd, h, mode){
-  model_name <- "ensemble"
+get_tslm <- function(xd, h, mode){
+  model_name <- "tslm"
   if(mode == "sim"){ # Simulation
-    fcst <- eat_ensemble(xd$train, h)
+    time_series <- xd$train
+    model <- tslm(time_series ~ trend + season)
+    fcst <- forecast(model, h = h)
     error <- mape(fcst$mean[h],xd$test)
     # Timelapse
     aux <- date_decimal(as.numeric(time(xd$test)))
@@ -28,12 +17,14 @@ get_ensemble <- function(xd, h, mode){
                          predicted = as.numeric(fcst$mean[h]),
                          real = as.numeric(xd$test),
                          mape = as.numeric(error),
-                         parameters = fcst$method
+                         parameters = "Default Trend + Season"
     )
     return(output)
   }
   if(mode == "fcst"){ # Forecast
-    fcst <- eat_ensemble(xd, h)
+    time_series <- xd
+    model <- tslm(time_series ~ trend + season)
+    fcst <- forecast(model, h = h)
     # Timelapse
     aux <- date_decimal(as.numeric(time(fcst$mean)))
     time_test <- as.Date(aux, format = "%Y-%m-%d")
@@ -41,7 +32,7 @@ get_ensemble <- function(xd, h, mode){
     output <- data.frame(model = model_name,
                          time = time_test,
                          predicted = as.numeric(fcst$mean),
-                         parameters = fcst$method
+                         parameters = "Default Trend + Season"
     )
     return(output)
   }

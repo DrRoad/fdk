@@ -20,6 +20,8 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
                          lag = 4, output_models = c(1:3), clean_series = TRUE, 
                          parameters = NULL, allow_seas = TRUE, plot_output = TRUE, h = 36){
   
+  start_time <- Sys.time()
+  
   # Alerts ---------------------
   
   if(!frequency %in% c(12,52,365)){
@@ -36,12 +38,18 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
 
   if(models[1] == "All"){
     list_models <- c("naive","snaive","croston","ets","theta",
-                     "arima","tbats","nn","prophet")
+                     "arima","tbats","ensemble","nn","prophet")
   }else{
     list_models <- models
   }
+  
+  # Frequency handling + disable lm for daily forecast
+  
+  if(!frequency %in% c(12,52)){
+    list_models <- list_models[-"tslm"]
+  }
 
-  # Frequency options for prophet and ime breaks for plotting ---------------------
+  # Options for plotting ---------------------
   
   if(frequency == 12){
     time_breaks <- "2 month"
@@ -56,7 +64,7 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
   # If there are not keys, switch off cleansing and set a dummy key
 
   if(is.null(data$key)){ # Single time series case
-    data$key <- "Single_Time_Series"
+    data$key <- "Selected Time Series"
     clean_series <- FALSE # Switch off cleansing
   }
   
@@ -69,13 +77,33 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
 
   all_configs <- all_algo_study_outputs <- all_fcst <- matrix(nrow = 0, ncol = 0)
   all_plots <- list()
+  
+  # Run in Parallel options ---------------------
+  
+  # cluster = makeCluster(2, type = "SOCK")
+  # registerDoSNOW(cluster)
+  # ntasks <- nprod
+  # progress <- function(n) {
+  #   cat(sprintf(" %d Keys(s) / %.2f%% percent remaining\n",ntasks-n,(ntasks-n)*100/ntasks))
+  #   }
+  # opts <- list(progress=progress)
 
   # Sku loop ---------------------
 
-  for(j in 1:nprod){ # Loop for sku
+  for(j in 1:nprod){ # Loop for sku # Regular loop
+  
+  # foreach (j = 1:nprod,.errorhandling='pass',
+  #          .combine = rbind,.inorder=FALSE,
+  #          # .multicombine=TRUE,
+  #          .export=c("all_configs","all_algo_study_outputs","all_fcst","all_plots"),
+  #          .packages = c("forecast","tidyverse","seastests","tsfeatures","dplyr",
+  #                        "lubridate","zoo","DescTools","dvmisc","ggplot2","tsibble",
+  #                        "prophet","imputeTS","glmnet", "tictoc", "fastDummies",
+  #                        "devtools","git2r", "foreach", "doSNOW", "snow"),
+  #          .options.snow=opts) %dopar% {
 
     sku_iter <- unique_keys[j] # Selected sku
-    print(paste0("Working on"," ",sku_iter,";"," ",round(1-(j/nprod),2)*100,"%"," ","items pending")) # Print update
+    print(paste0("Working on"," ",sku_iter,";"," ",round(1-(j/nprod),2)*100,"%"," ","items in queue")) # Print update
 
     if(class(data)[1] == "list"){ # Filter method: If it's a list, there's just one sku
       data_iter <- data
@@ -210,11 +238,21 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
     all_plots[[j]] <- plot
 
   } # End sku loop
+  
+  # Stop cluster
+  
+  # stopCluster(cl)
+  
+  # End time
+  
+  end_time <- Sys.time()
+  time_taken <- round(end_time - start_time,2)
+  print(paste0("Time elapsed: ",time_taken))
 
-  if(plot_output == TRUE){
+  if(plot_output == TRUE){ # Output with plot
 
     return(list(configuration = all_configs,algo_study = all_algo_study_outputs,
-                forecast = all_fcst, plots = all_plots)) # Output with plot
+                forecast = all_fcst, plots = all_plots)) 
 
   }else{
 

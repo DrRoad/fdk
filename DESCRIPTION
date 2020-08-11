@@ -29,4 +29,7 @@ Depends:
     imputeTS,
     tsibble,
     glmnet,
+    foreach,
+    doSNOW,
+    snow
 RoxygenNote: 7.1.1

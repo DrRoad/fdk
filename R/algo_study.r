@@ -8,11 +8,6 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
 
   train <- data
   
-  # Results --------------
-
-  results <- data.frame(matrix(nrow = 0,ncol = 6))
-  colnames(results) <- c("model","time","predicted","real","mape","parameter")
-  
   # Frequency Handling --------------
   
   if(is.null(attributes(data)$frequency)){
@@ -37,13 +32,21 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
       time_freq <- "day"
     }
   }
+  
+  # Results --------------
+  
+  results <- data.frame(matrix(nrow = 0,ncol = 6))
+  colnames(results) <- c("model","time","predicted","real","mape","parameter")
 
   # Split Training Data & Run --------------
 
   for(i in 1:test_size){
 
-    xd1 <- ts_split_all(train[[1]], test_size, lag, i) # Time Series
+    xd1 <- ts_split_all(train[[1]], test_size, lag, i) # Default Time Series
+    
+    if("prophet" %in% models){
     xd2 <- ts_split_all(train[[2]], test_size, lag, i) # Tibble
+    }
     
     # Time attributes for tibble
     
@@ -95,13 +98,25 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
       output <- get_tbats(xd = xd1, h = lag, mode = "sim")
       results <- rbind(results,output)
     }
+    
+    # ensemble
+    if("ensemble" %in% models){
+      output <- get_ensemble(xd = xd1, h = lag, mode = "sim")
+      results <- rbind(results,output)
+    }
 
     # nnetar
     if("nn" %in% models){
       output <- get_nn(xd = xd1, h = lag, mode = "sim")
       results <- rbind(results,output)
     }
-
+    
+    # tslm
+    if("tslm" %in% models){
+      output <- get_tslm(xd = xd1, h = lag, mode = "sim")
+      results <- rbind(results,output)
+    }
+    
     # prophet
     if("prophet" %in% models){
       output <- get_prophet(xd = xd2, h = lag, mode = "sim")

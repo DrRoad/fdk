@@ -7,7 +7,7 @@ require(pacman)
 pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
                lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
                prophet,imputeTS,glmnet, tictoc, fastDummies,
-               devtools,git2r)
+               devtools,git2r, foreach, doSNOW, snow)
 
 # Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS=TRUE)
 # pkg <- "https://emea-aws-gitlab.sanofi.com:3001/statistical_forecasting/packages/autoforecast.git"
@@ -38,41 +38,23 @@ parameters <- list(params_arima = NULL, params_croston = NULL,
 # Models --------------
 
 list_models <- c("naive","snaive","croston","ets","theta",
-                 "arima","tbats","nn","prophet")
+                 "arima","tbats","ensemble","nn",
+                 "tslm","prophet")
 
-# Call function --------------
+# Parameters
 
-# Get best model with algo study with cleansing (Default)
+frequency <- 365
 
-# obj1 <- autoforecast(data, models = list_models, algo_study = TRUE)
-# 
-# # Get best model with algo study without cleansing
-# 
-# obj1 <- autoforecast(data, models = list_models, algo_study = TRUE, clean_series = FALSE)
-# 
-# # Get best 3 models with algo study
-# 
-# obj3 <- autoforecast(data, models = list_models, output_models = c(1,2,3), algo_study = TRUE)
-# 
-# # Just forecast with all models
-# 
-# obj4 <- autoforecast(data, models = list_models, algo_study = FALSE)
-# 
-# # Get 3 best models working with a list
-# 
-# data2 <- list(y = as.numeric(AirPassengers), start_date = "2010-01-01")
-# 
-# obj5 <- autoforecast(data2, models = list_models, output_models = c(1,2,3))
+# Algo study
 
-# Testing frequencies --------------
+algos1 <- data %>% build_ts(frequency = frequency) %>% algo_study(models=list_models)
 
-list_models <- c("naive","snaive","croston","ets","theta",
-                 "arima","tbats","nn","prophet")
+# Generate forecast
 
-freq <- 365
+fcst1 <- data %>% build_ts(frequency = frequency) %>% gen_fcst(models=list_models,h=36)
 
-test <- data %>% build_ts(frequency = freq) %>% gen_fcst(models=list_models,h=36)
+# Autoforecast
 
-obj1 <- autoforecast(data, frequency = freq, models = list_models, algo_study = FALSE)
+obj1 <- autoforecast(data, frequency = frequency, models = list_models, algo_study = TRUE)
 
 #---
