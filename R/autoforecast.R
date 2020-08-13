@@ -38,15 +38,17 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
 
   if(models[1] == "All"){
     list_models <- c("naive","snaive","croston","ets","theta",
-                     "arima","tbats","ensemble","nn","prophet")
+                     "arima","tbats","ensemble","stlm","theta_dyn",
+                     "nn","prophet","tslm")
   }else{
     list_models <- models
   }
   
-  # Frequency handling + disable lm for daily forecast
+  # Remove ML models for daily forecast and don't do cleansing
   
-  if(!frequency %in% c(12,52)){
-    list_models <- list_models[-"tslm"]
+  if(frequency == 365){
+    models <- models[!models %in% c("tslm","glmnet","mlr")]
+    clean_series <- FALSE
   }
 
   # Options for plotting ---------------------
@@ -95,7 +97,7 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
   # foreach (j = 1:nprod,.errorhandling='pass',
   #          .combine = rbind,.inorder=FALSE,
   #          # .multicombine=TRUE,
-  #          .export=c("all_configs","all_algo_study_outputs","all_fcst","all_plots"),
+  #          .export=c("all_configs","all_algo_study_outputs","all_fcst","all_plots"), #---
   #          .packages = c("forecast","tidyverse","seastests","tsfeatures","dplyr",
   #                        "lubridate","zoo","DescTools","dvmisc","ggplot2","tsibble",
   #                        "prophet","imputeTS","glmnet", "tictoc", "fastDummies",
@@ -170,7 +172,7 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
 
       # Cleansing & Bulding ---------------------
 
-      data0 <- data_iter %>% cleansing() %>% build_ts(frequency = frequency) # Cleansing + Remove 0's before active values
+      data0 <- data_iter %>% cleansing(frequency = frequency) %>% build_ts(frequency = frequency) # Cleansing + Remove 0's before active values
       attr(data0,"frequency") <- frequency # Key as a data attribute
       attr(data0,"key") <- sku_iter # Key as a data attribute
 

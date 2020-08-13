@@ -1,7 +1,7 @@
 
 # arima
 
-get_arima <- function(xd, seas = seas, parameters = NULL, h, mode){
+get_arima <- function(xd, seas, parameters = NULL, h, mode){
   model_name <- "arima"
   if(mode == "sim"){ # Simulation
     # No Seas

@@ -33,6 +33,12 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
     }
   }
   
+  # Frequency handling + disable lm for daily forecast
+
+  if(time_freq == "day"){
+    models <- models[!models %in% c("tslm","glmnet","mlr")]
+  }
+
   # Results --------------
   
   results <- data.frame(matrix(nrow = 0,ncol = 6))
@@ -44,16 +50,16 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
 
     xd1 <- ts_split_all(train[[1]], test_size, lag, i) # Default Time Series
     
-    if("prophet" %in% models){
+    if("prophet" %in% models){ # If no prophet, no need for data tibble
+      
     xd2 <- ts_split_all(train[[2]], test_size, lag, i) # Tibble
-    }
-    
     # Time attributes for tibble
-    
     attr(xd2,"yearly_seasonality") <- yearly_seasonality
     attr(xd2,"weekly_seasonality") <- weekly_seasonality
     attr(xd2,"daily_seasonality") <- daily_seasonality
     attr(xd2,"time_freq") <- time_freq
+    
+    }
 
     # Stat Models --------------
 
@@ -101,7 +107,25 @@ algo_study <- function(data, models, seas = TRUE, parameters = NULL,
     
     # ensemble
     if("ensemble" %in% models){
-      output <- get_ensemble(xd = xd1, h = lag, mode = "sim")
+      output <- get_ensemble(xd = xd1, seas = seas, h = lag, mode = "sim")
+      results <- rbind(results,output)
+    }
+    
+    # bagged_ets
+    if("bagged_ets" %in% models){
+      output <- get_bagged_ets(xd = xd1, h = lag, mode = "sim")
+      results <- rbind(results,output)
+    }
+    
+    # theta_dyn
+    if("theta_dyn" %in% models){
+      output <- get_theta_dyn(xd = xd1, h = lag, mode = "sim")
+      results <- rbind(results,output)
+    }
+    
+    # stlm
+    if("stlm" %in% models){
+      output <- get_stlm(xd = xd1, h = lag, mode = "sim")
       results <- rbind(results,output)
     }
 

@@ -1,27 +1,11 @@
 
-# ensemble
+# bagged_ets
 
-eat_ensemble <- function(y, seas, h){
-  require(forecast)
-  fets <- forecast(ets(y, model="ZZZ", damped=NULL, allow.multiplicative.trend=FALSE), h = h)
-  if(seas == TRUE){
-    farima <- forecast(auto.arima(y, stepwise = TRUE, seasonal = TRUE), h = h)
-  }else{
-    farima <- forecast(auto.arima(y, stepwise = TRUE, seasonal = FALSE), h = h)
-  }
-  ftheta <- thetaf(y, h = h)
-  comb <- fets
-  comb$mean <-(fets$mean + farima$mean + ftheta$mean)/3
-  comb$method <- "ETS-ARIMA-Theta Combination"
-  return(comb)
-}
-
-#---
-
-get_ensemble <- function(xd, seas, h, mode){
-  model_name <- "ensemble"
+get_bagged_ets<- function(xd, h, mode){
+  model_name <- "bagged_ets"
   if(mode == "sim"){ # Simulation
-    fcst <- eat_ensemble(xd$train, seas = seas, h = h)
+    model <- baggedETS(xd$train)
+    fcst <- forecast(model, h = h)
     error <- mape(fcst$mean[h],xd$test)
     # Timelapse
     aux <- date_decimal(as.numeric(time(xd$test)))
@@ -37,7 +21,8 @@ get_ensemble <- function(xd, seas, h, mode){
     return(output)
   }
   if(mode == "fcst"){ # Forecast
-    fcst <- eat_ensemble(xd, seas = seas, h = h)
+    model <- baggedETS(xd)
+    fcst <- forecast(model, h = h)
     # Timelapse
     aux <- date_decimal(as.numeric(time(fcst$mean)))
     time_test <- as.Date(aux, format = "%Y-%m-%d")
@@ -50,5 +35,3 @@ get_ensemble <- function(xd, seas, h, mode){
     return(output)
   }
 }
-
-#---

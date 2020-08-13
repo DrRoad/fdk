@@ -1,10 +1,10 @@
 
 # cleansing
 
-cleansing <- function(data, regressors = "reg", method = "kalman", keep_old = FALSE){
+cleansing <- function(data, frequency = 12, regressors = "reg", method = "kalman", keep_old = FALSE){
   # Impute function
   impute_int <- function(x, method){
-    ts_tmp <- ts(x, frequency = 12, start = c(1, 1))
+    ts_tmp <- ts(x, frequency = frequency, start = c(1, 1))
     imputeTS::na_seadec(x = ts_tmp, algorithm = method) %>% 
       as.numeric()
   }

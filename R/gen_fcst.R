@@ -28,6 +28,12 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
     }
   }
   
+  # Frequency handling + disable lm for daily forecast
+  
+  if(time_freq == "day"){
+    models <- models[!models %in% c("tslm","glmnet","mlr")]
+  }
+  
   # Results --------------
   
   results <- data.frame(matrix(nrow = 0,ncol = 6))
@@ -91,10 +97,28 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
   
   # ensemble
   if("ensemble" %in% models){
-    output <- get_ensemble(xd = xd1, h = h, mode = "fcst")
+    output <- get_ensemble(xd = xd1, seas = seas, h = h, mode = "fcst")
     results <- rbind(results,output)
   }
 
+  # bagged_ets
+  if("bagged_ets" %in% models){
+    output <- get_bagged_ets(xd = xd1, h = h, mode = "fcst")
+    results <- rbind(results,output)
+  }
+  
+  # theta_dyn
+  if("theta_dyn" %in% models){
+    output <- get_theta_dyn(xd = xd1, h = h, mode = "fcst")
+    results <- rbind(results,output)
+  }
+  
+  # stlm
+  if("stlm" %in% models){
+    output <- get_stlm(xd = xd1, h = h, mode = "fcst")
+    results <- rbind(results,output)
+  }
+  
   # nnetar
   if("nn" %in% models){
     output <- get_nn(xd = xd1, h = h, mode = "fcst")

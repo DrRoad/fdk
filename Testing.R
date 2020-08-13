@@ -17,15 +17,23 @@ pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
 # Skus --------------
 
 Skus <- c("SE: 198026", "DK: 578280", "DK: 688222")
-Skus <- Skus[1]
+# Skus <- Skus[1]
 
-# Data --------------
+# Reading Csv file
 
-data0 <- readRDS("../demo_data_multi.rds")
-data0 <- data0 %>% select(forecast_item, volume, date, reg_value) %>%
-  rename(key = forecast_item, y = volume, reg = reg_value)
+data0 <- read.csv("../demo_data.csv", sep=",")
+
+# Formatting
+data0$key <- as.character(data0$key)
+data0$y <- as.numeric(data0$y)
+data0$date <- as.Date(data0$date,format="%m/%d/%Y")
+data0$reg <- as.numeric(data0$reg)
+
+# Filtering selected sku and dates
+
 data0 <- data0 %>% filter(key %in% Skus)
 data <- data0 %>% filter(date < "2020-07-01") %>% arrange(key,date)
+head(data)
 
 # Parameters --------------
 
@@ -38,12 +46,12 @@ parameters <- list(params_arima = NULL, params_croston = NULL,
 # Models --------------
 
 list_models <- c("naive","snaive","croston","ets","theta",
-                 "arima","tbats","ensemble","nn",
-                 "tslm","prophet")
+                 "arima","tbats","ensemble","stlm","theta_dyn",
+                 "nn","prophet","tslm")
 
 # Parameters
 
-frequency <- 365
+frequency <- 52
 
 # Algo study
 
