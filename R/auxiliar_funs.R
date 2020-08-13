@@ -22,36 +22,38 @@ check_inputs <- function(data){
 
 # check seasonality -------------------------------
 
-seas_test_kw <- function(ts){
-  kwtest <- kw(ts)
-  if(kwtest$Pval < 0.05){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
-seas_test_ftrs <- function(ts){
-  # Calculate Seasonality Strength and reformat
-  features <- as.data.frame(t(stl_features(ts)))
-  if(features$seasonal_strength>0.7){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
-seas_test_lm <- function(ts){
-  # Add 1 diff
-  lm.1=lm(y~factor(time_seas),data=ts)
-  p.vals=summary(lm.1)
-  p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
-                p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
-  if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
 detect_seasonality <- function(data){
+  # Aux functions
+  seas_test_kw <- function(ts){
+    kwtest <- kw(ts)
+    if(kwtest$Pval < 0.05){
+      return(TRUE)
+    }else{
+      return(FALSE)
+    }
+  }
+  seas_test_ftrs <- function(ts){
+    # Calculate Seasonality Strength and reformat
+    features <- as.data.frame(t(stl_features(ts)))
+    if(features$seasonal_strength>0.7){
+      return(TRUE)
+    }else{
+      return(FALSE)
+    }
+  }
+  seas_test_lm <- function(ts){
+    # Add 1 diff
+    lm.1=lm(y~factor(time_seas),data=ts)
+    p.vals=summary(lm.1)
+    p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
+                  p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
+    if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
+      return(TRUE)
+    }else{
+      return(FALSE)
+    }
+  }
+  # Main test
   Count <- 0
   # Test1: Kruskal-Wallis
   if(seas_test_kw(data[[1]])){
@@ -108,12 +110,9 @@ get_trend_discounts <- function(data_length, trend_discount, horizon=NULL, lag =
     data_length
   }
   if(length(trend_discount)!=1) stop("Only one trend discount value should be provided")
-  
   if(is.null(lag)==F & length(lag) != 1) stop("Only one lag value should be provided")
-  
   if(is.null(horizon)==T){
     trend_discount <- data_length + cumsum(trend_discount^(0:(data_length-1)))
-    
     if(is.null(lag)==T){
       return(trend_discount)
     } else {
@@ -148,7 +147,23 @@ make_reg_matrix <- function(fit_output, horizon){
 
 # Splits -------------------------------
 
-# For glmnet
+# Main ts_split function
+
+ts_split_all <- function(data, test_size, lag, i){
+  if(class(data)[1] == "ts"){
+    ts_len <- length(data)
+    train <- subset(data, end = ts_len-test_size-lag+i)
+    test <- subset(data, start = ts_len-test_size+i, end = ts_len-test_size+i)
+    train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
+  }else{
+    ts_len <- length(data[,1][[1]])
+    train <- data[1:(ts_len-test_size-lag+i),]
+    test <- data[ts_len-test_size+i,]
+    train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
+  }
+}
+
+# ts split for glmnet & mlr (Map)
 
 ts_split <- function(data, test_size, lag){
   ts_split_helper <- function(data, test_size, lag, iter){
@@ -158,24 +173,6 @@ ts_split <- function(data, test_size, lag){
     list(train = train, test = test, pars = list(lag = lag, iter = iter))
   }
   map(1:test_size, ~ts_split_helper(data = data, test_size = test_size, lag = lag, iter = .x))
-}
-
-# For Time Series
-
-ts_split_1 <- function(data, test_size, lag, i){
-  ts_len <- length(data)
-  train <- subset(data, end = ts_len-test_size-lag+i)
-  test <- subset(data, start = ts_len-test_size+i, end = ts_len-test_size+i)
-  train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
-}
-
-# For tibble
-
-ts_split_2 <- function(data, test_size, lag, i){
-  ts_len <- length(data[,1][[1]])
-  train <- data[1:(ts_len-test_size-lag+i),]
-  test <- data[ts_len-test_size+i,]
-  train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
 }
 
 # mape -------------------------------

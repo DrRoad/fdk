@@ -11,11 +11,11 @@ get_prophet <- function(xd, h, mode){
     xd$test <- xd$test %>% rename(ds = date)
     # Model
     model <- prophet(xd$train, growth ="linear",
-                     weekly.seasonality = FALSE,
-                     daily.seasonality = FALSE,
-                     yearly.seasonality = "auto",
+                     weekly.seasonality = attr(xd,"weekly_seasonality"),
+                     daily.seasonality = attr(xd,"daily_seasonality"),
+                     yearly.seasonality = attr(xd,"yearly_seasonality"),
                      seasonality.prior.scale = 50)
-    future <- make_future_dataframe(model, periods = h, freq = "month")
+    future <- make_future_dataframe(model, periods = h, freq = attr(xd,"time_freq"))
     forecast <- predict(model, future)
     fcst <- forecast$yhat[length(xd$train$y)+h]
     error <- mape(fcst,xd$test$y)
@@ -33,11 +33,11 @@ get_prophet <- function(xd, h, mode){
     xd <- xd %>% rename(ds = date)
     # Model
     model <- prophet(xd, growth ="linear",
-                     weekly.seasonality = FALSE,
-                     daily.seasonality = FALSE,
-                     yearly.seasonality = "auto",
+                     weekly.seasonality = attr(xd,"weekly_seasonality"),
+                     daily.seasonality = attr(xd,"daily_seasonality"),
+                     yearly.seasonality = attr(xd,"yearly_seasonality"),
                      seasonality.prior.scale = 50)
-    future <- make_future_dataframe(model, periods = h, freq = "month")
+    future <- make_future_dataframe(model, periods = h, freq = attr(xd,"time_freq"))
     forecast <- predict(model, future)
     forecast_out <- forecast[(nrow(xd)+1):(nrow(xd)+h),]
     output <- data.frame(model = model_name,
@@ -47,9 +47,6 @@ get_prophet <- function(xd, h, mode){
                          )
     return(output)
   }
-  # Clean
-  rm(model)
-  rm(future)
 }
 
 #---

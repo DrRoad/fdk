@@ -1,11 +1,12 @@
 
-# theta
+# tslm
 
-get_theta <- function(xd, h, mode){
-  model_name <- "theta"
+get_tslm <- function(xd, h, mode){
+  model_name <- "tslm"
   if(mode == "sim"){ # Simulation
-    model <- thetaf(xd$train, h = h)
-    fcst <- forecast(model)
+    time_series <- xd$train
+    model <- tslm(time_series ~ trend + season)
+    fcst <- forecast(model, h = h)
     error <- mape(fcst$mean[h],xd$test)
     # Timelapse
     aux <- date_decimal(as.numeric(time(xd$test)))
@@ -16,13 +17,14 @@ get_theta <- function(xd, h, mode){
                          predicted = as.numeric(fcst$mean[h]),
                          real = as.numeric(xd$test),
                          mape = as.numeric(error),
-                         parameters = fcst$method
+                         parameters = "Default Trend + Season"
     )
     return(output)
   }
   if(mode == "fcst"){ # Forecast
-    model <- thetaf(xd, h = h)
-    fcst <- forecast(model)
+    time_series <- xd
+    model <- tslm(time_series ~ trend + season)
+    fcst <- forecast(model, h = h)
     # Timelapse
     aux <- date_decimal(as.numeric(time(fcst$mean)))
     time_test <- as.Date(aux, format = "%Y-%m-%d")
@@ -30,8 +32,10 @@ get_theta <- function(xd, h, mode){
     output <- data.frame(model = model_name,
                          time = time_test,
                          predicted = as.numeric(fcst$mean),
-                         parameters = fcst$method
+                         parameters = "Default Trend + Season"
     )
     return(output)
   }
 }
+
+#---

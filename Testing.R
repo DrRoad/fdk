@@ -3,12 +3,13 @@
 
 # If needed: load_pkgs --------------
 
-# require(pacman)
-# pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
-#                lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
-#                prophet,imputeTS,glmnet, tictoc, fastDummies,
-#                devtools,git2r)
+require(pacman)
+pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
+               lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
+               prophet,imputeTS,glmnet, tictoc, fastDummies,
+               devtools,git2r, foreach, doSNOW, snow)
 
+# Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS=TRUE)
 # pkg <- "https://emea-aws-gitlab.sanofi.com:3001/statistical_forecasting/packages/autoforecast.git"
 # cred <- git2r::cred_user_pass(rstudioapi::askForPassword("Username"), rstudioapi::askForPassword("Password"))
 # devtools::install_git(pkg, credentials = cred)
@@ -16,14 +17,23 @@
 # Skus --------------
 
 Skus <- c("SE: 198026", "DK: 578280", "DK: 688222")
+# Skus <- Skus[1]
 
-# Data --------------
+# Reading Csv file
 
-data0 <- readRDS("../demo_data_multi.rds")
-data0 <- data0 %>% select(forecast_item, volume, date, reg_value) %>%
-  rename(key = forecast_item, y = volume, reg = reg_value)
+data0 <- read.csv("../demo_data.csv", sep=",")
+
+# Formatting
+data0$key <- as.character(data0$key)
+data0$y <- as.numeric(data0$y)
+data0$date <- as.Date(data0$date,format="%m/%d/%Y")
+data0$reg <- as.numeric(data0$reg)
+
+# Filtering selected sku and dates
+
 data0 <- data0 %>% filter(key %in% Skus)
 data <- data0 %>% filter(date < "2020-07-01") %>% arrange(key,date)
+head(data)
 
 # Parameters --------------
 
@@ -36,30 +46,23 @@ parameters <- list(params_arima = NULL, params_croston = NULL,
 # Models --------------
 
 list_models <- c("naive","snaive","croston","ets","theta",
-                 "arima","tbats","nn","prophet")
+                 "arima","tbats","ensemble","stlm","theta_dyn",
+                 "nn","prophet","tslm")
 
-# Call function --------------
+# Parameters
 
-# Get best model with algo study with cleansing (Default)
+frequency <- 52
 
-obj1 <- autoforecast(data, models = list_models, algo_study = TRUE)
+# Algo study
 
-# Get best model with algo study without cleansing
+algos1 <- data %>% build_ts(frequency = frequency) %>% algo_study(models=list_models)
 
-obj1 <- autoforecast(data, models = list_models, algo_study = TRUE, clean_series = FALSE)
+# Generate forecast
 
-# Get best 3 models with algo study
+fcst1 <- data %>% build_ts(frequency = frequency) %>% gen_fcst(models=list_models,h=36)
 
-obj3 <- autoforecast(data, models = list_models, output_models = c(1,2,3), algo_study = TRUE)
+# Autoforecast
 
-# Just forecast with all models
-
-obj4 <- autoforecast(data, models = list_models, algo_study = FALSE)
-
-# Get 3 best models working with a list
-
-data2 <- list(y = as.numeric(AirPassengers), start_date = "2010-01-01")
-
-obj5 <- autoforecast(data2, models = list_models, output_models = c(1,2,3))
+obj1 <- autoforecast(data, frequency = frequency, models = list_models, algo_study = TRUE)
 
 #---

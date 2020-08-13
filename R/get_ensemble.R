@@ -1,11 +1,27 @@
 
-# theta
+# ensemble
 
-get_theta <- function(xd, h, mode){
-  model_name <- "theta"
+eat_ensemble <- function(y, seas, h){
+  require(forecast)
+  fets <- forecast(ets(y, model="ZZZ", damped=NULL, allow.multiplicative.trend=FALSE), h = h)
+  if(seas == TRUE){
+    farima <- forecast(auto.arima(y, stepwise = TRUE, seasonal = TRUE), h = h)
+  }else{
+    farima <- forecast(auto.arima(y, stepwise = TRUE, seasonal = FALSE), h = h)
+  }
+  ftheta <- thetaf(y, h = h)
+  comb <- fets
+  comb$mean <-(fets$mean + farima$mean + ftheta$mean)/3
+  comb$method <- "ETS-ARIMA-Theta Combination"
+  return(comb)
+}
+
+#---
+
+get_ensemble <- function(xd, seas, h, mode){
+  model_name <- "ensemble"
   if(mode == "sim"){ # Simulation
-    model <- thetaf(xd$train, h = h)
-    fcst <- forecast(model)
+    fcst <- eat_ensemble(xd$train, seas = seas, h = h)
     error <- mape(fcst$mean[h],xd$test)
     # Timelapse
     aux <- date_decimal(as.numeric(time(xd$test)))
@@ -21,8 +37,7 @@ get_theta <- function(xd, h, mode){
     return(output)
   }
   if(mode == "fcst"){ # Forecast
-    model <- thetaf(xd, h = h)
-    fcst <- forecast(model)
+    fcst <- eat_ensemble(xd, seas = seas, h = h)
     # Timelapse
     aux <- date_decimal(as.numeric(time(fcst$mean)))
     time_test <- as.Date(aux, format = "%Y-%m-%d")
@@ -35,3 +50,5 @@ get_theta <- function(xd, h, mode){
     return(output)
   }
 }
+
+#---

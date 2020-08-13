@@ -1,11 +1,11 @@
 
-# theta
+# stlm
 
-get_theta <- function(xd, h, mode){
-  model_name <- "theta"
+get_stlm <- function(xd, h, mode){
+  model_name <- "stlm"
   if(mode == "sim"){ # Simulation
-    model <- thetaf(xd$train, h = h)
-    fcst <- forecast(model)
+    model <- stlm(xd$train)
+    fcst <- forecast(model, h = h)
     error <- mape(fcst$mean[h],xd$test)
     # Timelapse
     aux <- date_decimal(as.numeric(time(xd$test)))
@@ -21,8 +21,8 @@ get_theta <- function(xd, h, mode){
     return(output)
   }
   if(mode == "fcst"){ # Forecast
-    model <- thetaf(xd, h = h)
-    fcst <- forecast(model)
+    model <- stlm(xd)
+    fcst <- forecast(model, h = h)
     # Timelapse
     aux <- date_decimal(as.numeric(time(fcst$mean)))
     time_test <- as.Date(aux, format = "%Y-%m-%d")

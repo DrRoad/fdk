@@ -17,39 +17,95 @@
 # autoforecast
 
 autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_size = 6,
-                         lag = 4, output_models = c(1:3), clean_series = TRUE, parameters = NULL,
-                         allow_seas = TRUE, plot_output = TRUE, h = 36){
-
-  # Use all models option --------------
+                         lag = 4, output_models = c(1:3), clean_series = TRUE, 
+                         parameters = NULL, allow_seas = TRUE, plot_output = TRUE, h = 36){
+  
+  start_time <- Sys.time()
+  
+  # Alerts ---------------------
+  
+  if(!frequency %in% c(12,52,365)){
+    stop("Frequency not availabe")
+  }
+  
+  # Fix output models ---------------------
+  
+  if(length(models)<length(output_models)){
+    output_models <- c(1:length(models))
+  }
+  
+  # Run all models option ---------------------
 
   if(models[1] == "All"){
     list_models <- c("naive","snaive","croston","ets","theta",
-                     "arima","tbats","nn","prophet")
+                     "arima","tbats","ensemble","stlm","theta_dyn",
+                     "nn","prophet","tslm")
   }else{
     list_models <- models
   }
+  
+  # Remove ML models for daily forecast and don't do cleansing
+  
+  if(frequency == 365){
+    models <- models[!models %in% c("tslm","glmnet","mlr")]
+    clean_series <- FALSE
+  }
 
-  # Unique keys --------------
+  # Options for plotting ---------------------
+  
+  if(frequency == 12){
+    time_breaks <- "2 month"
+  }
+  if(frequency == 52){
+    time_breaks <- "2 weeks"
+  }
+  if(frequency == 365){
+    time_breaks <- "2 days"
+  }
+
+  # If there are not keys, switch off cleansing and set a dummy key
 
   if(is.null(data$key)){ # Single time series case
-    data$key <- "Single_Time_Series"
+    data$key <- "Selected Time Series"
     clean_series <- FALSE # Switch off cleansing
   }
+  
+  # Unique keys ---------------------
 
   unique_keys <- unique(data$key) # Default data frame input
   nprod <- length(unique(data$key)) # Number of units to forecast
 
-  # Main table for results storing --------------
+  # Main table for results storing ---------------------
 
   all_configs <- all_algo_study_outputs <- all_fcst <- matrix(nrow = 0, ncol = 0)
   all_plots <- list()
+  
+  # Run in Parallel options ---------------------
+  
+  # cluster = makeCluster(2, type = "SOCK")
+  # registerDoSNOW(cluster)
+  # ntasks <- nprod
+  # progress <- function(n) {
+  #   cat(sprintf(" %d Keys(s) / %.2f%% percent remaining\n",ntasks-n,(ntasks-n)*100/ntasks))
+  #   }
+  # opts <- list(progress=progress)
 
   # Sku loop ---------------------
 
-  for(j in 1:nprod){ # Loop for sku
+  for(j in 1:nprod){ # Loop for sku # Regular loop
+  
+  # foreach (j = 1:nprod,.errorhandling='pass',
+  #          .combine = rbind,.inorder=FALSE,
+  #          # .multicombine=TRUE,
+  #          .export=c("all_configs","all_algo_study_outputs","all_fcst","all_plots"), #---
+  #          .packages = c("forecast","tidyverse","seastests","tsfeatures","dplyr",
+  #                        "lubridate","zoo","DescTools","dvmisc","ggplot2","tsibble",
+  #                        "prophet","imputeTS","glmnet", "tictoc", "fastDummies",
+  #                        "devtools","git2r", "foreach", "doSNOW", "snow"),
+  #          .options.snow=opts) %dopar% {
 
     sku_iter <- unique_keys[j] # Selected sku
-    print(paste0("Working on"," ",sku_iter,";"," ",round(1-(j/nprod),2)*100,"%"," ","remaining")) # Print update
+    print(paste0("Working on"," ",sku_iter,";"," ",round(1-(j/nprod),2)*100,"%"," ","items in queue")) # Print update
 
     if(class(data)[1] == "list"){ # Filter method: If it's a list, there's just one sku
       data_iter <- data
@@ -61,10 +117,11 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
 
     if(clean_series == FALSE){
 
-      # Cleansing & Bulding
-
-      data0 <- data_iter %>% build_ts(frequency = frequency)
-      attr(data0,"key") <- sku_iter
+      # No cleansing + Building
+      
+      data0 <- data_iter %>% build_ts(frequency = frequency) # Build time series objects
+      attr(data0,"frequency") <- frequency # Key as a data attribute
+      attr(data0,"key") <- sku_iter # Key as a data attribute
 
       # algo_study without cleansing ---------------------
 
@@ -77,7 +134,7 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
                                                test_size = test_size, lag = lag)
 
         config <- algo_study_run[[1]] # Configs
-        algo_study_output <- algo_study_run[[2]] # Get CvMeans
+        algo_study_output <- algo_study_run[[2]] # Get Mape Results
         best_models <- as.data.frame(algo_study_output[output_models,1])
         best_models <- as.character(best_models[,1])
 
@@ -105,22 +162,19 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
                                  seas = allow_seas, parameters = parameters,
                                  h = h)
 
-      # Formatting --------------------- (Make sure dates are okay)
-
-      fcst$time <- as.Date(format(zoo::as.yearmon(fcst$time), format = "%Y-%m-%d"))
-
-      # Plot --------------
-
-      plot <- plot_fcst(data = data0, forecast = fcst, key = sku_iter)
+      # Plot ---------------------
+      
+      plot <- plot_fcst(data = data0, forecast = fcst, key = sku_iter, breaks = time_breaks)
 
     }
 
     if(clean_series == TRUE){
 
-      # Cleansing & Bulding --------------
+      # Cleansing & Bulding ---------------------
 
-      data0 <- data_iter %>% cleansing() %>% build_ts(frequency = frequency)
-      attr(data0,"key") <- sku_iter
+      data0 <- data_iter %>% cleansing(frequency = frequency) %>% build_ts(frequency = frequency) # Cleansing + Remove 0's before active values
+      attr(data0,"frequency") <- frequency # Key as a data attribute
+      attr(data0,"key") <- sku_iter # Key as a data attribute
 
       # algo_study without cleansing ---------------------
 
@@ -133,7 +187,7 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
                                                test_size = test_size, lag = lag)
 
         config <- algo_study_run[[1]] # Configs
-        algo_study_output <- algo_study_run[[2]] # Get CvMeans
+        algo_study_output <- algo_study_run[[2]] # Get Mape Results
         best_models <- as.data.frame(algo_study_output[output_models,1])
         best_models <- as.character(best_models[,1])
 
@@ -160,18 +214,14 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
       fcst <- data0 %>% gen_fcst(models = best_models,
                                  seas = allow_seas, parameters = parameters,
                                  h = h)
+      
+      # Plot ---------------------
 
-      # Formatting --------------------- (Make sure dates are okay)
-
-      fcst$time <- as.Date(format(zoo::as.yearmon(fcst$time), format = "%Y-%m-%d"))
-
-      # Plot
-
-      plot <- plot_fcst(data = data0, forecast = fcst, key = sku_iter)
+      plot <- plot_fcst(data = data0, forecast = fcst, key = sku_iter, breaks = time_breaks)
 
     } # End cleansing loop
 
-    # Storage --------------
+    # Storage ---------------------
 
     # Add key to table
 
@@ -182,7 +232,7 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
     fcst <- cbind(rep(sku_iter,nrow(fcst)),fcst)
     colnames(fcst)[1] <- "key"
 
-    # Add key rows to main table
+    # Add key rows to main table ---------------------
 
     all_configs <- rbind(all_configs, config)
     all_algo_study_outputs <- rbind(all_algo_study_outputs,algo_study_output)
@@ -190,11 +240,21 @@ autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_s
     all_plots[[j]] <- plot
 
   } # End sku loop
+  
+  # Stop cluster
+  
+  # stopCluster(cl)
+  
+  # End time
+  
+  end_time <- Sys.time()
+  time_taken <- round(end_time - start_time,2)
+  print(paste0("Time elapsed: ",time_taken))
 
-  if(plot_output == TRUE){
+  if(plot_output == TRUE){ # Output with plot
 
     return(list(configuration = all_configs,algo_study = all_algo_study_outputs,
-                forecast = all_fcst, plots = all_plots)) # Output with plot
+                forecast = all_fcst, plots = all_plots)) 
 
   }else{
 
