@@ -182,3 +182,45 @@ mape <- function(real, pred){
 }
 
 #---
+
+# Winsorize imputation ----------------------------------------------------
+
+#' Winsorize imputation
+#'
+#' This function replaces outliers by an expected value given the 5% and 95% percentiles of the
+#' error component plus the denoised series.
+#' @param series numeric or ts. Time series to be cleansed.
+#' @param na_marker logical or binary indicator that defines which observation should be take out of the
+#' loess decomposition.
+#'
+#' @return numeric cleansed series
+#' @export
+#' 
+#' @importFrom stlplus stlplus
+#' @importFrom magrittr %>%
+#' @importFrom tibble as_tibble
+#'
+#' @examples na_wins
+na_winsorize <- function(series, na_marker=NULL){
+  series_na <- series
+  series_na[na_marker==1] <- NA
+  series_decomp <- as_tibble(stlplus(series_na, n.p = 12, s.window = "periodic", )[["data"]][,c(1:4)]) %>% 
+    mutate(original = series
+           , series_denoise = seasonal + trend)
+  series_decomp %>% 
+    mutate(index = 1:n()
+           , remainder_winso = case_when(
+             remainder < quantile(remainder, probs = 0.05, na.rm = T) ~ quantile(remainder, probs = 0.05, na.rm = T)
+             , remainder > quantile(remainder, probs = 0.95, na.rm = T) ~ quantile(remainder, probs = 0.95, na.rm = T)
+             , TRUE ~ remainder)
+           , thres_low = series_denoise + quantile(remainder, probs = 0.05, na.rm = T)
+           , thres_up = series_denoise + quantile(remainder, probs = 0.95, na.rm = T)
+           , clean = case_when(
+             abs(original - thres_low) < abs(original - thres_up) & is.na(raw) == T ~ thres_low
+             , abs(original - thres_low) > abs(original - thres_up) & is.na(raw) == T ~ thres_up
+             , original > thres_up ~ thres_up
+             , original < thres_low ~ thres_low
+             , TRUE ~ original)) %>% 
+    pull(clean) %>% 
+    round(1)
+}
