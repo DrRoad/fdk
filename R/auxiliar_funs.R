@@ -179,4 +179,10 @@ ts_split <- function(data, test_size, lag){
 
 mape <- function(real, pred){
   return(round((abs(real-pred)/real),3))
+<<<<<<< HEAD
 }
+=======
+}
+
+#---
+>>>>>>> 882cbd8ad54f88f08438ed1a6b51286ec3c5651c
