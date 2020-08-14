@@ -8,15 +8,22 @@
 #' @param series numeric or ts. Time series to be cleansed.
 #' @param na_marker logical or binary indicator that defines which observation should be take out of the
 #' loess decomposition.
+#' @param frequency numeric. Time series frequency
+#' @param print_all logical. Whether to print all time series components.
 #'
+#' @author Obryan Poyser
 #' @return numeric cleansed series
 #' @export
 #' 
 #' @importFrom stlplus stlplus
 #' @importFrom magrittr %>%
 #' @importFrom tibble as_tibble
+#' @import dplyr
 #'
-#' @examples na_wins
+#' @examples
+#' \dontrun{
+#' na_winsorize(AirPassengers)
+#' }
 na_winsorize <- function(series, na_marker=NULL, frequency = 12, print_all = FALSE){
   if(any(is.na(series))==T){
     series_na <- series
@@ -59,7 +66,8 @@ na_winsorize <- function(series, na_marker=NULL, frequency = 12, print_all = FAL
 #' mean, median, nearest, interpolation.  
 #' @param ... other arguments of the base functions.
 #'
-#' @import impuTS
+#' @author Obryan Poyser
+#' @import imputeTS
 #' @return
 #' @noRd
 #'
@@ -84,6 +92,21 @@ imputation_switcher <- function(series, method, frequency=12, ...){
 
 # Cleansing ---------------------------------------------------------------
 
+#' Cleansing function
+#' 
+#' This function collects the data and applies imputation, time series cuts and leading zeros filtering
+#'
+#' @param data tibble or data frames
+#' @param method string. Method to be applied to the time series. Options: kalman, winsorize, 
+#' mean, median, nearest, interpolation
+#' @param frequency time series frequency
+#' @param regressors string. vector of regressors used to mark as NA's to apply cleansing methods.
+#' @param keep_old logical. Keep or not the old dependent variable (time series)
+#'
+#' @return
+#' @export
+#'
+#' @examples
 cleansing <- function(data, method, frequency = 12, regressors = NULL, keep_old = FALSE){
   
   if(is.null(regressors)==F & method == "winsorize"){

@@ -1,6 +1,22 @@
-
-# optim glmnet
-
+#' Hyperparameter optimization for a glmnet model
+#'
+#' @param data Data-frame.
+#' @param hyperparam List. Hyperparameters to be used for estimation. There are 4 hyperparameters: first, 
+#' *alpha* in the space [0,1] controls whether it is a Ridge (L2) a LASSO (L1) shrinkage method, respectively.
+#' Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
+#' The other 2 hyperparameters are time weights and trend discount.
+#' @param random_sample Numeric. In the space [0,1] defines the Random Search to Grid Search hyperparameter
+#' search process, respectively. It is set as 20% random sample by default.
+#' @param config List. Configuration that defines the task to be performed.
+#'
+#' @return
+#' @export
+#' @import glmnet
+#' @import dplyr
+#' @import purrr
+#' @import furrr
+#'
+#' @examples
 optim_glmnet <- function(data, hyperparam, random_sample = .2, config){
   
   optim_glmnet_int <- function(hyperparam_i, splits){

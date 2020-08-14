@@ -1,6 +1,24 @@
 
-# get_glmnet
-
+#' Fit a Regulalized Generalized Linear Model
+#'
+#' @param data Data-frame. with response and regressor variables.
+#' @param hyperparam List. Hyperparameters to be used for estimation. There are 4 hyperparameters: first, 
+#' *alpha* in the space [0,1] controls whether it is a Ridge (L2) a LASSO (L1) shrinkage method, respectively.
+#' Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
+#' The other 2 hyperparameters are time weights and trend discount.
+#' @param config List. Configuration that defines the task to be performed.
+#'
+#' @import dplyr
+#' @import fastDummies
+#' @import glmnet
+#' @author Obryan Poyser
+#' @return
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#'  get_glmnet()
+#' }
 get_glmnet <- function(data, hyperparam, config){
   time_weights_tmp <- get_time_weights(dep_var = data[,1][[1]] # first columen
                                        , time_weight = hyperparam[["glmnet"]][["time_weight"]])
@@ -25,7 +43,7 @@ get_glmnet <- function(data, hyperparam, config){
   y_train <- data[,1][[1]] # it is assumed that the first var is the dependent
   x_train <- data[,-1] %>% 
     #mutate_at(.vars = factor_vars, as.factor) %>% 
-    fastDummies::dummy_cols(select_columns = factor_vars, remove_first_dummy = T
+    dummy_cols(select_columns = factor_vars, remove_first_dummy = T
                             , remove_selected_columns = T) %>% 
     as.matrix()
   

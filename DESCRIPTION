@@ -10,27 +10,19 @@ Authors@R:
            role = c("aut","cre"),
            email = "ignasi.pascual@sanofi.com")
 Description: This package provides functions and tools for advanced statistical forecasting
-License: Proprietary 
+License: GPL 
 Encoding: UTF-8
 LazyData: true
 Depends: 
-    R (>= 3.6),
-    dplyr,
-    forecast,
-    tidyverse,
-    seastests,
-    tsfeatures,
-    dplyr,
-    lubridate,
-    dvmisc,
-    ggplot2,
-    fastDummies,
-    prophet,
-    forecTheta,
-    imputeTS,
-    tsibble,
-    glmnet,
-    foreach,
-    doSNOW,
-    snow
+    R (>= 3.6)
+Imports:
+    DescTools, changepoint, doSNOW, dplyr, dvmisc, fastDummies, foreach, forecTheta, forecast, 
+    ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, prophet, purrr, readr, readxl, rlang, 
+    magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tidyverse, tsfeatures, tsibble
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
 RoxygenNote: 7.1.1
+
+

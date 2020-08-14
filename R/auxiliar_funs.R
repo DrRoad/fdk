@@ -20,8 +20,20 @@ check_inputs <- function(data){
   # Format checks
 }
 
-# check seasonality -------------------------------
-
+#' Detect seasonality
+#' 
+#' This is a consensus tool to decide if a time series exhibit regular patterns over time.
+#' 
+#' The consensus is formed as Kruskal test, seasonal strength, and statistical significance
+#' of a linear regression model. Rule: if 2 out of 3 methods show evidence in favor of seasonality
+#' then, the data will employ seasonal models to generate the forecast.
+#'
+#' @param data numeric. Time series data
+#'
+#' @return
+#' @export
+#'
+#' @examples
 detect_seasonality <- function(data){
   # Aux functions
   seas_test_kw <- function(ts){
@@ -77,7 +89,7 @@ detect_seasonality <- function(data){
 
 # tscut -------------------------------
 
-tscut = function(time.series){
+tscut <- function(time.series){
   if(length(time.series)<25){ # same as Kinaxis
     new.ts = time.series  
     new.ts = Winsorize(new.ts,na.rm = TRUE)
@@ -103,6 +115,23 @@ tscut = function(time.series){
 
 # Regression helpers -------------------------------
 
+#' Generate trend discounts
+#' 
+#' Regression based models use a linear trend to account for the change in level over time. 
+#' In practical terms, it is measured as a vector of equidistant integers.
+#' Often, the trend component can significantly impact the forecast in the long run. One way to solve
+#' this issue is to apply a "discount" on the trend vector, henceforth, reducing the marginal effect on the 
+#' predictions.
+#' @param data_length numeric. Length of the time series
+#' @param trend_discount numeric. How rapidly the trend reach the stability
+#' @param horizon numeric. How far in time to produce trend discounts.
+#' @param lag numeric. Lag to be used for cross-validation purposes.
+#'
+#' @author Obryan Poyser
+#' @return
+#' @export
+#'
+#' @examples
 get_trend_discounts <- function(data_length, trend_discount, horizon=NULL, lag = NULL){
   if(length(data_length)>1){
     data_length <- length(data_length)
@@ -124,11 +153,32 @@ get_trend_discounts <- function(data_length, trend_discount, horizon=NULL, lag =
   }
 }
 
+#' Generate time weights
+#'
+#' @param dep_var numeric. Time series vector data.
+#' @param time_weight numeric. How rapidly recent observations weight for estimation.
+#' @author Obryan Poyser
+#' @return
+#' @export
+#'
+#' @examples
 get_time_weights <- function(dep_var, time_weight){
   if(length(time_weight)!=1) stop("Only one time weight value should be provided")
   time_weight^(length(1:length(dep_var))-(1:length(dep_var)))^2
 }
 
+#' Generate regression matrix for regression based models
+#' 
+#' This function takes the metadata from the fit to generate a template of the
+#' dependent variables to make forecast.
+#'
+#' @param fit_output metadata from regression fit
+#' @param horizon numeric. How far in time to produce a xvar matrix.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 make_reg_matrix <- function(fit_output, horizon){
   tmp_tibble <- tibble(.rows = horizon)
   for(i in 1:length(fit_output$model_summary$regressor_names)){
@@ -179,10 +229,4 @@ ts_split <- function(data, test_size, lag){
 
 mape <- function(real, pred){
   return(round((abs(real-pred)/real),3))
-<<<<<<< HEAD
-}
-=======
-}
-
-#---
->>>>>>> 882cbd8ad54f88f08438ed1a6b51286ec3c5651c
+  }
