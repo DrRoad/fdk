@@ -54,10 +54,12 @@ na_winsorize <- function(series, na_marker=NULL, frequency = 12, print_all = FAL
 
 #' Imputation method switcher
 #'
-#' @param series 
-#' @param method 
-#' @param ... 
+#' @param series time series data
+#' @param method string. Method to be applied to the time series. Options: kalman, winsorize, 
+#' mean, median, nearest, interpolation.  
+#' @param ... other arguments of the base functions.
 #'
+#' @import impuTS
 #' @return
 #' @noRd
 #'
@@ -65,17 +67,17 @@ na_winsorize <- function(series, na_marker=NULL, frequency = 12, print_all = FAL
 imputation_switcher <- function(series, method, frequency=12, ...){
   series <- ts(series, frequency = frequency, start = c(1, 1))
   if(method == "kalman"){
-    as.numeric(imputeTS::na_seadec(x = series, algorithm = "kalman", ...))
+    as.numeric(na_seadec(x = series, algorithm = "kalman", ...))
   } else if(method == "winsorize") {
     na_winsorize(series = series, ...)
     } else if(method == "mean") {
-      as.numeric(imputeTS::na_mean(x = series, option = "mean", ...))
+      as.numeric(na_mean(x = series, option = "mean", ...))
       } else if(method == "median") {
-        as.numeric(imputeTS::na_mean(x = series, option = "median", ...))
+        as.numeric(na_mean(x = series, option = "median", ...))
         } else if(method == "nearest") {
-          as.numeric(imputeTS::na_locf(x = series, option = "locf", na_remaining = "rev", ...))
+          as.numeric(na_locf(x = series, option = "locf", na_remaining = "rev", ...))
           } else if(method == "interpolation") {
-            as.numeric(imputeTS::na_interpolation(x = series, option = "linear", ...))
+            as.numeric(na_interpolation(x = series, option = "linear", ...))
             }
 }
 
@@ -107,3 +109,8 @@ cleansing <- function(data, method, frequency = 12, regressors = NULL, keep_old 
       select(y, everything())
   }
 }
+
+
+
+
+
