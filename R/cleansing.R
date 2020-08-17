@@ -61,10 +61,14 @@ na_winsorize <- function(series, na_marker=NULL, frequency = 12, print_all = FAL
 
 #' Imputation method switcher
 #'
-#' @param series time series data
 #' @param method string. Method to be applied to the time series. Options: kalman, winsorize, 
 #' mean, median, nearest, interpolation.  
 #' @param ... other arguments of the base functions.
+#' @param .data 
+#' @param y_var 
+#' @param na_marker 
+#' @param frequency 
+#' @param replace 
 #'
 #' @author Obryan Poyser
 #' @import imputeTS
@@ -72,22 +76,75 @@ na_winsorize <- function(series, na_marker=NULL, frequency = 12, print_all = FAL
 #' @noRd
 #'
 #' @examples
-imputation_switcher <- function(series, method, frequency=12, ...){
-  series <- ts(series, frequency = frequency, start = c(1, 1))
-  if(method == "kalman"){
-    as.numeric(na_seadec(x = series, algorithm = "kalman", ...))
-  } else if(method == "winsorize") {
-    na_winsorize(series = series, ...)
+impute_ts <- function(.data, y_var, method, na_marker, frequency=12, replace = TRUE,...){
+  
+  imputation_switcher <- function(series, method, frequency=frequency, ...){
+    series <- ts(series, frequency = frequency, start = c(1, 1))
+    if(method == "kalman"){
+      as.numeric(na_seadec(x = series, algorithm = "kalman", ...))
+    } else if(method == "winsorize") {
+      na_winsorize(series = series, ...)
     } else if(method == "mean") {
       as.numeric(na_mean(x = series, option = "mean", ...))
-      } else if(method == "median") {
-        as.numeric(na_mean(x = series, option = "median", ...))
-        } else if(method == "nearest") {
-          as.numeric(na_locf(x = series, option = "locf", na_remaining = "rev", ...))
-          } else if(method == "interpolation") {
-            as.numeric(na_interpolation(x = series, option = "linear", ...))
-            }
+    } else if(method == "median") {
+      as.numeric(na_mean(x = series, option = "median", ...))
+    } else if(method == "nearest") {
+      as.numeric(na_locf(x = series, option = "locf", na_remaining = "rev", ...))
+    } else if(method == "interpolation") {
+      as.numeric(na_interpolation(x = series, option = "linear", ...))
+    }
+  }
+  
+  
+  if(missing(na_marker)==FALSE){
+    
+    na_marker <- .data %>% # na marker is formed as columns different from 0, thus, no reg_value
+      select({{na_marker}}) %>% 
+      rowSums()!=0
+    
+    if(length(method)==1){ # method selection, one or many
+      tmp <- .data %>% 
+        mutate(na_marker = na_marker
+               , y_clean = ifelse(na_marker == 1, NA, {{y_var}}) %>%
+                                    imputation_switcher(method = method
+                                                        , frequency = frequency)) %>% 
+        select(-na_marker)
+      
+      } else { # many methods create a tibble with method colnames
+        tmp <- .data %>% 
+        mutate(na_marker = na_marker
+               , y_clean = ifelse(na_marker == 1, NA, {{y_var}}))
+      
+      suppressMessages(
+        tmp %>% 
+          bind_cols(
+            map(method, .f = ~imputation_switcher(series = tmp[["y_clean"]]
+                                                  , method = .x
+                                                  , frequency = frequency)) %>% 
+              bind_cols() %>% 
+              setNames(nm = paste0("y_", method))
+          ) %>% 
+          select(-y_clean, -na_marker)
+      )
+    }
+  } else if(missing(na_marker)==TRUE) { # Winsorize imputation if no regressors
+    tmp <- .data %>% 
+      mutate(y_clean = imputation_switcher(series = {{y_var}}
+                                           , method = "winsorize", frequency = frequency))
+  }
+  
+  if(replace == TRUE){ # by default, there is a substitution of the yvar
+    tmp %>% 
+      mutate(!!quo({{y_var}}) := y_clean) %>% # masking names
+      select(-y_clean)
+  } else {
+    tmp
+  }
 }
+
+
+demo_1 %>% 
+  impute_ts(y_var = volume, method = "winsorize", replace = F)
 
 
 # Cleansing ---------------------------------------------------------------
