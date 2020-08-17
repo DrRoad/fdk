@@ -1,8 +1,11 @@
-
-# aux functions
-
-# check inputs -------------------------------
-
+#' Check inputs
+#'
+#' @param data DataFrame
+#'
+#' @return
+#' @export
+#' @noRd
+#' @examples
 check_inputs <- function(data){
   # Colnames checks
   if(colnames(data)[1]!="key"){
@@ -87,30 +90,38 @@ detect_seasonality <- function(data){
   }
 }
 
-# tscut -------------------------------
-
-tscut <- function(time.series){
-  if(length(time.series)<25){ # same as Kinaxis
-    new.ts = time.series  
+#' Cut time series
+#' 
+#' This function provides a solution to find breaks in the signal and suggest a new starting point
+#'
+#' @param time_series ts object 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+tscut <- function(time_series){
+  if(length(time_series)<25){ # same as Kinaxis
+    new.ts = time_series  
     new.ts = Winsorize(new.ts,na.rm = TRUE)
-    if(sum(new.ts, na.rm = T) == 0){new.ts =time.series } # if outlier method changes all values to zero, revert back to original ts
+    if(sum(new.ts, na.rm = T) == 0){new.ts =time_series } # if outlier method changes all values to zero, revert back to original ts
     new.ts[new.ts<0]=0 # Coerce negative values to zero  
     return(new.ts = new.ts)
   }
-  if(length(time.series)>=25){
-    rstl = stl(time.series,s.window = "periodic",robust = T)
-    resi = rstl$time.series[,3]
+  if(length(time_series)>=25){
+    rstl = stl(time_series,s.window = "periodic",robust = T)
+    resi = rstl$time_series[,3]
     resi.new = resi
     win.resi = Winsorize(resi,na.rm = T )
     resi.new[resi.new< min(win.resi) ] = min(win.resi)  #lower threshold
     resi.new[resi.new> max(win.resi) ] = max(win.resi)  #upper threshold
     adjustment = resi.new -resi            
-    new.ts = time.series + adjustment
-    if(sum(new.ts[!(is.na(new.ts))]) == 0){new.ts =time.series }    # if outlier method changes all values to zero, revert back to original ts
+    new.ts = time_series + adjustment
+    if(sum(new.ts[!(is.na(new.ts))]) == 0){new.ts =time_series }    # if outlier method changes all values to zero, revert back to original ts
     new.ts[new.ts<0]=0         # Coerce negative values to zero 
     return(new.ts = new.ts)
   }
-  return(new.ts = time.series)
+  return(new.ts = time_series)
 }
 
 # Regression helpers -------------------------------
@@ -199,6 +210,21 @@ make_reg_matrix <- function(fit_output, horizon){
 
 # Main ts_split function
 
+#' Time Series Cross-Validation split
+#' 
+#' Time series CV split heuristics should keep temporal dependencies, henceforth, the sample should not 
+#' be "shuffled" into train and test. This function uses a different strategy to define the test and train sets
+#' maintain the order of the data.
+#'
+#' @param data DataFrame or tibble
+#' @param test_size Numeric. How many periods will be use to asses the forecast accuracy.
+#' @param lag Numeric. How many periods ahead to start the test size. 
+#' @param i Numeric. Iteration.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 ts_split_all <- function(data, test_size, lag, i){
   if(class(data)[1] == "ts"){
     ts_len <- length(data)
@@ -213,8 +239,16 @@ ts_split_all <- function(data, test_size, lag, i){
   }
 }
 
-# ts split for glmnet & mlr (Map)
-
+#' Automatic Time Series Cross-Validation split
+#'
+#' @param data DataFrame, tibble or tsibble structures.
+#' @param test_size Numeric. How many periods will be use to asses the forecast accuracy.
+#' @param lag Numeric. How many periods ahead to start the test size. 
+#'
+#' @return
+#' @export
+#'
+#' @examples
 ts_split <- function(data, test_size, lag){
   ts_split_helper <- function(data, test_size, lag, iter){
     ts_len <- length(data[,1][[1]])
@@ -225,8 +259,17 @@ ts_split <- function(data, test_size, lag){
   map(1:test_size, ~ts_split_helper(data = data, test_size = test_size, lag = lag, iter = .x))
 }
 
-# mape -------------------------------
-
+#' MAPE
+#' 
+#' Mean Average Prediction Error forecast accuracy metric
+#'
+#' @param real Numeric. Observed value.
+#' @param pred Numeric. Predicted value.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 mape <- function(real, pred){
   return(round((abs(real-pred)/real),3))
   }

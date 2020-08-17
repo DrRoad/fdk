@@ -1,5 +1,6 @@
-
-#' Autoforecast function
+#' Autoforecast
+#' 
+#' This function conforms the forecast pipeline
 #'
 #' @param data A data frame with a unique key, y (quantity), date and regressors
 #' @param frequency By default: 12. Other frequencies will be allowed in next versions
@@ -13,9 +14,11 @@
 #' @param allow_seas By default: TRUE. This will allow seasonal models to be explored and forecasted.
 #' @param plot_output By default: TRUE. This will save the plots in memory.
 #' @param h By default: 36. Forecasting horizon
-
-# autoforecast
-
+#'
+#' @return
+#' @export
+#'
+#' @examples
 autoforecast <- function(data, frequency = 12, models, algo_study = TRUE, test_size = 6,
                          lag = 4, output_models = c(1:3), clean_series = TRUE, 
                          parameters = NULL, allow_seas = TRUE, plot_output = TRUE, h = 36){
