@@ -139,7 +139,7 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
     } else if (length(method) == 1 & method == "winsorize") { # if only one method is selected
       
       tmp <- .data %>%
-        mutate(y_clean = imputation_switcher(
+        mutate(yvar_clean = imputation_switcher(
           yvar = {{ yvar }},
           method = method,
           frequency = frequency,
@@ -149,7 +149,7 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
       tmp <- .data %>%
         mutate(
           na_marker_int = na_marker_int,
-          y_clean = ifelse(na_marker_int == 1, NA, {{ yvar }}) %>%
+          yvar_clean = ifelse(na_marker_int == 1, NA, {{ yvar }}) %>%
             imputation_switcher(
               method = method,
               frequency = frequency
@@ -160,7 +160,7 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
   } else if (is.null(na_exclude) == T) { # Winsorize imputation if no regressors
     message(paste0("Even though you've selected: {", method, "}. There are no NA's to replace, winsorize has been applied instead"))
     tmp <- .data %>%
-      mutate(y_clean = imputation_switcher(
+      mutate(yvar_clean = imputation_switcher(
         yvar = {{ yvar }},
         method = "winsorize",
         frequency = frequency
@@ -169,8 +169,8 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
   
   if (replace == TRUE) {
     tmp %>%
-      mutate(!!quo({{ yvar }}) := y_clean) %>% # masking names
-      select(-y_clean)
+      mutate(!!quo({{ yvar }}) := yvar_clean) %>% # masking names
+      select(-yvar_clean)
   } else {
     tmp
   }
@@ -197,10 +197,11 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
 #' @export
 #'
 #' @examples
-cleansing <- function(.data, yvar, method, frequency = 12, na_exclude = NULL, ...){
+cleansing <- function(.data, yvar, method, frequency = 12, na_exclude = NULL, replace = T, ...){
   .data %>% 
     filter(cumsum({{yvar}})>0) %>% # Leading zeros
-    impute_ts(yvar = {{yvar}}, method = method, na_exclude = na_exclude, frequency = frequency, replace = T, ...)
+    impute_ts(yvar = {{yvar}}, method = method, na_exclude = na_exclude, frequency = frequency, replace = replace, ...) %>% 
+    rename(yvar = {{yvar}})
 }
 
 

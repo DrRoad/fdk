@@ -71,5 +71,5 @@ demo_1 %>%
            , .rows = 10)
   ) %>%
   arrange(date) %>% 
-  cleansing(yvar = volume, method = "kalman")
+  cleansing(yvar = volume, method = "kalman", na_exclude = c("forecast_item", "date", "volume"), replace = F)
 
