@@ -100,28 +100,32 @@ detect_seasonality <- function(data){
 #' @export
 #'
 #' @examples
-tscut <- function(time_series){
-  if(length(time_series)<25){ # same as Kinaxis
-    new.ts = time_series  
+ts_cut <- function(yvar, frequency){
+  if(is.numeric(yvar)==T){
+    yvar <- ts(yvar, start = c(1,1), frequency = frequency)
+  }
+  
+  if(length(yvar)<25){ # same as Kinaxis
+    new.ts = yvar  
     new.ts = Winsorize(new.ts,na.rm = TRUE)
-    if(sum(new.ts, na.rm = T) == 0){new.ts =time_series } # if outlier method changes all values to zero, revert back to original ts
+    if(sum(new.ts, na.rm = T) == 0){new.ts =yvar } # if outlier method changes all values to zero, revert back to original ts
     new.ts[new.ts<0]=0 # Coerce negative values to zero  
     return(new.ts = new.ts)
   }
-  if(length(time_series)>=25){
-    rstl = stl(time_series,s.window = "periodic",robust = T)
-    resi = rstl$time_series[,3]
+  if(length(yvar)>=25){
+    rstl = stl(yvar,s.window = "periodic",robust = T)
+    resi = rstl$yvar[,3]
     resi.new = resi
     win.resi = Winsorize(resi,na.rm = T )
-    resi.new[resi.new< min(win.resi) ] = min(win.resi)  #lower threshold
-    resi.new[resi.new> max(win.resi) ] = max(win.resi)  #upper threshold
+    resi.new[resi.new < min(win.resi) ] = min(win.resi)  #lower threshold
+    resi.new[resi.new > max(win.resi) ] = max(win.resi)  #upper threshold
     adjustment = resi.new -resi            
-    new.ts = time_series + adjustment
-    if(sum(new.ts[!(is.na(new.ts))]) == 0){new.ts =time_series }    # if outlier method changes all values to zero, revert back to original ts
+    new.ts = yvar + adjustment
+    if(sum(new.ts[!(is.na(new.ts))]) == 0){new.ts =yvar }    # if outlier method changes all values to zero, revert back to original ts
     new.ts[new.ts<0]=0         # Coerce negative values to zero 
     return(new.ts = new.ts)
   }
-  return(new.ts = time_series)
+  return(new.ts = yvar)
 }
 
 # Regression helpers -------------------------------
