@@ -24,172 +24,184 @@
 #' \dontrun{
 #' na_winsorize(AirPassengers)
 #' }
-na_winsorize <- function(series, na_marker=NULL, frequency = 12, print_all = FALSE){
-  if(any(is.na(series))==T){
-    series_na <- series
+na_winsorize <- function(yvar, na_marker=NULL, frequency = 12, print_all = FALSE){
+  if(is.null(na_marker)==FALSE){
+    yvar_na <- yvar
+    yvar_na[na_marker==1] <- NA
   } else {
-    series_na <- series
-    series_na[na_marker==1] <- NA
+    yvar_na <- yvar
   }
   
-  series_decomp <- as_tibble(stlplus(series_na, n.p = frequency, s.window = "periodic", )[["data"]][,c(1:4)]) %>% 
-    mutate(original = series
-           , series_denoise = seasonal + trend)
-  tmp_out <- series_decomp %>% 
-    mutate(index = 1:n()
-           , remainder_winso = case_when(
+  yvar_decomp <- as_tibble(stlplus(yvar_na, n.p = frequency
+                                     , s.window = "periodic", )[["data"]][,c(1:4)]) %>% 
+    mutate(original = as.numeric(yvar)
+           , yvar_denoise = seasonal + trend)
+  
+  tmp_out <- yvar_decomp %>% 
+    mutate(remainder_winso = case_when(
              remainder < quantile(remainder, probs = 0.05, na.rm = T) ~ quantile(remainder, probs = 0.05, na.rm = T)
              , remainder > quantile(remainder, probs = 0.95, na.rm = T) ~ quantile(remainder, probs = 0.95, na.rm = T)
              , TRUE ~ remainder)
-           , thres_low = series_denoise + quantile(remainder, probs = 0.05, na.rm = T)
-           , thres_up = series_denoise + quantile(remainder, probs = 0.95, na.rm = T)
-           , clean = case_when(
+           , thres_low = yvar_denoise + quantile(remainder, probs = 0.05, na.rm = T)
+           , thres_up = yvar_denoise + quantile(remainder, probs = 0.95, na.rm = T)
+           , yvar_clean = case_when(
              original > thres_up ~ thres_up
              , original < thres_low ~ thres_low
-             , abs(series_denoise - thres_low) < abs(series_denoise - thres_up) & is.na(raw) == T ~ thres_low
-             , abs(series_denoise - thres_low) > abs(series_denoise - thres_up) & is.na(raw) == T ~ thres_up
+             , yvar_denoise > median(yvar_denoise) & is.na(raw) == T ~ thres_up
+             , yvar_denoise < median(yvar_denoise) & is.na(raw) == T ~ thres_low
              , TRUE ~ original))
   
   if(print_all == FALSE){
     tmp_out %>% 
-      .[["clean"]] %>% 
+      .[["yvar_clean"]] %>% 
       round(1)
   } else {
     tmp_out
   }
 }
 
-#' Imputation method switcher
+#' Time series imputation
 #'
-#' @param method string. Method to be applied to the time series. Options: kalman, winsorize, 
-#' mean, median, nearest, interpolation.  
-#' @param ... other arguments of the base functions.
-#' @param .data 
-#' @param y_var 
-#' @param na_marker 
-#' @param frequency 
-#' @param replace 
-#'
-#' @author Obryan Poyser
+#' @param .data DataFrame or tibble.
+#' @param yvar Quoted or unquoted variable name to be cleansed.
+#' @param method Method to be applied to the time series. Options: kalman, winsorize, 
+#' mean, median, nearest observation, interpolation. If more than one method is chosen, a set of new columns
+#' is automatically generated.
+#' @param na_exclude Vector of names that **should not** be used to replace the observation by NA.
+#' @param frequency Time series frequency.
+#' @param replace Logical. If replace = TRUE (default) it will 
+#' replace the previous yvar by its cleansed/imputated version. Otherwise, a "y_clean" column will
+#' be attached to the data matrix.
+#' @param ... Other parameter
+#' 
 #' @import imputeTS
+#' @import dplyr
+#' @import stats
+#' @import rlang
+#' @author Obryan Poyser
 #' @return
-#' @noRd
+#' @export
 #'
 #' @examples
-impute_ts <- function(.data, y_var, method, na_marker, frequency=12, replace = TRUE,...){
+impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, replace = TRUE, ...) {
   
-  imputation_switcher <- function(series, method, frequency=frequency, ...){
-    series <- ts(series, frequency = frequency, start = c(1, 1))
-    if(method == "kalman"){
-      as.numeric(na_seadec(x = series, algorithm = "kalman", ...))
-    } else if(method == "winsorize") {
-      na_winsorize(series = series, ...)
-    } else if(method == "mean") {
-      as.numeric(na_mean(x = series, option = "mean", ...))
-    } else if(method == "median") {
-      as.numeric(na_mean(x = series, option = "median", ...))
-    } else if(method == "nearest") {
-      as.numeric(na_locf(x = series, option = "locf", na_remaining = "rev", ...))
-    } else if(method == "interpolation") {
-      as.numeric(na_interpolation(x = series, option = "linear", ...))
+  imputation_switcher <- function(yvar, method, frequency = frequency, ...) {
+    yvar <- ts(yvar, frequency = frequency, start = c(1, 1))
+    if (method == "kalman") {
+      as.numeric(na_seadec(x = yvar, algorithm = "kalman", ...))
+    } else if (method == "winsorize") {
+      na_winsorize(yvar = yvar, ...)
+    } else if (method == "mean") {
+      as.numeric(na_mean(x = yvar, option = "mean", ...))
+    } else if (method == "median") {
+      as.numeric(na_mean(x = yvar, option = "median", ...))
+    } else if (method == "nearest") {
+      as.numeric(na_locf(x = yvar, option = "locf", na_remaining = "rev", ...))
+    } else if (method == "interpolation") {
+      as.numeric(na_interpolation(x = yvar, option = "linear", ...))
     }
   }
   
   
-  if(missing(na_marker)==FALSE){
+  if (is.null(na_exclude) == FALSE) {
+    na_marker_int <- .data %>% # na marker is formed as columns different from 0, thus, no reg_value
+      select(-{{ na_exclude }}) %>% # exclude rule to the data.frame
+      rowSums() != 0
     
-    na_marker <- .data %>% # na marker is formed as columns different from 0, thus, no reg_value
-      select({{na_marker}}) %>% 
-      rowSums()!=0
-    
-    if(length(method)==1){ # method selection, one or many
-      tmp <- .data %>% 
-        mutate(na_marker = na_marker
-               , y_clean = ifelse(na_marker == 1, NA, {{y_var}}) %>%
-                                    imputation_switcher(method = method
-                                                        , frequency = frequency)) %>% 
-        select(-na_marker)
+    if (length(method) > 1) { # many methods create a tibble with method colnames
       
-      } else { # many methods create a tibble with method colnames
-        tmp <- .data %>% 
-        mutate(na_marker = na_marker
-               , y_clean = ifelse(na_marker == 1, NA, {{y_var}}))
+      tmp <- .data %>%
+        mutate(
+          na_marker_int = na_marker_int,
+          yvar_na = ifelse(na_marker_int == 1, NA, {{ yvar }})
+        )
       
-      suppressMessages(
-        tmp %>% 
-          bind_cols(
-            map(method, .f = ~imputation_switcher(series = tmp[["y_clean"]]
-                                                  , method = .x
-                                                  , frequency = frequency)) %>% 
-              bind_cols() %>% 
-              setNames(nm = paste0("y_", method))
-          ) %>% 
-          select(-y_clean, -na_marker)
+      return(
+        suppressMessages(
+          tmp %>%
+            bind_cols(
+              map(setdiff(method, "winsorize")
+                  , .f = ~ imputation_switcher(
+                    yvar = tmp[["yvar_na"]]
+                    , method = .x
+                    , frequency = frequency
+                    )) %>%
+                setNames(nm = paste0("yvar_", setdiff(method, "winsorize")))
+              , imputation_switcher(yvar = (tmp %>% pull(volume))
+                                    , method = "winsorize"
+                                    , frequency = frequency
+                                    , na_marker = na_marker_int) %>% 
+                tibble(yvar_winsorize = .)
+              ) %>%
+            select(-yvar_na, -na_marker_int)
+        )
       )
+    } else if (length(method) == 1 & method == "winsorize") { # if only one method is selected
+      
+      tmp <- .data %>%
+        mutate(y_clean = imputation_switcher(
+          yvar = {{ yvar }},
+          method = method,
+          frequency = frequency,
+          na_marker = na_marker_int
+        ))
+    } else if (length(method) == 1 & method != "winsorize") {
+      tmp <- .data %>%
+        mutate(
+          na_marker_int = na_marker_int,
+          y_clean = ifelse(na_marker_int == 1, NA, {{ yvar }}) %>%
+            imputation_switcher(
+              method = method,
+              frequency = frequency
+            )
+        ) %>%
+        select(-na_marker_int)
     }
-  } else if(missing(na_marker)==TRUE) { # Winsorize imputation if no regressors
-    tmp <- .data %>% 
-      mutate(y_clean = imputation_switcher(series = {{y_var}}
-                                           , method = "winsorize", frequency = frequency))
+  } else if (is.null(na_exclude) == T) { # Winsorize imputation if no regressors
+    message(paste0("Even though you've selected: {", method, "}. There are no NA's to replace, winsorize has been applied instead"))
+    tmp <- .data %>%
+      mutate(y_clean = imputation_switcher(
+        yvar = {{ yvar }},
+        method = "winsorize",
+        frequency = frequency
+      ))
   }
   
-  if(replace == TRUE){ # by default, there is a substitution of the yvar
-    tmp %>% 
-      mutate(!!quo({{y_var}}) := y_clean) %>% # masking names
+  if (replace == TRUE) {
+    tmp %>%
+      mutate(!!quo({{ yvar }}) := y_clean) %>% # masking names
       select(-y_clean)
   } else {
     tmp
   }
 }
 
-
-demo_1 %>% 
-  impute_ts(y_var = volume, method = "winsorize", replace = F)
-
-
 # Cleansing ---------------------------------------------------------------
 
-#' Cleansing function
+#' Time Series Cleansing
 #' 
 #' This function collects the data and applies imputation, time series cuts and leading zeros filtering
 #'
-#' @param data tibble or data frames
-#' @param method string. Method to be applied to the time series. Options: kalman, winsorize, 
-#' mean, median, nearest, interpolation
-#' @param frequency time series frequency
-#' @param regressors string. vector of regressors used to mark as NA's to apply cleansing methods.
-#' @param keep_old logical. Keep or not the old dependent variable (time series)
+#' @param .data DataFrame or tibble.
+#' @param yvar Quoted or unquoted variable name to be cleansed.
+#' @param method Method to be applied to the time series. Options: kalman, winsorize, 
+#' mean, median, nearest observation, interpolation. If more than one method is chosen, a set of new columns
+#' is automatically generated.
+#' @param na_exclude Vector of names that **should not** be used to replace the observation by NA.
+#' @param frequency Time series frequency.
+#' @param replace Logical. If replace = TRUE (default) it will 
+#' replace the previous yvar by its cleansed/imputated version. Otherwise, a "y_clean" column will
+#' be attached to the data matrix.
 #'
 #' @return
 #' @export
 #'
 #' @examples
-cleansing <- function(data, method, frequency = 12, regressors = NULL, keep_old = FALSE){
-  
-  if(is.null(regressors)==F & method == "winsorize"){
-    na_marker <- rowSums(data[regressors])==0
-    tmp_out <- data %>% 
-      filter(cumsum(y)>0) %>% 
-      mutate(y_clean = imputation_switcher(series = y, method = method
-                                           , frequency = frequency, na_marker = na_marker)
-             , .after = "y")
-  } else {
-    tmp_out <- data %>% 
-      filter(cumsum(y)>0) %>% 
-      mutate(y_clean = imputation_switcher(series = y, method = method, frequency = frequency)
-             , .after = "y")
-  }
-  
-  if(keep_old == TRUE){
-    tmp_out
-  } else {
-    tmp_out %>% 
-      select(-y) %>% 
-      rename(y = y_clean) %>% 
-      select(y, everything())
-  }
+cleansing <- function(.data, yvar, method, frequency = 12, na_exclude = NULL, ...){
+  .data %>% 
+    filter(cumsum({{yvar}})>0) %>% # Leading zeros
+    impute_ts(yvar = {{yvar}}, method = method, na_exclude = na_exclude, frequency = frequency, replace = T, ...)
 }
-
 
 
 
