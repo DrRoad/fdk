@@ -4,10 +4,10 @@
 \alias{make_reg_matrix}
 \title{Generate regression matrix for regression based models}
 \usage{
-make_reg_matrix(fit_output, horizon)
+make_reg_matrix(.fit_output, horizon)
 }
 \arguments{
-\item{fit_output}{metadata from regression fit}
+\item{.fit_output}{metadata from regression fit}
 
 \item{horizon}{numeric. How far in time to produce a xvar matrix.}
 }

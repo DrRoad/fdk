@@ -1,19 +1,4 @@
 
-# gen_fcst
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
   
   # Frequency Handling --------------
@@ -171,13 +156,22 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
 }
 
 
-get_forecast <- function(.model_output, horizon){
-  if(.model_output[["model"]]=="arima"){
+get_forecast <- function(.fit_output, horizon){
+  if(.fit_output[["model"]]=="arima"){
     tibble(
-      date = seq.Date(from = (.model_output$meta_data$max_date + months(1)), length.out = horizon, by = "months")
-      , forecast = as.numeric(forecast(.model_output[["model_fit"]], horizon)[["mean"]])
-      , model = .model_output$model
+      date = seq.Date(from = (.fit_output$meta_data$max_date + months(1)), length.out = horizon, by = "months")
+      , forecast = as.numeric(forecast(.fit_output[["model_fit"]], horizon)[["mean"]])
+      , model = .fit_output$model
     )
+  } else if(.fit_output[["model"]]=="glmnet"){
+    x_var <- make_reg_matrix(.fit_output = .fit_output, horizon = horizon)
+    predict.glmnet(object = .fit_output$model_fit, newx = x_var) %>%
+      as.vector() %>% 
+      enframe(name = "date", value = "forecast") %>% 
+      mutate(date = seq.Date(from = (.fit_output$prescription$max_date + months(1))
+                             , by = .fit_output$prescription$frequency
+                             , length.out = horizon)
+             , model = "glmnet")
   }
 }
 

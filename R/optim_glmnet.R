@@ -17,11 +17,10 @@
 #' @import furrr
 #'
 #' @examples
-optim_glmnet <- function(data, hyperparam, random_sample = .2, config){
-  
+optim_glmnet <- function(.data, hyperparam, random_sample = .2, config){
   optim_glmnet_int <- function(hyperparam_i, splits){
     tmp <- splits[["train"]] %>% 
-      get_glmnet(data = ., hyperparam = list(glmnet = hyperparam_i), config = config) %>% 
+      get_glmnet(.data = ., hyperparam = list(glmnet = hyperparam_i), config = config) %>% 
       get_forecast(fit_output = ., test = splits[["test"]], inherited_details = TRUE)
     
     tmp[["iter"]] <- splits[["pars"]][["iter"]]
@@ -33,7 +32,7 @@ optim_glmnet <- function(data, hyperparam, random_sample = .2, config){
   }
   
   expand_grid(hyperparam = hyperparam[sample(length(hyperparam), size = round(length(hyperparam)*random_sample))]
-              , splits = ts_split(data = data, test_size = 6, lag = config[["lag"]])) %>% 
+              , splits = ts_split(.data = data, test_size = 6, lag = config[["lag"]])) %>% 
     mutate(pred = map2(.x = hyperparam, .y = splits
                        , .f = ~optim_glmnet_int(hyperparam = .x, splits = .y))) %>% 
     select(-splits) %>% 
@@ -48,6 +47,15 @@ optim_glmnet <- function(data, hyperparam, random_sample = .2, config){
     top_n(1, wt = -mape) %>% 
     select(mape = mape, time_weight, trend_discount, alpha, lambda = lambda_median)
 }
+
+
+
+
+
+
+
+
+
 
 # Testing optimization
 

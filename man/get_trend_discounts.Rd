@@ -4,16 +4,16 @@
 \alias{get_trend_discounts}
 \title{Generate trend discounts}
 \usage{
-get_trend_discounts(data_length, trend_discount, horizon = NULL, lag = NULL)
+get_trend_discounts(y_var_length, trend_discount, horizon = NULL, lag = NULL)
 }
 \arguments{
-\item{data_length}{numeric. Length of the time series}
+\item{y_var_length}{Numeric. Length of the time series}
 
-\item{trend_discount}{numeric. How rapidly the trend reach the stability}
+\item{trend_discount}{Numeric. How rapidly the trend reach the stability}
 
-\item{horizon}{numeric. How far in time to produce trend discounts.}
+\item{horizon}{Numeric. How far in time to produce trend discounts.}
 
-\item{lag}{numeric. Lag to be used for cross-validation purposes.}
+\item{lag}{Numeric. Lag to be used for cross-validation purposes.}
 }
 \value{
 

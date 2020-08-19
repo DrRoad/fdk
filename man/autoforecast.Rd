@@ -2,7 +2,7 @@
 % Please edit documentation in R/autoforecast.R
 \name{autoforecast}
 \alias{autoforecast}
-\title{Autoforecast function}
+\title{Autoforecast}
 \usage{
 autoforecast(
   data,
@@ -44,6 +44,9 @@ autoforecast(
 
 \item{h}{By default: 36. Forecasting horizon}
 }
+\value{
+
+}
 \description{
-Autoforecast function
+This function conforms the forecast pipeline
 }

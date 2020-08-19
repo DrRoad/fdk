@@ -2,29 +2,31 @@
 % Please edit documentation in R/get_glmnet.R
 \name{get_glmnet}
 \alias{get_glmnet}
-\title{Fit a Regulalized Generalized Linear Model}
+\title{Fit a Regularized Generalize Linear Model}
 \usage{
-get_glmnet(data, hyperparam, config)
+get_glmnet(.data, y_var, date_var, parameter)
 }
 \arguments{
-\item{data}{Data-frame. with response and regressor variables.}
+\item{.data}{DataFrame or tibble}
 
-\item{hyperparam}{List. Hyperparameters to be used for estimation. There are 4 hyperparameters: first, 
+\item{y_var}{String. Column name of the time series to be forecasted.}
+
+\item{date_var}{String.Column name of the time series to be forecasted.}
+
+\item{parameter}{List. parametereters to be used for estimation. There are 4 parametereters: first,
 *alpha* in the space [0,1] controls whether it is a Ridge (L2) a LASSO (L1) shrinkage method, respectively.
 Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
-The other 2 hyperparameters are time weights and trend discount.}
-
-\item{config}{List. Configuration that defines the task to be performed.}
+The other 2 parametereters are time weights and trend discount.}
 }
 \value{
 
 }
 \description{
-Fit a Regulalized Generalized Linear Model
+Fit a Regularized Generalize Linear Model
 }
 \examples{
 \dontrun{
- get_glmnet()
+get_glmnet()
 }
 }
 \author{

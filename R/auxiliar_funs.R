@@ -1,12 +1,13 @@
 #' Check inputs
 #'
-#' @param data DataFrame
+#' Check for data structure compliance.
+#' @param .data DataFrame
 #'
 #' @return
 #' @export
 #' @noRd
 #' @examples
-check_inputs <- function(data){
+check_inputs <- function(.data){
   # Colnames checks
   if(colnames(data)[1]!="key"){
     print("Check first column name please")
@@ -90,43 +91,6 @@ detect_seasonality <- function(data){
   }
 }
 
-#' Cut time series
-#' 
-#' This function provides a solution to find breaks in the signal and suggest a new starting point
-#'
-#' @param time_series ts object 
-#'
-#' @return
-#' @export
-#'
-#' @examples
-ts_cut <- function(yvar, frequency){
-  if(is.numeric(yvar)==T){
-    yvar <- ts(yvar, start = c(1,1), frequency = frequency)
-  }
-  
-  if(length(yvar)<25){ # same as Kinaxis
-    new.ts = yvar  
-    new.ts = Winsorize(new.ts,na.rm = TRUE)
-    if(sum(new.ts, na.rm = T) == 0){new.ts =yvar } # if outlier method changes all values to zero, revert back to original ts
-    new.ts[new.ts<0]=0 # Coerce negative values to zero  
-    return(new.ts = new.ts)
-  }
-  if(length(yvar)>=25){
-    rstl = stl(yvar,s.window = "periodic",robust = T)
-    resi = rstl$yvar[,3]
-    resi.new = resi
-    win.resi = Winsorize(resi,na.rm = T )
-    resi.new[resi.new < min(win.resi) ] = min(win.resi)  #lower threshold
-    resi.new[resi.new > max(win.resi) ] = max(win.resi)  #upper threshold
-    adjustment = resi.new -resi            
-    new.ts = yvar + adjustment
-    if(sum(new.ts[!(is.na(new.ts))]) == 0){new.ts =yvar }    # if outlier method changes all values to zero, revert back to original ts
-    new.ts[new.ts<0]=0         # Coerce negative values to zero 
-    return(new.ts = new.ts)
-  }
-  return(new.ts = yvar)
-}
 
 # Regression helpers -------------------------------
 
@@ -137,7 +101,7 @@ ts_cut <- function(yvar, frequency){
 #' Often, the trend component can significantly impact the forecast in the long run. One way to solve
 #' this issue is to apply a "discount" on the trend vector, henceforth, reducing the marginal effect on the 
 #' predictions.
-#' @param yvar_length Numeric. Length of the time series
+#' @param y_var_length Numeric. Length of the time series
 #' @param trend_discount Numeric. How rapidly the trend reach the stability
 #' @param horizon Numeric. How far in time to produce trend discounts.
 #' @param lag Numeric. Lag to be used for cross-validation purposes.
@@ -147,39 +111,39 @@ ts_cut <- function(yvar, frequency){
 #' @export
 #'
 #' @examples
-get_trend_discounts <- function(yvar_length, trend_discount, horizon=NULL, lag = NULL){
-  if(length(yvar_length)>1){
-    yvar_length <- length(yvar_length)
+get_trend_discounts <- function(y_var_length, trend_discount, horizon=NULL, lag = NULL){
+  if(length(y_var_length)>1){
+    y_var_length <- length(y_var_length)
   } else {
-    yvar_length
+    y_var_length
   }
   if(length(trend_discount)!=1) stop("Only one trend discount value should be provided")
   if(is.null(lag)==F & length(lag) != 1) stop("Only one lag value should be provided")
   if(is.null(horizon)==T){
-    trend_discount <- yvar_length + cumsum(trend_discount^(0:(yvar_length-1)))
+    trend_discount <- y_var_length + cumsum(trend_discount^(0:(y_var_length-1)))
     if(is.null(lag)==T){
       return(trend_discount)
     } else {
       return(trend_discount[[lag]])
     }
   } else {
-    trend_discount <- yvar_length + cumsum(trend_discount^(0:(horizon-1)))
+    trend_discount <- y_var_length + cumsum(trend_discount^(0:(horizon-1)))
     return(trend_discount)
   }
 }
 
 #' Generate time weights
 #'
-#' @param yvar numeric. Time series vector data.
+#' @param y_var numeric. Time series vector data.
 #' @param time_weight numeric. How rapidly recent observations weight for estimation.
 #' @author Obryan Poyser
 #' @return
 #' @export
 #'
 #' @examples
-get_time_weights <- function(yvar, time_weight){
+get_time_weights <- function(y_var, time_weight){
   if(length(time_weight)!=1) stop("Only one time weight value should be provided")
-  time_weight^(length(1:length(yvar))-(1:length(yvar)))^2
+  time_weight^(length(1:length(y_var))-(1:length(y_var)))^2
 }
 
 #' Generate regression matrix for regression based models
@@ -187,27 +151,34 @@ get_time_weights <- function(yvar, time_weight){
 #' This function takes the metadata from the fit to generate a template of the
 #' dependent variables to make forecast.
 #'
-#' @param fit_output metadata from regression fit
+#' @param .fit_output metadata from regression fit
 #' @param horizon numeric. How far in time to produce a xvar matrix.
 #'
 #' @return
 #' @export
 #'
 #' @examples
-make_reg_matrix <- function(fit_output, horizon){
+make_reg_matrix <- function(.fit_output, horizon){
   tmp_tibble <- tibble(.rows = horizon)
-  for(i in 1:length(fit_output$model_summary$regressor_names)){
-    tmp_tibble[fit_output$model_summary$regressor_names[i]] <- 0
+  
+  for(i in 1:length(.fit_output$fit_summary$regressor_names)){
+    tmp_tibble[.fit_output$fit_summary$regressor_names[i]] <- 0
   }
+  
   tmp_tibble %>% 
-    mutate(date = seq.Date(from = as.Date(fit_output$model_summary$max_date + months(1))
+    mutate(date = seq.Date(from = as.Date(.fit_output$prescription$max_date + months(1))
                            , length.out = horizon
                            , by = "month")
-           , month = factor(months(date, abbr=TRUE), levels = month.abb)
-           , trend = get_trend_discounts(data_length = fit_output$model_summary$train_size
-                                         , trend_discount = fit_output$param$trend_discount
+           , seasonal_var = factor(months(date, abbr=TRUE), levels = month.abb)
+           , trend = get_trend_discounts(y_var_length = .fit_output$fit_summary$train_size
+                                         , trend_discount = .fit_output$parameter$trend_discount
                                          , horizon = horizon)) %>% 
-    select(month, trend, everything())
+    select(seasonal_var, trend, everything(), -date) %>% 
+    fastDummies::dummy_cols(select_columns = .fit_output$fit_summary$factor_vars
+                            , remove_selected_columns = T) %>%
+    select(.fit_output$fit_summary$x_names) %>% 
+    as.matrix()
+    
 }
 
 # Splits -------------------------------
@@ -276,4 +247,46 @@ ts_split <- function(data, test_size, lag){
 #' @examples
 mape <- function(real, pred){
   return(round((abs(real-pred)/real),3))
+}
+
+
+#' Generate trend and seasonal components for regression based models
+#'
+#' @param .data DataFrame or tibble
+#' @param date_var String. Column name of the time index variable
+#' @param frequency Numeric. Time series frequency
+#' @param bind Logical. Whether or not to bind the regressors to the original data. Default = TRUE.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_regressors <- function(.data, date_var=NULL, frequency=NULL, bind = TRUE){
+  
+  if(is.null(attributes(.data)[["prescription"]])==FALSE){
+    prescription <- attributes(.data)[["prescription"]]
+    y_var <- prescription$y_var
+    date_var <- prescription$date_var
+    frequency <- prescription$frequency
   }
+  
+  if(frequency == 12){
+    reg_seasonal <- function(date) factor(months(as.Date(date), abbreviate = T), levels = month.abb)
+  } else if(frequency == 4){
+    reg_seasonal <- function(date) factor(as.factor(quarters(as.Date(date), abbreviate = T)), levels = paste0("Q", 1:4))
+  } else if(round(frequency, 0) == 52){
+    reg_seasonal <- function(date) factor(lubridate::week(date), levels = 1:53)
+  }
+  
+  seasonal_var <- reg_seasonal(pull(select(.data, {{date_var}})))
+  trend <- 1:length(seasonal_var)
+  
+  if(bind == TRUE){
+    .data %>% 
+      bind_cols(
+        tibble(trend = trend, seasonal_var = seasonal_var)
+      )
+  } else {
+    return(tibble(trend = trend, seasonal_var = seasonal_var))
+  }
+}

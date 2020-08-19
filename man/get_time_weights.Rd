@@ -4,10 +4,10 @@
 \alias{get_time_weights}
 \title{Generate time weights}
 \usage{
-get_time_weights(dep_var, time_weight)
+get_time_weights(y_var, time_weight)
 }
 \arguments{
-\item{dep_var}{numeric. Time series vector data.}
+\item{y_var}{numeric. Time series vector data.}
 
 \item{time_weight}{numeric. How rapidly recent observations weight for estimation.}
 }
