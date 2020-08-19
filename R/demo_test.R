@@ -45,3 +45,16 @@ demo_1 %>%
   geom_line(aes(date, clean), col ="blue")
 
 
+# Cleansing ---------------------------------------------------------------
+
+demo_2 <- demo_1 %>% 
+  bind_rows(
+    tibble(volume = 0
+           , date = seq.Date(to = (min(.$date)-months(1))
+                             , from = (min(.$date) - months(3))
+                             , by = "months")
+           , .rows = 3)
+  ) %>%
+  fill_(names(.), .direction = "down") %>% 
+  arrange(date)
+

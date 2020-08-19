@@ -61,15 +61,30 @@ l1 %>%
 
 # Cleansing ---------------------------------------------------------------
 
-
 demo_1 %>% 
-  bind_rows(
-    tibble(volume = 0
-           , date = seq.Date(to = (min(.$date)-months(1))
-                             , from = (min(.$date) - months(10))
-                             , by = "months")
-           , .rows = 10)
-  ) %>%
-  arrange(date) %>% 
   cleansing(yvar = volume, method = "kalman", na_exclude = c("forecast_item", "date", "volume"), replace = F)
+
+
+
+
+parameter <- list(arima = list(order = c(0, 1, 0), seasonal = list(order = c(1, 0, 0), period = 12)))
+
+.model_output <- demo_1 %>% 
+  get_arima(yvar = volume, parameter = parameter) %>% 
+  get_forecast(horizon = 20)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

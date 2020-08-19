@@ -137,49 +137,49 @@ ts_cut <- function(yvar, frequency){
 #' Often, the trend component can significantly impact the forecast in the long run. One way to solve
 #' this issue is to apply a "discount" on the trend vector, henceforth, reducing the marginal effect on the 
 #' predictions.
-#' @param data_length numeric. Length of the time series
-#' @param trend_discount numeric. How rapidly the trend reach the stability
-#' @param horizon numeric. How far in time to produce trend discounts.
-#' @param lag numeric. Lag to be used for cross-validation purposes.
+#' @param yvar_length Numeric. Length of the time series
+#' @param trend_discount Numeric. How rapidly the trend reach the stability
+#' @param horizon Numeric. How far in time to produce trend discounts.
+#' @param lag Numeric. Lag to be used for cross-validation purposes.
 #'
 #' @author Obryan Poyser
 #' @return
 #' @export
 #'
 #' @examples
-get_trend_discounts <- function(data_length, trend_discount, horizon=NULL, lag = NULL){
-  if(length(data_length)>1){
-    data_length <- length(data_length)
+get_trend_discounts <- function(yvar_length, trend_discount, horizon=NULL, lag = NULL){
+  if(length(yvar_length)>1){
+    yvar_length <- length(yvar_length)
   } else {
-    data_length
+    yvar_length
   }
   if(length(trend_discount)!=1) stop("Only one trend discount value should be provided")
   if(is.null(lag)==F & length(lag) != 1) stop("Only one lag value should be provided")
   if(is.null(horizon)==T){
-    trend_discount <- data_length + cumsum(trend_discount^(0:(data_length-1)))
+    trend_discount <- yvar_length + cumsum(trend_discount^(0:(yvar_length-1)))
     if(is.null(lag)==T){
       return(trend_discount)
     } else {
       return(trend_discount[[lag]])
     }
   } else {
-    trend_discount <- data_length + cumsum(trend_discount^(0:(horizon-1)))
+    trend_discount <- yvar_length + cumsum(trend_discount^(0:(horizon-1)))
     return(trend_discount)
   }
 }
 
 #' Generate time weights
 #'
-#' @param dep_var numeric. Time series vector data.
+#' @param yvar numeric. Time series vector data.
 #' @param time_weight numeric. How rapidly recent observations weight for estimation.
 #' @author Obryan Poyser
 #' @return
 #' @export
 #'
 #' @examples
-get_time_weights <- function(dep_var, time_weight){
+get_time_weights <- function(yvar, time_weight){
   if(length(time_weight)!=1) stop("Only one time weight value should be provided")
-  time_weight^(length(1:length(dep_var))-(1:length(dep_var)))^2
+  time_weight^(length(1:length(yvar))-(1:length(yvar)))^2
 }
 
 #' Generate regression matrix for regression based models
