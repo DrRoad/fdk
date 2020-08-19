@@ -2,7 +2,6 @@
 
 # ARIMA -------------------------------------------------------------------
 
-
 get_arima <- function(.data, yvar, is_seasonal = TRUE, parameter = NULL, frequency = 12){
   
   yvar <- ts(pull(select(.data, {{yvar}})), frequency = frequency)

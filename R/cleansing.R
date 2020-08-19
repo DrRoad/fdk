@@ -84,7 +84,7 @@ na_winsorize <- function(yvar, na_marker=NULL, frequency = 12, print_all = FALSE
 #' @export
 #'
 #' @examples
-impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, replace = TRUE, ...) {
+impute_ts <- function(.data, yvar, method="winsorize", na_exclude = NULL, frequency = 12, replace = TRUE, ...) {
   
   imputation_switcher <- function(yvar, method, frequency = frequency, ...) {
     yvar <- ts(yvar, frequency = frequency, start = c(1, 1))
@@ -107,17 +107,15 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
     return(imputation_switcher(yvar, method = "winsorize", frequency = frequency))
   }
   
-  if (is.null(na_exclude) == FALSE) {
-    na_marker_int <- .data %>% # na marker is formed as columns different from 0, thus, no reg_value
-      select(-{{ na_exclude }}) %>% # exclude rule to the data.frame
-      rowSums() != 0
+  if(is.null(na_exclude) == FALSE) {
+    na_marker_int <- rowSums(.data[setdiff(names(.data), na_exclude)])!=0
     
-    if (length(method) > 1) { # many methods create a tibble with method colnames
-      
+    if(length(method) > 1) { # many methods create a tibble with method colnames
+      #message("multiple")
       tmp <- .data %>%
         mutate(
           na_marker_int = na_marker_int,
-          yvar_na = ifelse(na_marker_int == 1, NA, {{yvar}})
+          yvar_na = ifelse(na_marker_int == 1, NA, .data[[yvar]])
         )
       
       return(
@@ -131,7 +129,7 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
                     , frequency = frequency
                   )) %>%
                 setNames(nm = paste0("yvar_", setdiff(method, "winsorize")))
-              , imputation_switcher(yvar = (tmp %>% pull(volume))
+              , imputation_switcher(yvar = (tmp[[yvar]])
                                     , method = "winsorize"
                                     , frequency = frequency
                                     , na_marker = na_marker_int) %>% 
@@ -140,34 +138,37 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
             select(-yvar_na, -na_marker_int)
         )
       )
-    } else if (length(method) == 1 & method == "winsorize") { # if only one method is selected
-      
+    } else if(method == "winsorize"){
+      #message("winsorize unique")
       tmp <- .data %>%
         mutate(yvar_clean = imputation_switcher(
-          yvar = {{ yvar }},
+          yvar = .data[[yvar]],
           method = method,
           frequency = frequency,
-          na_marker = na_marker_int
-        ))
-    } else if (length(method) == 1 & method != "winsorize") {
+          na_marker = na_marker_int)
+        )
+    } else if(method != "winsorize") {
+      #message("non winsorize unique")
       tmp <- .data %>%
         mutate(
           na_marker_int = na_marker_int,
-          yvar_clean = ifelse(na_marker_int == 1, NA, {{yvar}}) %>%
-            imputation_switcher(
-              method = method,
-              frequency = frequency
-            )
+          yvar_clean = ifelse(na_marker_int == 1, NA, .data[[yvar]]) %>%
+            imputation_switcher(yvar = .
+                                , method = method
+                                , frequency = frequency)
         ) %>%
         select(-na_marker_int)
+    } else {
+      stop("Error")
     }
-  } else if (is.null(na_exclude) == TRUE & is.null(method)==TRUE) { # Winsorize imputation if no regressors
-    message(paste0("Even though you've selected: {", method, "}. There are no NA's to replace, winsorize has been applied instead."))
+    
+  } else {
+    message(paste0("You've selected method: {", method, "}. There are no regressors, a simple winsorize has been applied instead."))
     tmp <- .data %>%
-      mutate(yvar_clean = imputation_switcher(yvar = pull(select(.data, {{yvar}}))
+      mutate(yvar_clean = imputation_switcher(yvar = .data[[yvar]]
                                               , method = "winsorize"
                                               , frequency = frequency)
-             )
+      )
   }
   
   if (replace == TRUE) {
@@ -179,27 +180,6 @@ impute_ts <- function(.data, yvar, method, na_exclude = NULL, frequency = 12, re
   }
 }
 
-
-
-na_marker_int <- function(.data, na_exclude){
-  .data %>% # na marker is formed as columns different from 0, thus, no reg_value
-  select(-{{ na_exclude }}) %>% # exclude rule to the data.frame
-  rowSums() != 0
-  }
-
-
-rowSums(.data[setdiff(names(.data), na_exclude)])!=0
-
-
-na_marker_int(demo_1, na_exclude = na_exclude)
-
-na_exclude = c("forecast_item", "date", "volume")
-
-
-impute_ts(.data = demo_1, yvar = volume)
-
-
-imputation_switcher(yvar = pull(select(.data, volume)), method = "winsorize")
 
 # Cleansing ---------------------------------------------------------------
 
@@ -222,11 +202,18 @@ imputation_switcher(yvar = pull(select(.data, volume)), method = "winsorize")
 #' @export
 #'
 #' @examples
-cleansing <- function(.data, yvar, method, frequency = 12, na_exclude = NULL, replace = T, ...){
-  .data %>% 
-    filter(cumsum({{yvar}})>0) %>% # Leading zeros
-    impute_ts(yvar = {{yvar}}, method = method, na_exclude = na_exclude, frequency = frequency, replace = replace, ...) %>% 
-    rename(yvar = {{yvar}})
+cleansing <- function(.data, yvar, date_var= "date", method="winsorize", frequency = 12, na_exclude = NULL, replace = T, prepare = T){
+  tmp <- .data %>% 
+    filter(cumsum(.data[[yvar]])>0) %>% # Leading zeros
+    impute_ts(yvar = yvar, method, na_exclude = na_exclude, frequency = frequency, replace = replace) %>% 
+    rename(yvar = yvar) %>% 
+    select(setdiff(names(.), na_exclude), date_var) %>% 
+    relocate(date_var, .before = "yvar")
+  
+  if(replace == FALSE){
+    tmp %>% 
+      relocate(yvar_clean, .after = "yvar")
+  }
 }
 
 
