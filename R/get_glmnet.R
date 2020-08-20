@@ -24,39 +24,25 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- "y_var"
     date_var <- "date"
-    frequency <- prescription$frequency
+    freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
 
   # Time weight vector
 
   time_weights_tmp <- get_time_weights(y_var = .data[[y_var]], time_weight = parameter[["glmnet"]][["time_weight"]])
-
-  # Design matrix
-
-  reg_excluded <- unique(c(na_exclude, parameter[["glmnet"]][["job"]][["reg_excluded"]]))
-
-  # Bind trend and seasonal regressors, it can be created outside for efficiency
+  factor_var <- setdiff(names(.data)[sapply(.data, function(x) ifelse(is.character(x) | is.factor(x), T, F))], na_exclude)
+  x_excluded <- unique(c(na_exclude, parameter$glmnet$job$x_excluded))
+  x_var <- names(.data)[!(names(.data) %in% x_excluded)]
   
-  .data <- get_regressors(.data = .data, date_var = date_var, frequency = frequency)
-
-  regressor_names <- names(.data)[!(names(.data) %in% na_exclude)]
-
-  if (is.null(parameter[["glmnet"]][["job"]][["reg_excluded"]]) == FALSE) {
-    .data <- .data[, !(names(.data) %in% parameter[["glmnet"]][["job"]][["reg_excluded"]])]
-  }
-
-  factor_vars <- names(.data)[sapply(.data, function(x) ifelse(is.character(x) | is.factor(x), T, F))]
-
-  ## .data frame to matrix
-
+  # Design matrix
+  
   y_train <- .data[[y_var]]
-  x_train <- .data[, regressor_names] %>%
-    # mutate_at(.vars = factor_vars, as.factor) %>%
-    dummy_cols(
-      select_columns = factor_vars, remove_first_dummy = T,
-      remove_selected_columns = T
-    ) %>%
+  x_train <- .data %>% 
+    select(setdiff(names(.), x_excluded)) %>% 
+    fastDummies::dummy_cols(select_columns = factor_var
+                            , remove_selected_columns = T
+                            , remove_first_dummy = T) %>% 
     as.matrix()
 
   # Fit
@@ -84,22 +70,23 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
   }
 
   fit_output <- list(
-    model = "glmnet",
-    model_fit = model_fit,
-    fit_summary = list(
-      train_size = length(.data[, 1][[1]]),
-      train_pred = as.vector(predict(model_fit, newx = x_train)),
-      x_names = colnames(x_train),
-      regressor_names = regressor_names,
-      factor_vars = factor_vars
-    ),
-    prescription = prescription,
-    parameter = list(
-      alpha = parameter[["glmnet"]][["alpha"]],
-      lambda = model_fit[["lambda"]],
-      time_weights = time_weights_tmp,
-      trend_discount = parameter[["glmnet"]][["trend_discount"]]
+    model = "glmnet"
+    , model_fit = model_fit
+    , prescription = prescription
+    , parameter = list(
+        alpha = parameter[["glmnet"]][["alpha"]]
+        , lambda = model_fit[["lambda"]]
+        , time_weight = parameter[["glmnet"]][["time_weight"]]
+        , trend_discount = parameter[["glmnet"]][["trend_discount"]]
+        , fit_summary = list(
+          train_size = length(.data[, 1][[1]])
+          , time_weight_values = time_weights_tmp
+          , train_pred = as.vector(predict(model_fit, newx = x_train))
+          , x_var_matrix = colnames(x_train)
+          , x_var = x_var
+          , factor_var = factor_var
+          )
+        )
     )
-  )
   return(fit_output)
 }

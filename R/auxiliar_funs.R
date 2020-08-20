@@ -161,22 +161,22 @@ get_time_weights <- function(y_var, time_weight){
 make_reg_matrix <- function(.fit_output, horizon){
   tmp_tibble <- tibble(.rows = horizon)
   
-  for(i in 1:length(.fit_output$fit_summary$regressor_names)){
-    tmp_tibble[.fit_output$fit_summary$regressor_names[i]] <- 0
+  for(i in 1:length(.fit_output$parameter$fit_summary$x_var)){
+    tmp_tibble[.fit_output$parameter$fit_summary$x_var[i]] <- 0
   }
   
   tmp_tibble %>% 
-    mutate(date = seq.Date(from = as.Date(.fit_output$prescription$max_date + months(1))
+    mutate(date = seq.Date(from = as.Date(.fit_output$prescription$max_date + months(1)) # expand for week
                            , length.out = horizon
                            , by = "month")
            , seasonal_var = factor(months(date, abbr=TRUE), levels = month.abb)
-           , trend = get_trend_discounts(y_var_length = .fit_output$fit_summary$train_size
+           , trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$train_size
                                          , trend_discount = .fit_output$parameter$trend_discount
                                          , horizon = horizon)) %>% 
-    select(seasonal_var, trend, everything(), -date) %>% 
-    fastDummies::dummy_cols(select_columns = .fit_output$fit_summary$factor_vars
+    select(.fit_output$parameter$fit_summary$x_var) %>% 
+    fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
                             , remove_selected_columns = T) %>%
-    select(.fit_output$fit_summary$x_names) %>% 
+    select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
     as.matrix()
     
 }
@@ -216,7 +216,7 @@ ts_split_all <- function(data, test_size, lag, i){
 
 #' Automatic Time Series Cross-Validation split
 #'
-#' @param data DataFrame, tibble or tsibble structures.
+#' @param .data DataFrame, tibble or tsibble structures.
 #' @param test_size Numeric. How many periods will be use to asses the forecast accuracy.
 #' @param lag Numeric. How many periods ahead to start the test size. 
 #'
@@ -224,14 +224,16 @@ ts_split_all <- function(data, test_size, lag, i){
 #' @export
 #'
 #' @examples
-ts_split <- function(data, test_size, lag){
-  ts_split_helper <- function(data, test_size, lag, iter){
-    ts_len <- length(data[,1][[1]])
-    train <- data[1:(ts_len-test_size-lag+iter),]
-    test <- data[ts_len-test_size+iter,]
-    list(train = train, test = test, pars = list(lag = lag, iter = iter))
+split_ts <- function(.data, test_size, lag){
+  split_ts_helper <- function(.data, test_size, lag, iter){
+    attr(.data, "prescription")[["lag"]] <- lag
+    attr(.data, "prescription")[["iter"]] <- iter
+    ts_len <- length(.data[,1][[1]])
+    train <- .data[1:(ts_len - test_size - lag + iter),]
+    test <- .data[ts_len - test_size + iter,]
+    list(train = train, test = test)
   }
-  map(1:test_size, ~ts_split_helper(data = data, test_size = test_size, lag = lag, iter = .x))
+  map(1:test_size, ~split_ts_helper(.data = .data, test_size = test_size, lag = lag, iter = .x))
 }
 
 #' MAPE
@@ -261,32 +263,43 @@ mape <- function(real, pred){
 #' @export
 #'
 #' @examples
-get_regressors <- function(.data, date_var=NULL, frequency=NULL, bind = TRUE){
+get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL, to_dummy = TRUE){
   
   if(is.null(attributes(.data)[["prescription"]])==FALSE){
     prescription <- attributes(.data)[["prescription"]]
     y_var <- prescription$y_var
     date_var <- prescription$date_var
-    frequency <- prescription$frequency
+    freq <- prescription$freq
   }
   
-  if(frequency == 12){
+  if(freq == 12){
     reg_seasonal <- function(date) factor(months(as.Date(date), abbreviate = T), levels = month.abb)
-  } else if(frequency == 4){
+  } else if(freq == 4){
     reg_seasonal <- function(date) factor(as.factor(quarters(as.Date(date), abbreviate = T)), levels = paste0("Q", 1:4))
-  } else if(round(frequency, 0) == 52){
+  } else if(round(freq, 0) == 52){
     reg_seasonal <- function(date) factor(lubridate::week(date), levels = 1:53)
   }
   
-  seasonal_var <- reg_seasonal(pull(select(.data, {{date_var}})))
+  seasonal_var <- reg_seasonal(.data[[date_var]])
   trend <- 1:length(seasonal_var)
   
-  if(bind == TRUE){
-    .data %>% 
-      bind_cols(
-        tibble(trend = trend, seasonal_var = seasonal_var)
-      )
+  .data_tmp <- .data %>% 
+    bind_cols(tibble(trend = trend, seasonal_var = seasonal_var)) %>% 
+    relocate("trend", "seasonal_var", .after = "y_var")
+  
+  na_exclude <- unique(c(prescription$key, y_var, date_var))
+  reg_excluded <- unique(c(na_exclude, parameter[["glmnet"]][["job"]][["reg_excluded"]]))
+  factor_var <- names(.data_tmp)[sapply(.data_tmp, function(x) ifelse(is.character(x) | is.factor(x), T, F))]
+  reg_var <- names(.data_tmp)[!(names(.data_tmp) %in% reg_excluded)]
+  
+  if(to_dummy){
+    .data_tmp[, reg_var] %>%
+      dummy_cols(
+        select_columns = factor_var, remove_first_dummy = T,
+        remove_selected_columns = T
+      ) %>%
+      as.matrix()
   } else {
-    return(tibble(trend = trend, seasonal_var = seasonal_var))
+    .data_tmp
   }
 }

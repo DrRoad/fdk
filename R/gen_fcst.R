@@ -156,7 +156,12 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
 }
 
 
-get_forecast <- function(.fit_output, horizon){
+get_forecast_experimental <- function(.fit_output, x_matrix = NULL, horizon){
+  
+  if(.fit_output$prescription$freq == 12){
+    freq_string <- "month"
+  }
+  
   if(.fit_output[["model"]]=="arima"){
     tibble(
       date = seq.Date(from = (.fit_output$meta_data$max_date + months(1)), length.out = horizon, by = "months")
@@ -164,15 +169,23 @@ get_forecast <- function(.fit_output, horizon){
       , model = .fit_output$model
     )
   } else if(.fit_output[["model"]]=="glmnet"){
-    x_var <- make_reg_matrix(.fit_output = .fit_output, horizon = horizon)
-    predict.glmnet(object = .fit_output$model_fit, newx = x_var) %>%
+    
+    x_matrix <- make_reg_matrix(.fit_output = .fit_output, horizon = horizon)
+    
+    
+    predict.glmnet(object = .fit_output$model_fit, newx = x_matrix) %>%
       as.vector() %>% 
       enframe(name = "date", value = "forecast") %>% 
       mutate(date = seq.Date(from = (.fit_output$prescription$max_date + months(1))
-                             , by = .fit_output$prescription$frequency
+                             , by = freq_string
                              , length.out = horizon)
              , model = "glmnet")
   }
 }
+
+
+
+
+
 
 

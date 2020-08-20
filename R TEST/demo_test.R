@@ -34,16 +34,6 @@ demo_1 <- demo_data %>%
   janitor::clean_names() %>% 
   select(-x0)
 
-yvar <- demo_1$volume
-na_marker <- rowSums(demo_1[c("fi_592905_other1", "fi_592905_competitor_oos1", "fi_592905_oos_2")
-])!=0
-
-demo_1 %>% 
-  mutate(clean = impute_internal(volume, method = "winsorize")) %>% 
-  ggplot()+
-  geom_line(aes(date, volume))+
-  geom_line(aes(date, clean), col ="blue")
-
 
 # Cleansing ---------------------------------------------------------------
 

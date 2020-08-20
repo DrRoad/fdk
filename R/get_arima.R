@@ -2,7 +2,7 @@
 
 # ARIMA -------------------------------------------------------------------
 
-get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, frequency = 12){
+get_arima_experimental <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, frequency = 12){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]

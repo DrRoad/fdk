@@ -4,11 +4,9 @@
 \alias{optim_glmnet}
 \title{Hyperparameter optimization for a glmnet model}
 \usage{
-optim_glmnet(data, hyperparam, random_sample = 0.2, config)
+optim_glmnet(.data, hyperparam, random_sample = 0.2, config)
 }
 \arguments{
-\item{data}{Data-frame.}
-
 \item{hyperparam}{List. Hyperparameters to be used for estimation. There are 4 hyperparameters: first, 
 *alpha* in the space [0,1] controls whether it is a Ridge (L2) a LASSO (L1) shrinkage method, respectively.
 Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
@@ -18,6 +16,8 @@ The other 2 hyperparameters are time weights and trend discount.}
 search process, respectively. It is set as 20% random sample by default.}
 
 \item{config}{List. Configuration that defines the task to be performed.}
+
+\item{data}{Data-frame.}
 }
 \value{
 
