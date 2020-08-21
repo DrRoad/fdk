@@ -151,34 +151,51 @@ get_time_weights <- function(y_var, time_weight){
 #' This function takes the metadata from the fit to generate a template of the
 #' dependent variables to make forecast.
 #'
-#' @param .fit_output metadata from regression fit
-#' @param horizon numeric. How far in time to produce a xvar matrix.
+#' @param .fit_output Inherited data and meta-data from a model fit.
+#' @param x_data Optional DataFrame to use as design matrix.
+#' @param horizon Numeric. How far in time to produce a synthetic design matrix.
 #'
 #' @return
 #' @export
 #'
 #' @examples
-make_reg_matrix <- function(.fit_output, horizon){
-  tmp_tibble <- tibble(.rows = horizon)
+make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
   
-  for(i in 1:length(.fit_output$parameter$fit_summary$x_var)){
-    tmp_tibble[.fit_output$parameter$fit_summary$x_var[i]] <- 0
-  }
+  prescription <- attributes(.fit_output)[["prescription"]]
   
-  tmp_tibble %>% 
-    mutate(date = seq.Date(from = as.Date(.fit_output$prescription$max_date + months(1)) # expand for week
-                           , length.out = horizon
-                           , by = "month")
-           , seasonal_var = factor(months(date, abbr=TRUE), levels = month.abb)
-           , trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$train_size
-                                         , trend_discount = .fit_output$parameter$trend_discount
-                                         , horizon = horizon)) %>% 
-    select(.fit_output$parameter$fit_summary$x_var) %>% 
-    fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
-                            , remove_selected_columns = T) %>%
-    select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
-    as.matrix()
+  if(is.null(x_data) == TRUE){
     
+    tmp_tibble <- tibble(.rows = horizon)
+    
+    for(i in 1:length(.fit_output$parameter$fit_summary$x_var)){
+      tmp_tibble[.fit_output$parameter$fit_summary$x_var[i]] <- 0
+    }
+    
+    tmp_tibble %>% 
+      mutate(date = seq.Date(from = as.Date(prescription$max_date + months(1)) # expand for week
+                             , length.out = horizon
+                             , by = "month")
+             , seasonal_var = factor(months(date, abbr=TRUE), levels = month.abb)
+             , trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$train_size
+                                           , trend_discount = .fit_output$parameter$trend_discount
+                                           , horizon = horizon)) %>% 
+      select(.fit_output$parameter$fit_summary$x_var) %>% 
+      fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
+                              , remove_selected_columns = T) %>%
+      select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
+      as.matrix()
+    
+  } else {
+    x_data %>% 
+      select(.fit_output$parameter$fit_summary$x_var) %>% 
+      fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
+                              , remove_selected_columns = T) %>%
+      select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
+      mutate(trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$train_size
+                                         , trend_discount = .fit_output$parameter$trend_discount
+                                         , lag = prescription$lag)) %>% 
+      as.matrix()
+  }
 }
 
 # Splits -------------------------------
@@ -302,4 +319,26 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
   } else {
     .data_tmp
   }
+}
+
+update_parameter <- function(parameter, grid, model="glmnet"){
+  if(model == "glmnet"){
+    parameter$glmnet$time_weight <- grid$time_weight
+    parameter$glmnet$trend_discount <- grid$trend_discount
+    parameter$glmnet$alpha <- grid$alpha
+    return(parameter)
+  }
+}
+
+get_metric <- function(.forecast_output){
+  .forecast_output %>% 
+    mutate(mape_i = abs(.y_var_true - .y_var_pred)/.y_var_true) %>% 
+    group_by(trend_discount, time_weight, alpha) %>% 
+    summarise(mape = mean(mape_i)
+              , lambda_median = median(lambda)
+              , lambda_cov = sd(lambda)/mean(lambda)
+              , .groups = "drop") %>% 
+    arrange(mape, -lambda_cov) %>%
+    select(1:3, lambda = lambda_median, cv_mape = mape) %>% 
+    .[1,]
 }

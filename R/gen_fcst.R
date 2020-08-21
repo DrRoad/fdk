@@ -156,9 +156,11 @@ gen_fcst <- function(data, models, seas = TRUE, parameters = NULL, h = 36){
 }
 
 
-get_forecast_experimental <- function(.fit_output, x_matrix = NULL, horizon){
+get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE){
   
-  if(.fit_output$prescription$freq == 12){
+  prescription <- attributes(.fit_output)[["prescription"]]
+  
+  if(prescription$freq == 12){
     freq_string <- "month"
   }
   
@@ -170,20 +172,35 @@ get_forecast_experimental <- function(.fit_output, x_matrix = NULL, horizon){
     )
   } else if(.fit_output[["model"]]=="glmnet"){
     
-    x_matrix <- make_reg_matrix(.fit_output = .fit_output, horizon = horizon)
+    x_data_int <- make_reg_matrix(.fit_output = .fit_output, x_data = x_data, horizon = horizon)
     
-    
-    predict.glmnet(object = .fit_output$model_fit, newx = x_matrix) %>%
-      as.vector() %>% 
-      enframe(name = "date", value = "forecast") %>% 
-      mutate(date = seq.Date(from = (.fit_output$prescription$max_date + months(1))
-                             , by = freq_string
-                             , length.out = horizon)
-             , model = "glmnet")
+    if(is.null(x_data) == TRUE){
+      
+      # Synthetic x_data
+      
+      predict.glmnet(object = .fit_output$model_fit, newx = x_data_int) %>%
+        as.vector() %>% 
+        enframe(name = "date", value = "forecast") %>% 
+        mutate(date = seq.Date(from = (prescription$max_date + months(1))
+                               , by = freq_string
+                               , length.out = horizon)
+               , model = "glmnet")
+      
+    } else if(tune == TRUE){
+      #yvar_pred = as.numeric(predict.glmnet(object = .fit_output$model_fit, newx = x_data_int))
+      x_data_tmp <- x_data %>%
+        transmute(.y_var_true = y_var
+                  , .y_var_pred = as.numeric(predict.glmnet(object = .fit_output$model_fit, newx = x_data_int))
+               , trend_discount = .fit_output$parameter$trend_discount
+               , time_weight = .fit_output$parameter$time_weight
+               , alpha = .fit_output$parameter$alpha
+               , lambda = .fit_output$parameter$lambda)
+      
+      return(x_data_tmp)
+    }
   }
 }
-
-
+  
 
 
 
