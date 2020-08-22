@@ -68,7 +68,7 @@ na_winsorize <- function(y_var, na_marker=NULL, freq = 12, print_all = FALSE){
 #' is automatically generated.
 #' @param na_exclude Vector of names that **should not** be used to replace the observation by NA.
 #' @param freq Time series frequency.
-#' @param replace Logical. If replace = TRUE (default) it will 
+#' @param replace_y_var Logical. If replace_y_var = TRUE (default) it will 
 #' replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_clean" column will
 #' be attached to the data matrix.
 #' @param ... Other parameter
@@ -146,6 +146,10 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
           freq = freq,
           na_marker = na_marker_int)
         )
+    } else if(method == "none") {
+      #message("none")
+      tmp <- .data %>%
+        mutate(y_var_clean = y_var)
     } else if(method != "winsorize") {
       #message("non winsorize unique")
       tmp <- .data %>%
@@ -158,9 +162,8 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
         ) %>%
         select(-na_marker_int)
     } else {
-      stop("Error")
+      stop("ERROR")
     }
-    
   } else {
     message(paste0("You've selected method: {", method, "}. There are no regressors, a simple winsorize has been applied instead."))
     tmp <- .data %>%
@@ -168,7 +171,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
                                               , method = "winsorize"
                                               , freq = freq)
       )
-  }
+    }
   
   if (replace_y_var == TRUE) {
     tmp %>%
@@ -242,8 +245,6 @@ prescribe_ts <- function(.data, key, y_var, date_var, freq, extend_design = TRUE
 #' @examples
 clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_exclude = NULL, replace_y_var = TRUE){
   if(is.null(attributes(.data)[["prescription"]])==FALSE){
-    message("Prescription has been used to define as meta-data")
-    
     prescription <- attributes(.data)[["prescription"]]
     na_exclude <- unique(c(prescription$key
                            , prescription$y_var
@@ -257,13 +258,13 @@ clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_e
     key <- prescription$key
   }
    
-  .data %>% 
+  .data %>%
     filter(cumsum(.data[[y_var]])>0) %>% # Leading zeros
     impute_ts(y_var = y_var
-              , method
+              , method = method
               , na_exclude = na_exclude
               , freq = freq
-              , replace = replace) %>%
+              , replace_y_var = replace_y_var) %>%
     mutate(y_var = sftools:::tscut(time_series = y_var, freq = freq) # May generate a problem
            , trend = 1:n())
 }

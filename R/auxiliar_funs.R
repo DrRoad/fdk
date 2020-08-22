@@ -321,14 +321,23 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
   }
 }
 
-update_parameter <- function(parameter, grid, model="glmnet"){
+update_parameter <- function(parameter, new, model="glmnet"){
   if(model == "glmnet"){
-    parameter$glmnet$time_weight <- grid$time_weight
-    parameter$glmnet$trend_discount <- grid$trend_discount
-    parameter$glmnet$alpha <- grid$alpha
+    parameter$glmnet$time_weight <- new$time_weight
+    parameter$glmnet$trend_discount <- new$trend_discount
+    parameter$glmnet$alpha <- new$alpha
     return(parameter)
   }
 }
+
+parameter_1 <- update_parameter(parameter, grid = grid[1,])
+
+
+
+
+
+
+
 
 get_metric <- function(.forecast_output){
   .forecast_output %>% 
