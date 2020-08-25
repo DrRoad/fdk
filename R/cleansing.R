@@ -23,7 +23,7 @@
 #' \dontrun{
 #' na_winsorize(AirPassengers)
 #' }
-na_winsorize <- function(y_var, na_marker=NULL, freq = 12, print_all = FALSE){
+na_winsorize <- function(y_var, na_marker=NULL, freq = 12, print_complete = FALSE){
   if(is.null(na_marker)==FALSE){
     y_var_na <- y_var
     y_var_na[na_marker==1] <- NA
@@ -50,7 +50,7 @@ na_winsorize <- function(y_var, na_marker=NULL, freq = 12, print_all = FALSE){
              , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
              , TRUE ~ original))
   
-  if(print_all == FALSE){
+  if(print_complete == FALSE){
     tmp_out %>% 
       .[["y_var_clean"]] %>% 
       round(1)
@@ -188,11 +188,11 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
 #' 
 #' Prescribe provides a simple way to define the metadata
 #'
-#' @param .data DataFrame or tibble
-#' @param key Column name of the key if any
-#' @param y_var Column name of the variable to be forecasted
-#' @param date_var Column name of time index
-#' @param freq Frequency of the data
+#' @param .data DataFrame or tibble.
+#' @param key Column name of the key if any.
+#' @param y_var Column name of the variable to be forecasted.
+#' @param date_var Column name of time index.
+#' @param freq Frequency of the data.
 #' @param print Logical. Print the data, TRUE by default.
 #'
 #' @return

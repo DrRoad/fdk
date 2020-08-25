@@ -1,4 +1,14 @@
-
+#' Fit Neural Network model
+#'
+#' @param .data Data frame or tibble with a response variable.
+#' @param y_var String. Column name of the time series to be forecasted.
+#' @param x_data Data frame. Design matrix to calculate predicted/forecast figures.
+#' @param parameter List. Parameter to be used for estimation.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_neural_network <- function(.data, y_var, x_data = NULL, parameter = NULL){
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]

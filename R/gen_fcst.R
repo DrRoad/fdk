@@ -1,4 +1,15 @@
-get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE) {
+#' Generate forecast figures
+#'
+#' @param .fit_output Class ".fit_output".
+#' @param x_data Data frame. Design matrix to calculate predicted/forecast figures.
+#' @param horizon Numeric. Number of periods ahead to forecast.
+#' @param tune Logical. Results will be used to define the best model.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE) {
   prescription <- attributes(.fit_output)[["prescription"]]
 
   if (prescription$freq == 12) {
@@ -81,18 +92,27 @@ get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL
           time_weight = .fit_output$parameter$time_weight
         )
       }
-  } else if (.fit_output[["model"]] == "croston") {
-    get_croston_exp(.data, parameter = parameter, horizon = horizon) %>% 
-      .[["y_var_fcst"]] %>% 
-      enframe(name = "date", value = "y_var_fcst") %>% 
-      mutate(
-        date = seq.Date(
-          from = (prescription$max_date + months(1)),
-          by = freq_string,
-          length.out = horizon
-        ),
-        model = "croston"
-      )
+  } else if (.fit_output[["model"]] == "croston") { # missing tune
+    if(tune == TRUE){
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = last(as.numeric(predict(model_fit, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
+          , parameter = str_remove_all(model_fit$method, "ETS|NNAR|,|\\)|\\(")
+        )
+    } else {
+      get_croston_exp(.data, parameter = parameter, horizon = horizon) %>% 
+        .[["y_var_fcst"]] %>% 
+        enframe(name = "date", value = "y_var_fcst") %>% 
+        mutate(
+          date = seq.Date(
+            from = (prescription$max_date + months(1)),
+            by = freq_string,
+            length.out = horizon
+          ),
+          model = "croston"
+        )
+    }
   } else if(.fit_output[["model"]] == "ets"){
     if (tune == TRUE) {
       x_data %>%
@@ -115,6 +135,36 @@ get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL
           y_var_true = y_var,
           y_var_fcst = last(as.numeric(predict(model_fit, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
           , parameter = str_remove_all(model_fit$method, "ETS|NNAR|,|\\)|\\(")
+        )
+    } else {
+      tibble(
+        date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
+        y_var_fcst = as.numeric(predict(.fit_output[["model_fit"]], horizon)[["mean"]]),
+        model = .fit_output$model
+      )
+    }
+  } else if(.fit_output[["model"]] == "tbats"){
+    if (tune == TRUE) {
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = last(as.numeric(predict(model_fit, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
+          , parameter = list(.fit_output$model_fit$parameters$vect)
+        )
+    } else {
+      tibble(
+        date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
+        y_var_fcst = as.numeric(predict(.fit_output[["model_fit"]], horizon)[["mean"]]),
+        model = .fit_output$model
+      )
+    }
+  } else if(.fit_output[["model"]] == "seasonal_naive"){
+    if (tune == TRUE) {
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = last(as.numeric(predict(model_fit, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
+          , parameter = list(.fit_output$model_fit$parameters$vect)
         )
     } else {
       tibble(

@@ -1,18 +1,14 @@
-
-grid_mlr <- expand_grid(time_weight = seq(from = 0.7, to = 1, by = 0.05)
-                    , trend_discount = seq(from = 0.8, to = 1, by = 0.05))
-
-parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 0, lambda = 0
-                                , grid = grid
-                                , job = list(optim_lambda = TRUE, x_excluded = NULL
-                                             , random_search_size = 0.1
-                                             , n_best_model = 1))
-                  , glm = list(time_weight = 0.9, trend_discount = 0.9
-                               , grid = grid_mlr
-                               , job = list(x_excluded = NULL
-                                            , n_best_model = 1)))
-
-
+#' Fit a Generalized Linear Model
+#'
+#' @param .data Data frame or tibble with a response variable.
+#' @param y_var String. Column name of the time series to be forecasted.
+#' @param date_var String.Column name of the time series to be forecasted.
+#' @param parameter List. Trend discount and time weight parameters.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_glm <- function(.data, y_var, date_var, parameter) {
   if (is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]

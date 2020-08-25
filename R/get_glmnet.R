@@ -1,6 +1,6 @@
 #' Fit a Regularized Generalize Linear Model
 #'
-#' @param .data DataFrame or tibble
+#' @param .data Data frame or tibble with a response variable.
 #' @param y_var String. Column name of the time series to be forecasted.
 #' @param date_var String.Column name of the time series to be forecasted.
 #' @param parameter List. parametereters to be used for estimation. There are 4 parametereters: first,

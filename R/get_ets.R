@@ -1,6 +1,14 @@
-
-# ets
-
+#' Fit Error Trend Seasonal model
+#'
+#' @param .data Data frame or tibble.
+#' @param y_var String. Column name of the time series to be forecasted.
+#' @param parameter List. Combination of parameter to estimate the model.
+#' @param horizon Numeric. Number of periods ahead to forecast.
+#'
+#' @return
+#' @export
+#'
+#' @examples
 get_ets_exp <- function(.data, y_var, parameter, horizon){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {

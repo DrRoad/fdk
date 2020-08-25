@@ -1,8 +1,16 @@
-
-
-# ARIMA -------------------------------------------------------------------
-
-get_arima_experimental <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
+#' Fit Auto Regressive Integrated Moving Average model
+#'
+#' @param .data Data frame or tibble with a response variable.
+#' @param y_var String. Column name of the time series to be forecasted.
+#' @param is_seasonal Logical. Defines if the optimization takes into account seasonal parameters.
+#' @param parameter List. Combination of parameter to estimate the model.
+#' @param freq Numeric. Time series frequency.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_arima_exp <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]

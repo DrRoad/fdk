@@ -24,7 +24,7 @@ parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 
 .fit_output <- demo_2 %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date", freq = 12) %>% 
   clean_ts() %>% 
-  get_ets_exp(parameter = parameter) %>% 
+  get_seasonal_naive_exp() %>% 
   #get_glm(parameter = parameter) %>% 
   get_forecast_experimental(horizon = 100)
 

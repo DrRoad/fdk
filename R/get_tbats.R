@@ -1,39 +1,40 @@
-
-# get tbats
-
-get_tbats <- function(xd, h, mode){
-  model_name <- "tbats"
-  if(mode == "sim"){ # Simulation
-    model <- tbats(xd$train)
-    fcst <- forecast(model, h = h)
-    error <- mape(fcst$mean[h],xd$test)
-    # Timelapse
-    aux <- date_decimal(as.numeric(time(xd$test)))
-    time_test <- as.Date(aux, format = "%Y-%m-%d")
-    # Output
-    output <- data.frame(model = model_name,
-                         time = time_test,
-                         predicted = as.numeric(fcst$mean[h]),
-                         real = as.numeric(xd$test),
-                         mape = as.numeric(error),
-                         parameters = fcst$method
-    )
-    return(output)
+#' Fit a TBATS model
+#'
+#' Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and Seasonal (TBATS)
+#' 
+#' @param .data Data frame or tibble with a response variable.
+#' @param y_var String. Column name of the time series to be forecasted.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_tbats_exp <- function(.data, y_var){
+  
+  if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
+    prescription <- attributes(.data)[["prescription"]]
+    y_var <- prescription$y_var
+    date_var <- prescription$date_var
+    freq <- prescription$freq
+    na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
-  if(mode == "fcst"){ # Forecast
-    model <- tbats(xd)
-    fcst <- forecast(model, h = h)
-    # Timelapse
-    aux <- date_decimal(as.numeric(time(fcst$mean)))
-    time_test <- as.Date(aux, format = "%Y-%m-%d")
-    # Output
-    output <- data.frame(model = model_name,
-                         time = time_test,
-                         predicted = as.numeric(fcst$mean),
-                         parameters = fcst$method
-    )
-    return(output)
-  }
+  
+  y_var_int <- ts(.data[[y_var]], frequency = freq) # maybe not optimal
+  
+  model_fit <- tbats(y_var_int)
+  
+  .fit_output <- list(model = "tbats"
+                      , model_fit = model_fit
+                      , y_var_pred = as.numeric(model_fit[["fitted.values"]])
+                      , parameter = model_fit$parameters$vect
+  )
+  
+  attr(.fit_output, "prescription") <- prescription
+  class(.fit_output) <- ".fit_output"
+  return(.fit_output)
 }
 
-#---
+
+
+
+
