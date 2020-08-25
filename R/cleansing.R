@@ -9,21 +9,25 @@
 #' @param na_marker logical or binary indicator that defines which observation should be take out of the
 #' loess decomposition.
 #' @param freq Numeric. Time series frequency, 12 by default.
-#' @param print_all logical. Whether to print all time series components.
+#' @param include Logical. Whether to print all time series components.
 #'
 #' @author Obryan Poyser
 #' @return numeric cleansed series
 #' @export
 #' 
-#' @importFrom stlplus
-#' @importFrom tibble
+#' @importFrom rlang .data
+#' @import stlplus
+#' @import tibble
 #' @import dplyr
 #'
 #' @examples
 #' \dontrun{
 #' na_winsorize(AirPassengers)
 #' }
-na_winsorize <- function(y_var, na_marker=NULL, freq = 12, print_complete = FALSE){
+na_winsorize <- function(y_var, na_marker=NULL, freq = 12, include = FALSE){
+  
+  y_var_denoise <- NULL
+  
   if(is.null(na_marker)==FALSE){
     y_var_na <- y_var
     y_var_na[na_marker==1] <- NA
@@ -50,7 +54,7 @@ na_winsorize <- function(y_var, na_marker=NULL, freq = 12, print_complete = FALS
              , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
              , TRUE ~ original))
   
-  if(print_complete == FALSE){
+  if(include == FALSE){
     tmp_out %>% 
       .[["y_var_clean"]] %>% 
       round(1)
@@ -71,7 +75,8 @@ na_winsorize <- function(y_var, na_marker=NULL, freq = 12, print_complete = FALS
 #' @param replace_y_var Logical. If replace_y_var = TRUE (default) it will 
 #' replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_clean" column will
 #' be attached to the data matrix.
-#' @param ... Other parameter
+#' @param ... Other parameters,
+#' .
 #' 
 #' @import imputeTS
 #' @import dplyr
@@ -193,7 +198,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
 #' @param y_var Column name of the variable to be forecasted.
 #' @param date_var Column name of time index.
 #' @param freq Frequency of the data.
-#' @param print Logical. Print the data, TRUE by default.
+#' @param extend_design Logical. Print the data, TRUE by default.
 #'
 #' @return
 #' @export
@@ -239,6 +244,8 @@ prescribe_ts <- function(.data, key, y_var, date_var, freq, extend_design = TRUE
 #' replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_var_clean" column will
 #' be attached to the data matrix.
 #'
+#' @import stats
+#' @import dplyr
 #' @return
 #' @export
 #'
@@ -265,8 +272,10 @@ clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_e
               , na_exclude = na_exclude
               , freq = freq
               , replace_y_var = replace_y_var) %>%
-    mutate(y_var = sftools:::tscut(time_series = y_var, freq = freq) # May generate a problem
-           , trend = 1:n())
+    mutate(trend = 1:n()
+           #y_var = tscut(time_series = y_var, freq = freq) # May generate a problem
+           #        , 
+           )
 }
 
 

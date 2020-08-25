@@ -4,11 +4,13 @@
 #' @param y_var String. Column name of the time series to be forecasted.
 #' @param horizon Numeric. Number of periods ahead to forecast.
 #'
+#' @import stats
+#' @import forecast
 #' @return
 #' @export
 #'
 #' @examples
-get_seasonal_naive_exp <- function(.data, y_var, horizon){
+get_seasonal_naive <- function(.data, y_var, horizon){
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- prescription$y_var
@@ -22,6 +24,7 @@ get_seasonal_naive_exp <- function(.data, y_var, horizon){
   
   .fit_output <- list(model = "seasonal_naive"
                       , model_fit = model_fit
+                      , y_var_int = y_var_int
                       , y_var_pred = as.numeric(model_fit$fitted)
                       )
   

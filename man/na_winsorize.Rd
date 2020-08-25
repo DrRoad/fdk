@@ -4,7 +4,7 @@
 \alias{na_winsorize}
 \title{Winsorize imputation}
 \usage{
-na_winsorize(y_var, na_marker = NULL, frequency = 12, print_all = FALSE)
+na_winsorize(y_var, na_marker = NULL, freq = 12, include = FALSE)
 }
 \arguments{
 \item{y_var}{Numeric. Time series to be cleansed.}
@@ -12,9 +12,9 @@ na_winsorize(y_var, na_marker = NULL, frequency = 12, print_all = FALSE)
 \item{na_marker}{logical or binary indicator that defines which observation should be take out of the
 loess decomposition.}
 
-\item{frequency}{Numeric. Time series frequency, 12 by default.}
+\item{freq}{Numeric. Time series frequency, 12 by default.}
 
-\item{print_all}{logical. Whether to print all time series components.}
+\item{include}{Logical. Whether to print all time series components.}
 }
 \value{
 numeric cleansed series

@@ -9,8 +9,8 @@ impute_ts(
   y_var,
   method = "winsorize",
   na_exclude = NULL,
-  frequency = 12,
-  replace = TRUE,
+  freq = 12,
+  replace_y_var = TRUE,
   ...
 )
 }
@@ -25,13 +25,14 @@ is automatically generated.}
 
 \item{na_exclude}{Vector of names that **should not** be used to replace the observation by NA.}
 
-\item{frequency}{Time series frequency.}
+\item{freq}{Time series frequency.}
 
-\item{replace}{Logical. If replace = TRUE (default) it will 
+\item{replace_y_var}{Logical. If replace_y_var = TRUE (default) it will 
 replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_clean" column will
 be attached to the data matrix.}
 
-\item{...}{Other parameter}
+\item{...}{Other parameters,
+.}
 }
 \value{
 

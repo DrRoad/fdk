@@ -24,72 +24,73 @@ check_inputs <- function(.data){
   # Format checks
 }
 
-#' Detect seasonality
-#' 
-#' This is a consensus tool to decide if a time series exhibit regular patterns over time.
-#' 
-#' The consensus is formed as Kruskal test, seasonal strength, and statistical significance
-#' of a linear regression model. Rule: if 2 out of 3 methods show evidence in favor of seasonality
-#' then, the data will employ seasonal models to generate the forecast.
-#'
-#' @param data numeric. Time series data
-#'
-#' @return
-#' @export
-#'
-#' @examples
-detect_seasonality <- function(data){
-  # Aux functions
-  seas_test_kw <- function(ts){
-    kwtest <- kw(ts)
-    if(kwtest$Pval < 0.05){
-      return(TRUE)
-    }else{
-      return(FALSE)
-    }
-  }
-  seas_test_ftrs <- function(ts){
-    # Calculate Seasonality Strength and reformat
-    features <- as.data.frame(t(stl_features(ts)))
-    if(features$seasonal_strength>0.7){
-      return(TRUE)
-    }else{
-      return(FALSE)
-    }
-  }
-  seas_test_lm <- function(ts){
-    # Add 1 diff
-    lm.1=lm(y~factor(time_seas),data=ts)
-    p.vals=summary(lm.1)
-    p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
-                  p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
-    if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
-      return(TRUE)
-    }else{
-      return(FALSE)
-    }
-  }
-  # Main test
-  Count <- 0
-  # Test1: Kruskal-Wallis
-  if(seas_test_kw(data[[1]])){
-    Count <- Count + 1
-  }
-  # Test2: Time Series Features
-  if(seas_test_ftrs(data[[1]])){
-    Count <- Count + 1
-  }
-  # Test3: Linear Model
-  if(seas_test_lm(data[[2]])){
-    Count <- Count + 1
-  }
-  # Final Decision
-  if(Count>=2){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
+#' #' Detect seasonality
+#' #' 
+#' #' This is a consensus tool to decide if a time series exhibit regular patterns over time.
+#' #' 
+#' #' The consensus is formed as Kruskal test, seasonal strength, and statistical significance
+#' #' of a linear regression model. Rule: if 2 out of 3 methods show evidence in favor of seasonality
+#' #' then, the data will employ seasonal models to generate the forecast.
+#' #'
+#' #' @param data numeric. Time series data
+#' #'
+#' #' @import seastests
+#' #' @return
+#' #' @export
+#' #'
+#' #' @examples
+#' detect_seasonality <- function(data){
+#'   # Aux functions
+#'   seas_test_kw <- function(ts){
+#'     kwtest <- kw(ts)
+#'     if(kwtest$Pval < 0.05){
+#'       return(TRUE)
+#'     }else{
+#'       return(FALSE)
+#'     }
+#'   }
+#'   seas_test_ftrs <- function(ts){
+#'     # Calculate Seasonality Strength and reformat
+#'     features <- as.data.frame(t(stl_features(ts)))
+#'     if(features$seasonal_strength>0.7){
+#'       return(TRUE)
+#'     }else{
+#'       return(FALSE)
+#'     }
+#'   }
+#'   seas_test_lm <- function(ts){
+#'     # Add 1 diff
+#'     lm.1=lm(y~factor(time_seas),data=ts)
+#'     p.vals=summary(lm.1)
+#'     p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
+#'                   p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
+#'     if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
+#'       return(TRUE)
+#'     }else{
+#'       return(FALSE)
+#'     }
+#'   }
+#'   # Main test
+#'   Count <- 0
+#'   # Test1: Kruskal-Wallis
+#'   if(seas_test_kw(data[[1]])){
+#'     Count <- Count + 1
+#'   }
+#'   # Test2: Time Series Features
+#'   if(seas_test_ftrs(data[[1]])){
+#'     Count <- Count + 1
+#'   }
+#'   # Test3: Linear Model
+#'   if(seas_test_lm(data[[2]])){
+#'     Count <- Count + 1
+#'   }
+#'   # Final Decision
+#'   if(Count>=2){
+#'     return(TRUE)
+#'   }else{
+#'     return(FALSE)
+#'   }
+#' }
 
 
 # Regression helpers -------------------------------
@@ -154,7 +155,9 @@ get_time_weights <- function(y_var, time_weight){
 #' @param .fit_output Inherited data and meta-data from a model fit.
 #' @param x_data Optional DataFrame to use as design matrix.
 #' @param horizon Numeric. How far in time to produce a synthetic design matrix.
-#'
+#' 
+#' @import stats
+#' @import dplyr
 #' @return
 #' @export
 #'
@@ -174,7 +177,7 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
       mutate(date = seq.Date(from = as.Date(prescription$max_date + months(1)) # expand for week
                              , length.out = horizon
                              , by = "month")
-             , seasonal_var = factor(months(date, abbr=TRUE), levels = month.abb)
+             , seasonal_var = factor(months(date, abbreviate = TRUE), levels = month.abb)
              , trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$data_size
                                            , trend_discount = .fit_output$parameter$trend_discount
                                            , horizon = horizon)) %>% 
@@ -281,8 +284,9 @@ mape <- function(real, pred){
 #'
 #' @param .data DataFrame or tibble
 #' @param date_var String. Column name of the time index variable
-#' @param frequency Numeric. Time series frequency
-#' @param bind Logical. Whether or not to bind the regressors to the original data. Default = TRUE.
+#' @param freq Numeric. Time series frequency
+#' @param parameter List.
+#' @param to_dummy Logical. Convert design matrix factors to binary.
 #'
 #' @return
 #' @export
@@ -329,33 +333,134 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
   }
 }
 
-update_parameter <- function(parameter, new, model="glmnet"){
+#' Updating parameters given a grid
+#'
+#' @param parameter List. Parameters to be used to estimate model or define the job to be done.
+#' @param new_parameter Named list of data frame.
+#' @param model String. Model where the parameters will be replaced.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_parameter <- function(parameter, new_parameter, model="glmnet"){
   if(model == "glmnet"){
-    parameter$glmnet$time_weight <- new$time_weight
-    parameter$glmnet$trend_discount <- new$trend_discount
-    parameter$glmnet$alpha <- new$alpha
+    parameter$glmnet$time_weight <- new_parameter$time_weight
+    parameter$glmnet$trend_discount <- new_parameter$trend_discount
+    parameter$glmnet$alpha <- new_parameter$alpha
     return(parameter)
   }
 }
 
-parameter_1 <- update_parameter(parameter, grid = grid[1,])
+# get_metric <- function(.forecast_output){
+#   .forecast_output %>% 
+#     mutate(mape_i = abs(.y_var_true - .y_var_pred)/.y_var_true) %>% 
+#     group_by(trend_discount, time_weight, alpha) %>% 
+#     summarise(mape = mean(mape_i)
+#               , lambda_median = median(lambda)
+#               , lambda_cov = sd(lambda)/mean(lambda)
+#               , .groups = "drop") %>% 
+#     arrange(mape, -lambda_cov) %>%
+#     select(1:3, lambda = lambda_median, cv_mape = mape) %>% 
+#     .[1,]
+# }
 
 
 
-
-
-
-
-
-get_metric <- function(.forecast_output){
-  .forecast_output %>% 
-    mutate(mape_i = abs(.y_var_true - .y_var_pred)/.y_var_true) %>% 
-    group_by(trend_discount, time_weight, alpha) %>% 
-    summarise(mape = mean(mape_i)
-              , lambda_median = median(lambda)
-              , lambda_cov = sd(lambda)/mean(lambda)
-              , .groups = "drop") %>% 
-    arrange(mape, -lambda_cov) %>%
-    select(1:3, lambda = lambda_median, cv_mape = mape) %>% 
-    .[1,]
+#' Filter out time series
+#'
+#' @param y_var Numeric or ts.
+#' @param freq Time series frequency.
+#'
+#' @return
+#' @export
+#'
+#' @examples
+tscut <- function (y_var, freq = 12) {
+  x_1 <- c(10, 100, 1000, 10000)
+  y <- c(10, 4, 2, 1.5)
+  fit <- lm(log(y) ~ log(x_1))
+  p_1 <- fit$coefficients[2]
+  p_2 <- exp(fit$coefficients[1])
+  if (is.ts(y_var) == FALSE) {
+    x <- ts(y_var, frequency = freq)
+  }
+  else {
+    x <- y_var
+  }
+  if (length(x) != 0) {
+    check_count <- 0
+    for (check in 1:length(x)) {
+      if (x[check] == 0) {
+        check_count <- check_count + 1
+      }
+      else {
+        x <- subset(x, start = check_count + 1)
+        break
+      }
+    }
+    x_no_leading_zeros <- x
+    if (length(x) >= 4) {
+      dfu_break <- cpt.meanvar(x, penalty = "None", 
+                               method = "AMOC", Q = 1)
+      bp <- cpts(dfu_break)
+      x_after <- subset(x, start = bp + 1)
+      dfu_break_var <- cpt.var(x, penalty = "None", 
+                               method = "AMOC", Q = 1)
+      bp_var <- cpts(dfu_break_var)
+      x_after_var <- subset(x, start = bp_var + 1)
+      if (length(x_after) > 24) {
+        min_mean <- min(mean(x[1:bp]), mean(x[bp:length(x)]))
+        max_mean <- max(mean(x[1:bp]), mean(x[bp:length(x)]))
+        threshold <- p_2 * min_mean^p_1
+        if (max_mean/min_mean >= threshold) {
+          x <- x_after
+        }
+        else {
+          if (length(x_after_var) > 24) {
+            min_iqr <- min(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)])) + 
+              1e-04
+            max_iqr <- max(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)]))
+            if (max_iqr/min_iqr > 2) {
+              x <- x_after_var
+            }
+            else {
+              x <- x
+            }
+          }
+          else {
+            x <- x
+          }
+        }
+        if (x[1] == 0) {
+          x <- x_no_leading_zeros
+        }
+        return(x)
+      }
+      else {
+        if (length(x_after_var) > 24) {
+          min_iqr <- min(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)])) + 
+            1e-04
+          max_iqr <- max(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)]))
+          if (max_iqr/min_iqr > 2) {
+            x <- x_after_var
+          }
+          else {
+            x <- x
+          }
+        }
+        else {
+          x <- x
+        }
+        if (x[1] == 0) {
+          x <- x_no_leading_zeros
+        }
+        return(x)
+      }
+    }
+    else {
+      x <- x
+      return(x)
+    }
+  }
 }

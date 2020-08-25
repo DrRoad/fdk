@@ -5,11 +5,13 @@
 #' @param .data Data frame or tibble with a response variable.
 #' @param y_var String. Column name of the time series to be forecasted.
 #'
+#' @import forecast
+#' @import stats
 #' @return
 #' @export
 #'
 #' @examples
-get_tbats_exp <- function(.data, y_var){
+get_tbats <- function(.data, y_var){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]

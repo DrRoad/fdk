@@ -4,20 +4,20 @@
 \alias{prescribe_ts}
 \title{Data prescription}
 \usage{
-prescribe_ts(.data, key, y_var, date_var, frequency, print = TRUE)
+prescribe_ts(.data, key, y_var, date_var, freq, extend_design = TRUE)
 }
 \arguments{
-\item{.data}{DataFrame or tibble}
+\item{.data}{DataFrame or tibble.}
 
-\item{key}{Column name of the key if any}
+\item{key}{Column name of the key if any.}
 
-\item{y_var}{Column name of the variable to be forecasted}
+\item{y_var}{Column name of the variable to be forecasted.}
 
-\item{date_var}{Column name of time index}
+\item{date_var}{Column name of time index.}
 
-\item{frequency}{Frequency of the data}
+\item{freq}{Frequency of the data.}
 
-\item{print}{Logical. Print the data, TRUE by default.}
+\item{extend_design}{Logical. Print the data, TRUE by default.}
 }
 \value{
 

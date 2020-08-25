@@ -7,13 +7,13 @@
 get_glmnet(.data, y_var, date_var, parameter)
 }
 \arguments{
-\item{.data}{DataFrame or tibble}
+\item{.data}{Data frame or tibble with a response variable.}
 
 \item{y_var}{String. Column name of the time series to be forecasted.}
 
 \item{date_var}{String.Column name of the time series to be forecasted.}
 
-\item{parameter}{List. parametereters to be used for estimation. There are 4 parametereters: first,
+\item{parameter}{List. Parameters to be used for estimation. There are 4 parametereters: first,
 *alpha* in the space [0,1] controls whether it is a Ridge (L2) a LASSO (L1) shrinkage method, respectively.
 Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
 The other 2 parametereters are time weights and trend discount.}

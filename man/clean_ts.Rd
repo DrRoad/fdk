@@ -9,9 +9,9 @@ clean_ts(
   y_var,
   date_var,
   method = "winsorize",
-  frequency = 12,
+  freq = 12,
   na_exclude = NULL,
-  replace = T
+  replace_y_var = TRUE
 )
 }
 \arguments{
@@ -25,12 +25,12 @@ clean_ts(
 mean, median, nearest observation, interpolation. If more than one method is chosen, a set of new columns
 is automatically generated.}
 
-\item{frequency}{Time series frequency.}
+\item{freq}{Time series frequency.}
 
 \item{na_exclude}{Vector of names that **should not** be used to replace the observation by NA.}
 
-\item{replace}{Logical. If replace = TRUE (default) it will 
-replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_clean" column will
+\item{replace_y_var}{Logical. If replace = TRUE (default) it will 
+replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_var_clean" column will
 be attached to the data matrix.}
 }
 \value{

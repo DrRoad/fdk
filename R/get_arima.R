@@ -1,4 +1,4 @@
-#' Fit Auto Regressive Integrated Moving Average model
+#' Fit Auto Regressive Integrated Moving Average Model
 #'
 #' @param .data Data frame or tibble with a response variable.
 #' @param y_var String. Column name of the time series to be forecasted.
@@ -6,11 +6,13 @@
 #' @param parameter List. Combination of parameter to estimate the model.
 #' @param freq Numeric. Time series frequency.
 #'
+#' @import forecast
+#' @import stats
 #' @return
 #' @export
 #'
 #' @examples
-get_arima_exp <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
+get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]

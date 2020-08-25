@@ -1,4 +1,38 @@
+# Import ------------------------------------------------------------------
+
+demo_data <- readRDS("demo_data_update.rds")
+
+demo_1 <- demo_data %>% 
+  dplyr::filter(forecast_item == "FI: 592905") %>% 
+  pivot_wider(names_from = reg_name, values_from = reg_value) %>% 
+  mutate_at(.vars = vars(4:last_col()), ~ifelse(is.na(.x), 0, .x)) %>% 
+  janitor::clean_names() %>% 
+  select(-x0)
+
+
 # Cleansing ---------------------------------------------------------------
+
+demo_2 <- demo_1 %>% 
+  bind_rows(
+    tibble(volume = 0
+           , date = seq.Date(to = (min(.$date)-months(1))
+                             , from = (min(.$date) - months(3))
+                             , by = "months")
+           , .rows = 3)
+  ) %>%
+  fill_(names(.), .direction = "down") %>% 
+  arrange(date)
+
+
+source("R/get_snaive.R")
+source("R/get_forecast.R")
+source("R/get_ets.R")
+source("R/get_arima.R")
+source("R/get_glm.R")
+source("R/get_glmnet.R")
+source("R/get_croston.R")
+source("R/get_nn.R")
+source("R/get_tbats.R")
 
 # Fit ---------------------------------------------------------------------
 
@@ -13,20 +47,27 @@ parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 
                                              , n_best_model = 1))
                   , croston = list(alpha = 0.1)
                   , glm = list(time_weight = 0.9, trend_discount = 0.9
-                               , grid = grid_mlr
+                               , grid = grid
                                , job = list(x_excluded = NULL
                                             , random_search_size = 0.05
                                             , n_best_model = 1))
                   , arima = list(p = 0, d = 0, q = 0, P = 0, D = 0, Q = 0)
                   , ets = list(ets = "ZZZ"))
 
-
 .fit_output <- demo_2 %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date", freq = 12) %>% 
   clean_ts() %>% 
-  get_seasonal_naive_exp() %>% 
+  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glmnet")
+  
+  get_glmnet(parameter = parameter) %>% 
   #get_glm(parameter = parameter) %>% 
-  get_forecast_experimental(horizon = 100)
+  get_forecast(horizon = 100)
+
+
+
+
+
+
 
 
 

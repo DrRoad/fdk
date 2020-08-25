@@ -5,11 +5,13 @@
 #' @param horizon Numeric. Number of periods to forecast.
 #' @param parameter List. Parameter to be used for estimation, looks for alpha parameter.
 #'
+#' @import forecast
+#' @import stats
 #' @return
 #' @export
 #'
 #' @examples
-get_croston_exp <- function(.data, y_var, horizon = 10, parameter = NULL){
+get_croston <- function(.data, y_var, horizon=10, parameter = NULL){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
@@ -27,8 +29,9 @@ get_croston_exp <- function(.data, y_var, horizon = 10, parameter = NULL){
       model_fit <- croston(y_var_int, alpha = parameter[["croston"]][["alpha"]], h = horizon)
     }
     .fit_output <- list(model = "croston"
-                   , y_var_fcst = as.numeric(model_fit$mean)
-                   , parameter = list(alpha = ifelse(is.null(parameter$croston$alpha), 0.1 , parameter$croston$alpha))
+                        , y_var_int = y_var_int
+                        , y_var_fcst = as.numeric(model_fit$mean)
+                        , parameter = list(alpha = ifelse(is.null(parameter$croston$alpha), 0.1 , parameter$croston$alpha))
                          )
     
     attr(.fit_output, "prescription") <- prescription

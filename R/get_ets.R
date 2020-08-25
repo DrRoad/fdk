@@ -3,13 +3,14 @@
 #' @param .data Data frame or tibble.
 #' @param y_var String. Column name of the time series to be forecasted.
 #' @param parameter List. Combination of parameter to estimate the model.
-#' @param horizon Numeric. Number of periods ahead to forecast.
-#'
+#' 
+#' @import forecast
+#' @import stats
 #' @return
 #' @export
 #'
 #' @examples
-get_ets_exp <- function(.data, y_var, parameter, horizon){
+get_ets <- function(.data, y_var, parameter = NULL){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
@@ -21,7 +22,13 @@ get_ets_exp <- function(.data, y_var, parameter, horizon){
   
   y_var_int <- ts(.data[[y_var]], frequency = freq)
   
-  model_fit <- ets(y = y_var_int, model=parameter[["ets"]][["ets"]], damped = NULL, allow.multiplicative.trend = FALSE)
+  
+  if(is.null(parameter) == TRUE){
+    message("ETS optimization...")
+    model_fit <- ets(y = y_var_int, model = "ZZZ", damped = NULL, allow.multiplicative.trend = FALSE)
+  } else {
+    model_fit <- ets(y = y_var_int, model = parameter[["ets"]][["ets"]], damped = NULL, allow.multiplicative.trend = FALSE)
+  }
   
   # Timelapse
   .fit_output <- list(model = "ets"

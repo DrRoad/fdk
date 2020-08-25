@@ -5,6 +5,7 @@
 #' @param x_data Data frame. Design matrix to calculate predicted/forecast figures.
 #' @param parameter List. Parameter to be used for estimation.
 #'
+#' @import forecast
 #' @return
 #' @export
 #'
