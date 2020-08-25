@@ -1,39 +1,28 @@
 
-# neural network
-
-get_nn <- function(xd, h, mode){
-  model_name <- "nn"
-  set.seed(123)
-  if(mode == "sim"){ # Simulation
-  model <- nnetar(xd$train)
-  fcst <- forecast(model, h = h)
-  error <- mape(fcst$mean[4],xd$test)
-  # Timelapse
-  aux <- date_decimal(as.numeric(time(xd$test)))
-  time_test <- as.Date(aux, format = "%Y-%m-%d")
+get_neural_network <- function(.data, y_var, x_data = NULL, parameter = NULL){
+  if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
+    prescription <- attributes(.data)[["prescription"]]
+    y_var <- prescription$y_var
+    date_var <- prescription$date_var
+    freq <- prescription$freq
+    na_exclude <- unique(c(prescription$key, y_var, date_var))
+  }
+  
+  y_var_int <- ts(.data[[y_var]], frequency = freq) # maybe not optimal
+  
+  model_fit <- nnetar(y = y_var_int)
+  
   # Output
-  output <- data.frame(model = model_name,
-                       time = time_test,
-                       predicted = as.numeric(fcst$mean[4]),
-                       real = as.numeric(xd$test),
-                       mape = as.numeric(error),
-                       parameters = fcst$method
-                       )
-  return(output)
-  }
-  if(mode == "fcst"){ # Forecast
-    model <- nnetar(xd)
-    fcst <- forecast(model, h = h)
-    # Timelapse
-    aux <- date_decimal(as.numeric(time(fcst$mean)))
-    time_test <- as.Date(aux, format = "%Y-%m-%d")
-    # Output
-    output <- data.frame(model = model_name,
-                         time = time_test,
-                         predicted = as.numeric(fcst$mean),
-                         parameters = fcst$method
-                         )
-    return(output)
-  }
+  .fit_output <- list(model = "neural_network"
+                      , model_fit = model_fit
+                      , y_var_pred = as.numeric(model_fit$fitted)
+                      , parameter = as.numeric(unlist(str_extract_all(model_fit$method, "[0-9]{1,2}")
+                                                      )
+                                               )
+                      )
+  
+  attr(.fit_output, "prescription") <- prescription
+  class(.fit_output) <- ".fit_output"
+  
+  return(.fit_output)
 }
-

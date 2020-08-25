@@ -36,8 +36,8 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
   
   # Design matrix
   
-  y_train <- as.numeric(.data[[y_var]])
-  x_train <- .data %>% 
+  y_var_int <- as.numeric(.data[[y_var]])
+  x_data_matrix <- .data %>% 
     select(setdiff(names(.), x_excluded)) %>% 
     fastDummies::dummy_cols(select_columns = factor_var
                             , remove_selected_columns = T
@@ -48,20 +48,20 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
 
   if (parameter[["glmnet"]][["job"]][["optim_lambda"]] == FALSE) {
     model_fit <- glmnet(
-      x = x_train, y = y_train, weights = time_weights_tmp
+      x = x_data_matrix, y = y_var_int, weights = time_weights_tmp
       , alpha = parameter$glmnet$alpha
       , lambda = lambda
     )
   } else {
     model_fit_tmp <- cv.glmnet(
-      x = x_train, y = y_train,
+      x = x_data_matrix, y = y_var_int,
       alpha = parameter$glmnet$alpha,
       weights = time_weights_tmp,
       type.measure = "mae"
     )
 
     model_fit <- glmnet(
-      x = x_train, y = y_train,
+      x = x_data_matrix, y = y_var_int,
       weights = time_weights_tmp,
       alpha = parameter$glmnet$alpha,
       lambda = model_fit_tmp$lambda.min
@@ -78,10 +78,10 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
         , time_weight = parameter$glmnet$time_weight
         , trend_discount = parameter$glmnet$trend_discount
         , fit_summary = list(
-          train_size = length(.data[,1][[1]])
+          data_size = length(.data[,1][[1]])
           , time_weight_values = time_weights_tmp
-          , train_pred = as.vector(predict(model_fit, newx = x_train))
-          , x_var_matrix = colnames(x_train)
+          , y_var_pred = as.vector(predict(model_fit, newx = x_data_matrix))
+          , x_var_matrix = colnames(x_data_matrix)
           , x_var = x_var
           , factor_var = factor_var
           )

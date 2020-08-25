@@ -1,50 +1,29 @@
 
 # croston
 
-get_croston <- function(xd, parameters, h, mode){
-  model_name <- "croston"
-  if(mode == "sim"){ # For simulation
-    if(is.null(parameters)){
-      model <- croston(xd$train, h = h)
-    }else{
-      model <- croston(xd$train, h = h, alpha = parameters)
-    }
-    fcst <- forecast(model)
-    error <- mape(fcst$mean[h],xd$test)
-    # Timelapse
-    aux <- date_decimal(as.numeric(time(xd$test)))
-    time_test <- as.Date(aux, format = "%Y-%m-%d")
-    # Output
-    output <- data.frame(model = model_name,
-                         time = time_test,
-                         predicted = as.numeric(fcst$mean[h]),
-                         real = as.numeric(xd$test),
-                         mape = as.numeric(error),
-                         parameters = paste0("Alpha:"," ",
-                                             ifelse(is.null(parameters),
-                                                    0.1,parameters))
-                         )
-    return(output) # Output
+get_croston_exp <- function(.data, y_var, horizon = 10, parameter = NULL){
+  
+  if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
+    prescription <- attributes(.data)[["prescription"]]
+    y_var <- prescription$y_var
+    date_var <- prescription$date_var
+    freq <- prescription$freq
+    na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
-  if(mode == "fcst"){ # For forecast
-    if(is.null(parameters)){
-      model <- croston(xd, h = h)
+  
+  y_var_int <- ts(.data[[y_var]], frequency = freq)
+  
+  if(is.null(parameter)){
+      model_fit <- croston(y_var_int, h = horizon)
     }else{
-      model <- croston(xd, h = h, alpha = parameters)
+      model_fit <- croston(y_var_int, alpha = parameter[["croston"]][["alpha"]], h = horizon)
     }
-    fcst <- forecast(model)
-    # Timelapse
-    aux <- date_decimal(as.numeric(time(fcst$mean)))
-    time_test <- as.Date(aux, format = "%Y-%m-%d")
-    # Output
-    output <- data.frame(model = model_name,
-                         time = time_test,
-                         predicted = as.numeric(fcst$mean),
-                         parameters = paste0("Alpha:"," ",
-                                             ifelse(is.null(parameters),
-                                                    0.1,parameters))
+    .fit_output <- list(model = "croston"
+                   , y_var_forecast = as.numeric(model_fit$mean)
+                   , parameter = list(alpha = ifelse(is.null(parameter$croston$alpha), 0.1 , parameter$croston$alpha))
                          )
-    return(output) # Output
-  }
+    
+    attr(.fit_output, "prescription") <- prescription
+    class(.fit_output) <- ".fit_output"
+    return(.fit_output) # Output
 }
-

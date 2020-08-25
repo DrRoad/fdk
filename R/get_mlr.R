@@ -42,12 +42,12 @@ get_glm <- function(.data, y_var, date_var, parameter) {
     , model_fit = model_fit
     #, prescription = prescription
     , parameter = list(
-      time_weight = parameter$glmnet$time_weight
-      , trend_discount = parameter$glmnet$trend_discount
+      time_weight = parameter$glm$time_weight
+      , trend_discount = parameter$glm$trend_discount
       , fit_summary = list(
-        train_size = length(.data[,1][[1]])
+        data_size = length(.data[,1][[1]])
         , time_weight_values = time_weights_tmp
-        , train_pred = as.vector(predict(model_fit, newx = .data))
+        , y_var_pred = as.vector(predict(model_fit, newx = .data))
         , x_var = x_var
         , factor_var = factor_var
       )

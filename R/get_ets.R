@@ -1,37 +1,28 @@
 
 # ets
 
-get_ets <- function(xd, h, mode){
-  model_name <- "ets"
-  if(mode == "sim"){ # Simulation
-    model <- ets(xd$train, model="ZZZ", damped=NULL, allow.multiplicative.trend=FALSE)
-    fcst <- forecast(model, h = h)
-    error <- mape(fcst$mean[h],xd$test)
-    # Timelapse
-    aux <- date_decimal(as.numeric(time(xd$test)))
-    time_test <- as.Date(aux, format = "%Y-%m-%d")
-    # Output
-    output <- data.frame(model = model_name,
-                         time = time_test,
-                         predicted = as.numeric(fcst$mean[h]),
-                         real = as.numeric(xd$test),
-                         mape = as.numeric(error),
-                         parameters = fcst$method
-    )
-    return(output)
+get_ets_exp <- function(.data, y_var, parameter, horizon){
+  
+  if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
+    prescription <- attributes(.data)[["prescription"]]
+    y_var <- prescription$y_var
+    date_var <- prescription$date_var
+    freq <- prescription$freq
+    na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
-  if(mode == "fcst"){ # Forecast
-    model <- ets(xd, model="ZZZ", damped=NULL, allow.multiplicative.trend=FALSE)
-    fcst <- forecast(model, h = h)
-    # Timelapse
-    aux <- date_decimal(as.numeric(time(fcst$mean)))
-    time_test <- as.Date(aux, format = "%Y-%m-%d")
-    # Output
-    output <- data.frame(model = model_name,
-                         time = time_test,
-                         predicted = as.numeric(fcst$mean),
-                         parameters = fcst$method
-    )
-    return(output)
-  }
+  
+  y_var_int <- ts(.data[[y_var]], frequency = freq)
+  
+  model_fit <- ets(y = y_var_int, model=parameter[["ets"]][["ets"]], damped = NULL, allow.multiplicative.trend = FALSE)
+  
+  # Timelapse
+  .fit_output <- list(model = "ets"
+                      , model_fit = model_fit
+                      , y_var_pred = as.numeric(model_fit[["fitted"]])
+                      , parameter = paste0(model_fit$components[1:3], collapse = "")
+                      )
+  
+  attr(.fit_output, "prescription") <- prescription
+  class(.fit_output) <- ".fit_output"
+  return(.fit_output)
 }

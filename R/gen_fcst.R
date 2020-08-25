@@ -9,17 +9,17 @@ get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL
     if (tune == TRUE) {
       x_data %>%
         transmute(
-          .y_var_true = y_var,
-          .y_var_pred = last(as.numeric(forecast(
+          y_var_true = y_var,
+          y_var_fcst = last(as.numeric(forecast(
             .fit_output[["model_fit"]],
             attributes(x_data)[["prescription"]][["lag"]]
           )[["mean"]])),
-          .fit_output$parameter %>% t() %>% as_tibble()
+          .fit_output$parameter %>% as_tibble()
         )
     } else {
       tibble(
         date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
-        forecast = as.numeric(forecast(.fit_output[["model_fit"]], horizon)[["mean"]]),
+        y_var_fcst = as.numeric(forecast(.fit_output[["model_fit"]], horizon)[["mean"]]),
         model = .fit_output$model
       )
     }
@@ -32,7 +32,7 @@ get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL
 
       predict.glmnet(object = .fit_output$model_fit, newx = x_data_int) %>%
         as.vector() %>%
-        enframe(name = "date", value = "forecast") %>%
+        enframe(name = "date", value = "y_var_fcst") %>%
         mutate(
           date = seq.Date(
             from = (prescription$max_date + months(1)),
@@ -45,8 +45,8 @@ get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL
       # yvar_pred = as.numeric(predict.glmnet(object = .fit_output$model_fit, newx = x_data_int))
       x_data_tmp <- x_data %>%
         transmute(
-          .y_var_true = y_var,
-          .y_var_pred = as.numeric(predict.glmnet(object = .fit_output$model_fit, newx = x_data_int)),
+          y_var_true = y_var,
+          y_var_fcst = as.numeric(predict.glmnet(object = .fit_output$model_fit, newx = x_data_int)),
           trend_discount = .fit_output$parameter$trend_discount,
           time_weight = .fit_output$parameter$time_weight,
           alpha = .fit_output$parameter$alpha,
@@ -55,13 +55,15 @@ get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL
 
       return(x_data_tmp)
     }
-  } else if (.fit_output[["model"]][["glm"]]) {
+  } else if (.fit_output[["model"]]== "glm") {
+    
+    # Synthetic x_data
     x_data_int <- make_reg_matrix(.fit_output = .fit_output, x_data = x_data, horizon = horizon)
     
     if (is.null(x_data) == TRUE) {
-      predict.glm(object = .fit_output$model_fit, newx = x_data_int) %>%
+      predict.glm(object = .fit_output$model_fit,newdata = x_data_int) %>%
         as.vector() %>%
-        enframe(name = "date", value = "forecast") %>%
+        enframe(name = "date", value = "y_var_fcst") %>%
         mutate(
           date = seq.Date(
             from = (prescription$max_date + months(1)),
@@ -70,8 +72,58 @@ get_forecast_experimental <- function(.fit_output, x_data = NULL, horizon = NULL
           ),
           model = "glm"
         )
+    } else if (tune == TRUE) {
+      x_data_tmp <- x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = as.numeric(predict.glm(object = .fit_output$model_fit, newdata = x_data_int)),
+          trend_discount = .fit_output$parameter$trend_discount,
+          time_weight = .fit_output$parameter$time_weight
+        )
+      }
+  } else if (.fit_output[["model"]] == "croston") {
+    get_croston_exp(.data, parameter = parameter, horizon = horizon) %>% 
+      .[["y_var_fcst"]] %>% 
+      enframe(name = "date", value = "y_var_fcst") %>% 
+      mutate(
+        date = seq.Date(
+          from = (prescription$max_date + months(1)),
+          by = freq_string,
+          length.out = horizon
+        ),
+        model = "croston"
+      )
+  } else if(.fit_output[["model"]] == "ets"){
+    if (tune == TRUE) {
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = last(as.numeric(predict(model_fit, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
+          , parameter = str_remove_all(model_fit$method, "ETS|NNAR|,|\\)|\\(")
+        )
+    } else {
+      tibble(
+        date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
+        y_var_fcst = as.numeric(predict(.fit_output[["model_fit"]], horizon)[["mean"]]),
+        model = .fit_output$model
+      )
     }
-    
-
+  } else if(.fit_output[["model"]] == "neural_network"){
+    if (tune == TRUE) {
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = last(as.numeric(predict(model_fit, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
+          , parameter = str_remove_all(model_fit$method, "ETS|NNAR|,|\\)|\\(")
+        )
+    } else {
+      tibble(
+        date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
+        y_var_fcst = as.numeric(predict(.fit_output[["model_fit"]], horizon)[["mean"]]),
+        model = .fit_output$model
+      )
+    }
   }
 }
+  
+  

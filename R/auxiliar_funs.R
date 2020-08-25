@@ -164,27 +164,31 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
   prescription <- attributes(.fit_output)[["prescription"]]
   
   if(is.null(x_data) == TRUE){
-    
-    tmp_tibble <- tibble(.rows = horizon)
+    reg_matrix_tmp <- tibble(.rows = horizon)
     
     for(i in 1:length(.fit_output$parameter$fit_summary$x_var)){
-      tmp_tibble[.fit_output$parameter$fit_summary$x_var[i]] <- 0
+      reg_matrix_tmp[.fit_output$parameter$fit_summary$x_var[i]] <- 0
     }
     
-    tmp_tibble %>% 
+    reg_matrix_tmp <- reg_matrix_tmp %>% 
       mutate(date = seq.Date(from = as.Date(prescription$max_date + months(1)) # expand for week
                              , length.out = horizon
                              , by = "month")
              , seasonal_var = factor(months(date, abbr=TRUE), levels = month.abb)
-             , trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$train_size
+             , trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$data_size
                                            , trend_discount = .fit_output$parameter$trend_discount
                                            , horizon = horizon)) %>% 
-      select(.fit_output$parameter$fit_summary$x_var) %>% 
-      fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
-                              , remove_selected_columns = T) %>%
-      select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
-      as.matrix()
+      select(.fit_output$parameter$fit_summary$x_var) 
     
+    if(.fit_output[["model"]] == "glmnet"){
+      reg_matrix_tmp %>% 
+        fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
+                                , remove_selected_columns = T) %>%
+        select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
+        as.matrix()
+    } else if(.fit_output[["model"]] == "glm"){
+      return(reg_matrix_tmp)
+    }
   } else {
     x_data %>% 
       select(.fit_output$parameter$fit_summary$x_var) %>% 
@@ -197,6 +201,10 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
       as.matrix()
   }
 }
+
+
+
+
 
 # Splits -------------------------------
 
