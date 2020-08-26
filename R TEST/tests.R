@@ -1,3 +1,12 @@
+
+# Package ------------------------------------------------------------------
+
+require(tidyverse)
+require(glmnet)
+require(stlplus)
+require(forecast)
+
+
 # Import ------------------------------------------------------------------
 
 demo_data <- readRDS("demo_data_update.rds")
@@ -33,6 +42,9 @@ source("R/get_glmnet.R")
 source("R/get_croston.R")
 source("R/get_nn.R")
 source("R/get_tbats.R")
+source("R/cleansing.R")
+source("R/auxiliar.R")
+
 
 # Fit ---------------------------------------------------------------------
 
@@ -49,32 +61,33 @@ parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 
                   , glm = list(time_weight = 0.9, trend_discount = 0.9
                                , grid = grid
                                , job = list(x_excluded = NULL
-                                            , random_search_size = 0.05
+                                            , random_search_size = 0.2
                                             , n_best_model = 1))
                   , arima = list(p = 0, d = 0, q = 0, P = 0, D = 0, Q = 0)
                   , ets = list(ets = "ZZZ"))
 
-.fit_output <- demo_2 %>% 
+.data <- demo_2 %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date", freq = 12) %>% 
   clean_ts() %>% 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glmnet")
-  
   get_glmnet(parameter = parameter) %>% 
   #get_glm(parameter = parameter) %>% 
   get_forecast(horizon = 100)
+  
 
-
-
-
-
-
-
+tictoc::tic()
+map(.x = c("arima", "glmnet")
+    , .f = ~optim_ts(.data, test_size = 6, lag = 3, parameter = parameter, model = .x)) %>% 
+  bind_rows()
+tictoc::toc()
 
 
 .data <- demo_2 %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date", freq = 12) %>% 
   clean_ts() %>% 
-  get_neural_network()
+  get_neural_network() %>% 
+  get_forecast(horizon = 10)
+
+foreach(c)
 
 
 splits <- split_ts(.data, test_size = 6, lag = 3)
@@ -87,21 +100,11 @@ split_1 <- splits[[1]]
 parameter <- update_parameter(parameter = parameter, new = grid[1,])
 
 
-
-
-
-
-
-
-
-
-
-
-
 tictoc::tic()
-optim_ts(.data, test_size = 4, lag = 4, parameter = parameter, model = "glmnet")
+optim_ts(.data, test_size = 4, lag = 4, parameter = parameter
+         , model = c("glmnet", "glm", "arima", "tbats", "neural_network"
+                     , "seasonal_naive", "croston", "ets"), parallel = T)
 tictoc::toc()
-
 
 
 autoforecast <- function(){
@@ -117,9 +120,28 @@ autoforecast <- function(){
   get_arima_experimental(parameter = parameter) %>% 
   get_forecast_experimental(horizon = 30)
 
+profvis::profvis({
+optim_ts(.data, test_size = 6, lag = 1, parameter = parameter, model = "arima")
+})
+
+
+tictoc::tic()
+  foreach(model = c("arima", "glmnet"), .combine = "rbind") %dopar% {
+    .data <- demo_2 %>% 
+      prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date", freq = 12) %>% 
+      clean_ts()
+    
+    optim_ts(.data, test_size = 6, lag = 1, parameter = parameter, model = model)
+  }
+tictoc::toc()
 
 
 
+plan(multisession(workers = 4))
+
+tictoc::tic()
+future_map(.x = c("arima", "glmnet"), .f = ~optim_ts(.data, test_size = 6, lag = 1, parameter = parameter, model = .x))
+tictoc::toc()
 
 .data <- demo_2 %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date", freq = 12) %>% 

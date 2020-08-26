@@ -13,11 +13,8 @@
 #'
 #' @examples
 get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE) {
-  
-  
-  
-  if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
-    prescription <- attributes(.data)[["prescription"]]
+  if(is.null(attributes(.fit_output)[["prescription"]]) == FALSE) {
+    prescription <- attributes(.fit_output)[["prescription"]]
     #y_var <- prescription$y_var
     #date_var <- prescription$date_var
     #freq <- prescription$freq
@@ -30,16 +27,15 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
 
   if (.fit_output[["model"]] == "arima") {
     if (tune == TRUE) {
+      message("here")
       x_data %>%
         transmute(
-          y_var_true = .data[["y_var"]],
-          y_var_fcst = last(as.numeric(forecast(
-            .fit_output[["model_fit"]],
-            attributes(x_data)[["prescription"]][["lag"]]
-          )[["mean"]])),
-          as_tibble(.fit_output[["parameter"]])
+          y_var_true = y_var
+          , y_var_fcst = last(as.numeric(forecast(.fit_output[["model_fit"]], prescription[["lag"]])[["mean"]]))
+          , as_tibble(.fit_output[["parameter"]])
         )
     } else {
+      message("here 1")
       tibble(
         date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
         y_var_fcst = as.numeric(forecast(.fit_output[["model_fit"]], horizon)[["mean"]]),
@@ -80,10 +76,18 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     }
   } else if (.fit_output[["model"]]== "glm") {
     
-    # Synthetic x_data
     x_data_int <- make_reg_matrix(.fit_output = .fit_output, x_data = x_data, horizon = horizon)
     
-    if (is.null(x_data) == TRUE) {
+    if (tune == TRUE) {
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = as.numeric(predict(object = .fit_output[["model_fit"]], newdata = x_data_int)),
+          trend_discount = .fit_output$parameter$trend_discount,
+          time_weight = .fit_output$parameter$time_weight
+        )
+    } else if (is.null(x_data) == TRUE) {
+      # Synthetic x_data
       predict.glm(object = .fit_output[["model_fit"]], newdata = x_data_int) %>%
         as.vector() %>%
         enframe(name = "date", value = "y_var_fcst") %>%
@@ -94,14 +98,6 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
             length.out = horizon
           ),
           model = "glm"
-        )
-    } else if (tune == TRUE) {
-      x_data_tmp <- x_data %>%
-        transmute(
-          y_var_true = y_var,
-          y_var_fcst = as.numeric(predict.glm(object = .fit_output[["model_fit"]], newdata = x_data_int)),
-          trend_discount = .fit_output$parameter$trend_discount,
-          time_weight = .fit_output$parameter$time_weight
         )
       }
   } else if (.fit_output[["model"]] == "croston") { # missing tune
@@ -118,27 +114,6 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
         y_var_fcst = as.numeric(croston(.fit_output$y_var_int, horizon)[["mean"]]),
         model = .fit_output[["model"]]
       )
-    }
-    
-    if(tune == TRUE){
-      x_data %>%
-        transmute(
-          y_var_true = y_var,
-          y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = str_remove_all(.fit_output[["model_fit"]][["method"]], "ETS|NNAR|,|\\)|\\(")
-        )
-    } else {
-      get_croston(.data, parameter = parameter, horizon = horizon) %>% 
-        .[["y_var_fcst"]] %>% 
-        enframe(name = "date", value = "y_var_fcst") %>% 
-        mutate(
-          date = seq.Date(
-            from = (prescription$max_date + months(1)),
-            by = freq_string,
-            length.out = horizon
-          ),
-          model = "croston"
-        )
     }
   } else if(.fit_output[["model"]] == "ets"){
     if (tune == TRUE) {

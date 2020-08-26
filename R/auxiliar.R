@@ -1,28 +1,28 @@
-#' Check inputs
-#'
-#' Check for data structure compliance.
-#' @param .data DataFrame
-#'
-#' @return
-#' @export
-#' @noRd
-#' @examples
-check_inputs <- function(.data){
-  # Colnames checks
-  if(colnames(data)[1]!="key"){
-    print("Check first column name please")
-  }
-  if(colnames(data)[2]!="y"){
-    print("Check second column name please")
-  }
-  if(colnames(data)[3]!="date"){
-    print("Check third column name please")
-  }
-  if(colnames(data)[4]!="reg"){
-    print("Check fourth column name please")
-  }
-  # Format checks
-}
+#' #' Check inputs
+#' #'
+#' #' Check for data structure compliance.
+#' #' @param .data DataFrame
+#' #'
+#' #' @return
+#' #' @export
+#' #' @noRd
+#' #' @examples
+#' check_inputs <- function(.data){
+#'   # Colnames checks
+#'   if(colnames(data)[1]!="key"){
+#'     print("Check first column name please")
+#'   }
+#'   if(colnames(data)[2]!="y"){
+#'     print("Check second column name please")
+#'   }
+#'   if(colnames(data)[3]!="date"){
+#'     print("Check third column name please")
+#'   }
+#'   if(colnames(data)[4]!="reg"){
+#'     print("Check fourth column name please")
+#'   }
+#'   # Format checks
+#' }
 
 #' #' Detect seasonality
 #' #' 
@@ -167,6 +167,8 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
   prescription <- attributes(.fit_output)[["prescription"]]
   
   if(is.null(x_data) == TRUE){
+    #message("Synthetic data")
+    
     reg_matrix_tmp <- tibble(.rows = horizon)
     
     for(i in 1:length(.fit_output$parameter$fit_summary$x_var)){
@@ -181,8 +183,8 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
              , trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$data_size
                                            , trend_discount = .fit_output$parameter$trend_discount
                                            , horizon = horizon)) %>% 
-      select(.fit_output$parameter$fit_summary$x_var) 
-    
+      select(.fit_output$parameter$fit_summary$x_var)
+  
     if(.fit_output[["model"]] == "glmnet"){
       reg_matrix_tmp %>% 
         fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
@@ -192,16 +194,25 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
     } else if(.fit_output[["model"]] == "glm"){
       return(reg_matrix_tmp)
     }
-  } else {
-    x_data %>% 
-      select(.fit_output$parameter$fit_summary$x_var) %>% 
-      fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
-                              , remove_selected_columns = T) %>%
-      select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
-      mutate(trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$train_size
-                                         , trend_discount = .fit_output$parameter$trend_discount
-                                         , lag = prescription$lag)) %>% 
-      as.matrix()
+  } else if(is.null(x_data) == FALSE) {
+    #message("New x_data")
+    if(.fit_output[["model"]] == "glmnet"){
+      x_data %>% 
+        select(.fit_output$parameter$fit_summary$x_var) %>% 
+        fastDummies::dummy_cols(select_columns = .fit_output$parameter$fit_summary$factor_var
+                                , remove_selected_columns = T) %>%
+        select(.fit_output$parameter$fit_summary$x_var_matrix) %>% 
+        mutate(trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$data_size
+                                           , trend_discount = .fit_output$parameter$trend_discount
+                                           , lag = prescription$lag)) %>% 
+        as.matrix()
+    } else if(.fit_output[["model"]] == "glm"){
+      x_data %>% 
+        select(.fit_output$parameter$fit_summary$x_var) %>% 
+        mutate(trend = get_trend_discounts(y_var_length = .fit_output$parameter$fit_summary$data_size
+                                           , trend_discount = .fit_output$parameter$trend_discount
+                                           , lag = prescription$lag))
+    }
   }
 }
 
@@ -348,6 +359,10 @@ update_parameter <- function(parameter, new_parameter, model="glmnet"){
     parameter$glmnet$time_weight <- new_parameter$time_weight
     parameter$glmnet$trend_discount <- new_parameter$trend_discount
     parameter$glmnet$alpha <- new_parameter$alpha
+    return(parameter)
+  } else if(model == "glm"){
+    parameter$glm$time_weight <- new_parameter$time_weight
+    parameter$glm$trend_discount <- new_parameter$trend_discount
     return(parameter)
   }
 }

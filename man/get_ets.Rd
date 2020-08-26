@@ -4,7 +4,7 @@
 \alias{get_ets}
 \title{Fit Error Trend Seasonal model}
 \usage{
-get_ets(.data, y_var, parameter, horizon)
+get_ets(.data, y_var, parameter = NULL)
 }
 \arguments{
 \item{.data}{Data frame or tibble.}
@@ -12,8 +12,6 @@ get_ets(.data, y_var, parameter, horizon)
 \item{y_var}{String. Column name of the time series to be forecasted.}
 
 \item{parameter}{List. Combination of parameter to estimate the model.}
-
-\item{horizon}{Numeric. Number of periods ahead to forecast.}
 }
 \value{
 

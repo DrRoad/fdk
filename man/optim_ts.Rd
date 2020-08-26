@@ -4,10 +4,10 @@
 \alias{optim_ts}
 \title{Hyperparameter optimization for a glmnet model}
 \usage{
-optim_ts(.data, test_size, lag, parameter, model)
+optim_ts(.data, test_size, lag, parameter, model, parallel = FALSE)
 }
 \arguments{
-\item{.data}{Data frame}
+\item{.data}{Data frame or tibble.}
 
 \item{test_size}{Numeric. How many periods will be use to asses the forecast accuracy.}
 
@@ -19,6 +19,8 @@ Any number that lies between is considered as ElasticNet regression, a combinati
 The other 2 hyperparameters are time weights and trend discount.}
 
 \item{model}{String. Model to be optimized.}
+
+\item{parallel}{Logical. Perform parallelization across different model selection (**experimental**).}
 }
 \value{
 
