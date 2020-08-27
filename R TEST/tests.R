@@ -46,22 +46,24 @@ source("R/auxiliar.R")
 
 # Fit ---------------------------------------------------------------------
 
-grid <- expand_grid(time_weight = seq(from = 0.7, to = 1, by = 0.05)
-                    , trend_discount = seq(from = 0.8, to = 1, by = 0.05)
+grid_glmnet <- expand_grid(time_weight = seq(from = 0.7, to = 1, by = 0.05)
+                    , trend_discount = seq(from = 0.9, to = 1, by = 0.05)
                     , alpha = seq(from = 0, to = 1, by = 0.10))
+grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
+                           , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
 
-parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 0, lambda = 0
-                                , grid = grid
+parameter <- list(glmnet = list(time_weight = .94, trend_discount = .93, alpha = 0, lambda = .1
+                                , grid_glmnet = grid_glmnet
                                 , job = list(optim_lambda = TRUE, x_excluded = NULL
-                                             , random_search_size = 0.05
+                                             , random_search_size = 0.1
                                              , n_best_model = 1))
                   , croston = list(alpha = 0.1)
-                  , glm = list(time_weight = 0.9, trend_discount = 0.9
-                               , grid = grid
+                  , glm = list(time_weight = .99, trend_discount = 0.97
+                               , grid_glm = grid_glm
                                , job = list(x_excluded = NULL
-                                            , random_search_size = 0.2
+                                            , random_search_size = 0.1
                                             , n_best_model = 1))
-                  , arima = list(p = 0, d = 0, q = 0, P = 0, D = 0, Q = 0)
+                  , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
                   , ets = list(ets = "ZZZ"))
 
 .data <- demo_2 %>% 
@@ -71,8 +73,7 @@ parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 
   get_forecast(horizon = 100)
   
 
-autoforecast(y_var = "")
-
+map(sample(1:100, 4), ~update_parameter(old_parameter = parameter, new_parameter = parameter$glm$grid[.x, ], model = "glm"))
 
 
 

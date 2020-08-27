@@ -227,18 +227,8 @@ prescribe_ts <- function(.data, key, y_var, date_var, reg_name = NULL, reg_value
     attr(.data_tmp, "prescription")[["reg_value"]] <- "reg_value"
     attr(.data_tmp, "prescription")[["has_regressors"]] <- TRUE
     prescription <- attributes(.data_tmp)[["prescription"]]
-    
-    if(attributes(.data_tmp)[["prescription"]][["multiple_keys"]] == TRUE){
-      .data_tmp_i <- .data_tmp %>% 
-        group_nest(key)
-      
-      for(i in seq_along(.data_tmp_i[["key"]])){
-        attr(.data_tmp_i[["data"]][[i]], "prescription") <- attributes(.data_tmp_i)[["prescription"]]
-      }
-      
-      .data_tmp <- .data_tmp_i
-    }
   }
+  
   return(.data_tmp)
 }
 

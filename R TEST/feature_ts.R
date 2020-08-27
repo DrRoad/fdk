@@ -50,7 +50,7 @@ feature_engineering_ts <- function(.data){
     if(n_regressors == 1){
       .data_tmp <- .data %>% 
         select(-reg_value, -reg_name) %>% 
-        get_design_matrix()
+        get_design_matrix(to_dummy = FALSE)
     } else if(n_regressors> 1){
       .data_tmp <- .data %>% 
         pivot_wider(names_from = "reg_name", values_from = "reg_value") %>% 
@@ -58,27 +58,12 @@ feature_engineering_ts <- function(.data){
         janitor::clean_names() %>% 
         mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
       attr(.data_tmp, "prescription") <- prescription
-      .data_tmp <- get_design_matrix(.data_tmp)
+      .data_tmp <- get_design_matrix(.data_tmp, to_dummy = FALSE)
     }
     return(.data_tmp)
   }
   
-  if(any(names(.data) %in% "reg_value") == TRUE){
-    .data_tmp <- .data %>% 
-      group_nest(key) %>% 
-      mutate(data = map(data, ~wide_reg_int(.x)))
-    
-    for(i in seq_along(.data_tmp[["key"]])){
-      attr(.data_tmp[["data"]][[i]], "prescription") <- prescription
-    }
-    
-    if(prescription[["multiple_keys"]] == FALSE){
-      .data_tmp %>% 
-        unnest(data)
-    } else {
-      .data_tmp
-    }
-  }
+  wide_reg_int(.data)
 }
 
 

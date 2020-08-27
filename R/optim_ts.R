@@ -23,14 +23,12 @@
 #'
 #' @examples
 optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
-  options(warn = -1)
-  
   optim_switcher <- function(model){
     if(model == "glmnet"){
       random_grid <- sample(x = 1:nrow(parameter$glmnet$grid)
                             , size = round(length(1:nrow(parameter$glmnet$grid))*parameter$glmnet$job$random_search_size)
                             , replace = FALSE)
-      message(paste0("GLMNET: Hyperparameter tuning ", length(random_grid)* test_size, " models..."))
+      cat(paste0("\nElastic Net: Hyperparameter tuning - Fitting ", length(random_grid) * test_size, " models...\n"))
       
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits") %>% 
@@ -38,7 +36,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
       
       splits_tmp_cv <- map2(.x = splits_tmp$splits, .y = splits_tmp$random_grid
                             , ~get_glmnet(.data = .x[["train"]]
-                                          , parameter = update_parameter(parameter
+                                          , parameter = update_parameter(old_parameter = parameter
                                                                          , new_parameter = parameter$glmnet$grid[.y, ]
                                                                          , model = "glmnet")) %>% 
                               get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
@@ -58,6 +56,8 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                   slice(1)))
       
     } else if(model == "arima") {
+      cat(paste0("\nARIMA: Hyperparameter tuning...\n"))
+      
       suppressMessages(
         {
           splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
@@ -78,32 +78,40 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
         }
       )
     } else if(model == "glm"){
-      random_grid <- sample(x = 1:nrow(parameter$glm$grid)
-                            , size = round(length(1:nrow(parameter$glm$grid))*parameter$glm$job$random_search_size)
+      
+      
+      random_grid <- sample(x = 1:nrow(parameter$glm$grid_glm)
+                            , size = round(length(1:nrow(parameter$glm$grid_glm))*parameter$glm$job$random_search_size)
                             , replace = FALSE)
-      message(paste0("GLM: Hyperparameter tuning ", length(random_grid)* test_size, " models..."))
+      cat(paste0("\nGLM: Hyperparameter tuning - Fitting ", length(random_grid) * test_size, " models...\n"))
       
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits") %>% 
         expand_grid(random_grid)
       
+      
+      suppressWarnings({
       splits_tmp_cv <- map2(.x = splits_tmp$splits, .y = splits_tmp$random_grid
                             , ~get_glm(.data = .x[["train"]]
-                                          , parameter = update_parameter(parameter
-                                                                         , new_parameter = parameter$glm$grid[.y, ]
+                                          , parameter = update_parameter(old_parameter = parameter
+                                                                         , new_parameter = parameter[["glm"]][["grid_glm"]][.y, ]
                                                                          , model = "glm")) %>% 
                               get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
         mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true) %>% 
         group_by(trend_discount, time_weight) %>%
         summarise(cv_mape = mean(mape_i), .groups = "drop") %>% 
-        arrange(cv_mape)
+        top_n(n = 1, wt = -cv_mape)
+      })
       
       tibble(model = "glm"
-             , cv_mape = splits_tmp_cv$cv_mape[1]
-             , parameter = list(select(splits_tmp_cv, trend_discount, time_weight) %>% 
-                                  slice(1)))
+             , cv_mape = splits_tmp_cv[["cv_mape"]]
+             , parameter = list(select(splits_tmp_cv, trend_discount, time_weight)
+                                )
+             )
     } else if(model == "croston"){
+      cat(paste0("\nCROSTON: Hyperparameter tuning...\n"))
+      
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits")
       
@@ -118,6 +126,8 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                        , -mape_i) %>% 
                                   slice(n())))
     } else if(model == "tbats"){
+      cat(paste0("\nTBATS: Hyperparameter tuning...\n"))
+      
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits")
       
@@ -132,6 +142,8 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                        , -mape_i) %>% 
                                   slice(n())))
     } else if(model == "seasonal_naive"){
+      cat(paste0("\nSEASONAL NAIVE: Hyperparameter tuning...\n"))
+      
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits")
       
@@ -146,6 +158,8 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                        , -mape_i) %>% 
                                   slice(n())))
     } else if(model == "ets"){
+      cat(paste0("\nETS: Hyperparameter tuning...\n"))
+      
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits")
       
@@ -160,6 +174,8 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                        , -mape_i) %>% 
                                   slice(n())))
     } else if(model == "neural_network"){
+      cat(paste0("\nNEURAL NETWORK: Hyperparameter tuning...\n"))
+      
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits")
       
@@ -176,23 +192,15 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
     }
   } # Close switcher
   
-
-  # Parallelization Experimental
-
-  if(length(model) == 1){
-    optim_switcher(model)
-  } else if(length(model)> 1){
-    if(parallel == TRUE){
-      plan(multisession(workers = (parallel::detectCores()-2)))
-      future_map(model, .f = ~optim_switcher(.x)) %>% 
-        bind_rows() %>% 
-        arrange(cv_mape)
-    } else if(parallel == FALSE){
-      map(model, .f = ~optim_switcher(.x)) %>% 
-        bind_rows() %>% 
-        arrange(cv_mape)
-    }
-  }
+  optim_switcher_safe <- purrr::possibly(optim_switcher, otherwise = NA)
+    
+  optim_out <- map(model, .f = ~optim_switcher_safe(.x)) %>% 
+    bind_rows() %>% 
+    arrange(cv_mape) %>% 
+    mutate(ranking = 1:n(), .before = "model")
   
-  options(warn = 1)
+  for(i in seq_along(optim_out$model)){
+    attr(optim_out[["parameter"]][[i]], "output_type") <- "optim_out"
+  }
+  return(optim_out)
 }

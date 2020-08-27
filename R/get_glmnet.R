@@ -22,8 +22,8 @@
 get_glmnet <- function(.data, y_var, date_var, parameter) {
   if (is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
-    y_var <- "y_var"
-    date_var <- "date_var"
+    y_var <- prescription[["y_var"]]
+    date_var <- prescription[["date_var"]]
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
@@ -66,7 +66,7 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
       , weights = time_weights_tmp
       , alpha = parameter$glmnet$alpha
       , lambda = model_fit_tmp$lambda.min
-      , family = "poisson"
+      , family = "gaussian"
     )
   }
 

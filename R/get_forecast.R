@@ -27,7 +27,7 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
 
   if (.fit_output[["model"]] == "arima") {
     if (tune == TRUE) {
-      message("here")
+      #message("here")
       x_data %>%
         transmute(
           y_var_true = y_var
@@ -35,7 +35,7 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
           , as_tibble(.fit_output[["parameter"]])
         )
     } else {
-      message("here 1")
+      #message("here 1")
       tibble(
         date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
         y_var_fcst = as.numeric(forecast(.fit_output[["model_fit"]], horizon)[["mean"]]),
@@ -105,8 +105,8 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       x_data %>%
         transmute(
           y_var_true = y_var,
-          y_var_fcst = last(as.numeric(croston(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = list(.fit_output[["model_fit"]][["parameters"]][["vect"]])
+          y_var_fcst = as.numeric(croston(.fit_output$y_var_int)[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]]
+          , parameter = list(NULL)
         )
     } else {
       tibble(

@@ -10,7 +10,7 @@
 #' @export
 #'
 #' @examples
-get_seasonal_naive <- function(.data, y_var, horizon){
+get_seasonal_naive <- function(.data, y_var, parameter = NULL, horizon){
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- prescription$y_var

@@ -11,7 +11,7 @@
 #' @export
 #'
 #' @examples
-get_tbats <- function(.data, y_var){
+get_tbats <- function(.data, y_var, parameter = NULL){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]

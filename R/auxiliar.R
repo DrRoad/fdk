@@ -300,17 +300,23 @@ mape <- function(real, pred){
 #' @export
 #'
 #' @examples
-update_parameter <- function(parameter, new_parameter, model="glmnet"){
+update_parameter <- function(old_parameter, new_parameter, model, optim = FALSE){
+  parameter_tmp <- old_parameter
   if(model == "glmnet"){
-    parameter$glmnet$time_weight <- new_parameter$time_weight
-    parameter$glmnet$trend_discount <- new_parameter$trend_discount
-    parameter$glmnet$alpha <- new_parameter$alpha
-    return(parameter)
+    parameter_tmp$glmnet$time_weight <- new_parameter$time_weight
+    parameter_tmp$glmnet$trend_discount <- new_parameter$trend_discount
+    parameter_tmp$glmnet$alpha <- new_parameter$alpha
+    if(optim == TRUE){
+      parameter_tmp$glmnet$lambda <- new_parameter$lambda
+      parameter_tmp$glmnet$job$optim_lambda <- FALSE
+    }
   } else if(model == "glm"){
-    parameter$glm$time_weight <- new_parameter$time_weight
-    parameter$glm$trend_discount <- new_parameter$trend_discount
-    return(parameter)
+    parameter_tmp$glm$time_weight <- new_parameter[["time_weight"]]
+    parameter_tmp$glm$trend_discount <- new_parameter[["trend_discount"]]
+  } else {
+    stop("No model has been set")
   }
+  return(parameter_tmp)
 }
 
 # get_metric <- function(.forecast_output){

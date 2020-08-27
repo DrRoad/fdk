@@ -16,8 +16,8 @@ parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 
 get_glm <- function(.data, y_var, date_var, parameter) {
   if (is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
-    y_var <- "y_var"
-    date_var <- "date"
+    y_var <- prescription[["y_var"]]
+    date_var <- prescription[["date_var"]]
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
@@ -40,12 +40,11 @@ get_glm <- function(.data, y_var, date_var, parameter) {
   .fit_output <- list(
     model = "glm"
     , model_fit = model_fit
-    #, prescription = prescription
     , parameter = list(
-      time_weight = parameter$glmnet$time_weight
-      , trend_discount = parameter$glmnet$trend_discount
+      time_weight = parameter$glm$time_weight
+      , trend_discount = parameter$glm$trend_discount
       , fit_summary = list(
-        train_size = length(.data[,1][[1]])
+        data_size = length(.data[,1][[1]])
         , time_weight_values = time_weights_tmp
         , train_pred = as.vector(predict(model_fit, newx = .data))
         , x_var = x_var
