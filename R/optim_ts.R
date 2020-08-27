@@ -30,7 +30,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
       random_grid <- sample(x = 1:nrow(parameter$glmnet$grid)
                             , size = round(length(1:nrow(parameter$glmnet$grid))*parameter$glmnet$job$random_search_size)
                             , replace = FALSE)
-      message(paste0("GLMNET: Hyperparameter tuning", length(random_grid)* test_size, " models..."))
+      message(paste0("GLMNET: Hyperparameter tuning ", length(random_grid)* test_size, " models..."))
       
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits") %>% 

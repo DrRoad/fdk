@@ -115,7 +115,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
     na_marker_int <- rowSums(.data[setdiff(names(.data), na_exclude)])!=0
     
     if(length(method) > 1) { # many methods create a tibble with method colnames
-      #message("multiple")
+      message("Multiple cleansing methods applied...")
       tmp <- .data %>%
         mutate(
           na_marker_int = na_marker_int,
@@ -133,7 +133,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
                     , freq = freq
                   )) %>%
                 setNames(nm = paste0("y_var_", setdiff(method, "winsorize")))
-              , imputation_switcher(y_var = (tmp[[y_var]])
+              , imputation_switcher(y_var = (tmp[["y_var"]])
                                     , method = "winsorize"
                                     , freq = freq
                                     , na_marker = na_marker_int) %>% 
@@ -142,25 +142,26 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
             select(-y_var_na, -na_marker_int)
         )
       )
-    } else if(method == "winsorize"){
-      #message("winsorize unique")
+    } else if(method == "winsorize"){ # Not working correctly
+      message("Method: winsorize has been applied to clean the time series.")
       tmp <- .data %>%
         mutate(y_var_clean = imputation_switcher(
-          y_var = .data[[y_var]],
-          method = method,
+          y_var = .data[["y_var"]],
+          method = "winsorize",
           freq = freq,
-          na_marker = na_marker_int)
+          #na_marker = na_marker_int
+          )
         )
     } else if(method == "none") {
       #message("none")
       tmp <- .data %>%
         mutate(y_var_clean = y_var)
     } else if(method != "winsorize") {
-      #message("non winsorize unique")
+      message(paste0("Method ", method, " has been applied to clean the time series."))
       tmp <- .data %>%
         mutate(
           na_marker_int = na_marker_int,
-          y_var_clean = ifelse(na_marker_int == 1, NA, .data[[y_var]]) %>%
+          y_var_clean = ifelse(na_marker_int == 1, NA, .data[["y_var"]]) %>%
             imputation_switcher(y_var = .
                                 , method = method
                                 , freq = freq)
@@ -198,32 +199,47 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
 #' @param y_var Column name of the variable to be forecasted.
 #' @param date_var Column name of time index.
 #' @param freq Frequency of the data.
-#' @param extend_design Logical. Print the data, TRUE by default.
 #'
 #' @return
 #' @export
 #'
 #' @examples
-prescribe_ts <- function(.data, key, y_var, date_var, freq, extend_design = TRUE){
-  attr(.data, "prescription") <- list(key=key, y_var=y_var, date_var = date_var, freq = freq
-                                      , max_date = max(.data[[date_var]]))
-  .data <- .data %>% 
-    rename(y_var = y_var, date = date_var)
+prescribe_ts <- function(.data, key, y_var, date_var, reg_name = NULL, reg_value=NULL, freq){
+  attr(.data, "prescription") <- list(key = "key", y_var = "y_var"
+                                      , date_var = "date_var", freq = "freq"
+                                      , max_date = as.Date("1970-01-01"))
+  .data_tmp <- .data %>% 
+    rename("key" = key, "y_var" = y_var, "date_var" = date_var)
   
-  attr(.data, "prescription")[["y_var"]] <- "y_var"
-  attr(.data, "prescription")[["date_var"]] <- "date"
+  attr(.data_tmp, "prescription")[["y_var"]] <- "y_var"
+  attr(.data_tmp, "prescription")[["freq"]] <- freq
+  attr(.data_tmp, "prescription")[["date_var"]] <- "date_var"
+  attr(.data_tmp, "prescription")[["key"]] <- "key"
+  attr(.data_tmp, "prescription")[["max_date"]] <- max(.data_tmp[["date_var"]])
+  attr(.data_tmp, "prescription")[["multiple_keys"]] <- n_distinct(.data_tmp[["key"]])>1
   
-  if(extend_design == TRUE){
-    .data <- .data %>% 
-      get_design_matrix(to_dummy = FALSE)
+  prescription <- attributes(.data_tmp)[["prescription"]]
+  
+  if(is.null(reg_name) == FALSE & is.null(reg_value) == FALSE){
+    .data_tmp <- .data_tmp %>% 
+      rename("reg_name" = reg_name, "reg_value" = reg_value)
+    attr(.data_tmp, "prescription")[["reg_name"]] <- "reg_name"
+    attr(.data_tmp, "prescription")[["reg_value"]] <- "reg_value"
+    attr(.data_tmp, "prescription")[["has_regressors"]] <- TRUE
+    prescription <- attributes(.data_tmp)[["prescription"]]
     
-    attr(.data, "prescription")[["extend_design"]] <- c("trend", "seasonal_var")
-    
-    return(.data)
-    
-  } else {
-    return(.data)
+    if(attributes(.data_tmp)[["prescription"]][["multiple_keys"]] == TRUE){
+      .data_tmp_i <- .data_tmp %>% 
+        group_nest(key)
+      
+      for(i in seq_along(.data_tmp_i[["key"]])){
+        attr(.data_tmp_i[["data"]][[i]], "prescription") <- attributes(.data_tmp_i)[["prescription"]]
+      }
+      
+      .data_tmp <- .data_tmp_i
+    }
   }
+  return(.data_tmp)
 }
 
 # Cleansing ---------------------------------------------------------------
@@ -256,7 +272,7 @@ clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_e
     na_exclude <- unique(c(prescription$key
                            , prescription$y_var
                            , prescription$date_var
-                           , prescription$extend_design
+                           , c("trend", "seasonal_var")
                            , na_exclude))
     
     y_var <- prescription$y_var
@@ -266,7 +282,7 @@ clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_e
   }
    
   .data %>%
-    filter(cumsum(.data[[y_var]])>0) %>% # Leading zeros
+    dplyr::filter(cumsum(.data[["y_var"]])>0) %>% # Leading zeros
     impute_ts(y_var = y_var
               , method = method
               , na_exclude = na_exclude

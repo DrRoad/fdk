@@ -27,6 +27,10 @@ saveRDS(demo_data, file = "demo_data_update.rds")
 
 demo_data <- readRDS("demo_data_update.rds")
 
+write_csv(demo_data, path = "demo_data.csv")
+
+
+
 demo_1 <- demo_data %>% 
   filter(forecast_item == "FI: 592905") %>% 
   pivot_wider(names_from = reg_name, values_from = reg_value) %>% 

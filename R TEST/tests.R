@@ -18,7 +18,6 @@ demo_1 <- demo_data %>%
   janitor::clean_names() %>% 
   select(-x0)
 
-
 # Cleansing ---------------------------------------------------------------
 
 demo_2 <- demo_1 %>% 
@@ -45,7 +44,6 @@ source("R/get_tbats.R")
 source("R/cleansing.R")
 source("R/auxiliar.R")
 
-
 # Fit ---------------------------------------------------------------------
 
 grid <- expand_grid(time_weight = seq(from = 0.7, to = 1, by = 0.05)
@@ -69,10 +67,20 @@ parameter <- list(glmnet = list(time_weight = 0.9, trend_discount = .9, alpha = 
 .data <- demo_2 %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date", freq = 12) %>% 
   clean_ts() %>% 
-  get_glmnet(parameter = parameter) %>% 
-  #get_glm(parameter = parameter) %>% 
+  get_glmnet(parameter = parameter) %>%
   get_forecast(horizon = 100)
   
+
+autoforecast(y_var = "")
+
+
+
+
+
+
+
+
+
 
 tictoc::tic()
 map(.x = c("arima", "glmnet")
@@ -105,6 +113,9 @@ optim_ts(.data, test_size = 4, lag = 4, parameter = parameter
          , model = c("glmnet", "glm", "arima", "tbats", "neural_network"
                      , "seasonal_naive", "croston", "ets"), parallel = T)
 tictoc::toc()
+
+
+
 
 
 autoforecast <- function(){
@@ -176,4 +187,15 @@ c("arima", "mlr", "glmnet") %>%
   
   
 
-.fit_output <- tran
+  # print({
+  #   cat("\nMultiple keys have been found. Sample summary:");
+  #   .data_tmp %>% 
+  #     group_by(key) %>% 
+  #     mutate(reg_name = ifelse(reg_name == 0, NA, reg_name)) %>% 
+  #     summarise(obs = n()
+  #               , n_regressor = n_distinct(na.omit(unique(reg_name)))
+#               , date_range = paste0(min(date_var), " / ", max(date_var))
+#               , .groups = "drop") %>% 
+#     slice(1:5) %>% 
+#     knitr::kable(., "simple")
+# })

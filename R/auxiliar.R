@@ -290,60 +290,6 @@ mape <- function(real, pred){
   return(round((abs(real-pred)/real),3))
 }
 
-
-#' Generate trend and seasonal components for regression based models
-#'
-#' @param .data DataFrame or tibble
-#' @param date_var String. Column name of the time index variable
-#' @param freq Numeric. Time series frequency
-#' @param parameter List.
-#' @param to_dummy Logical. Convert design matrix factors to binary.
-#'
-#' @return
-#' @export
-#'
-#' @examples
-get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL, to_dummy = TRUE){
-  
-  if(is.null(attributes(.data)[["prescription"]])==FALSE){
-    prescription <- attributes(.data)[["prescription"]]
-    y_var <- prescription$y_var
-    date_var <- prescription$date_var
-    freq <- prescription$freq
-  }
-  
-  if(freq == 12){
-    reg_seasonal <- function(date) factor(months(as.Date(date), abbreviate = T), levels = month.abb)
-  } else if(freq == 4){
-    reg_seasonal <- function(date) factor(as.factor(quarters(as.Date(date), abbreviate = T)), levels = paste0("Q", 1:4))
-  } else if(round(freq, 0) == 52){
-    reg_seasonal <- function(date) factor(lubridate::week(date), levels = 1:53)
-  }
-  
-  seasonal_var <- reg_seasonal(.data[[date_var]])
-  trend <- 1:length(seasonal_var)
-  
-  .data_tmp <- .data %>% 
-    bind_cols(tibble(trend = trend, seasonal_var = seasonal_var)) %>% 
-    relocate("trend", "seasonal_var", .after = "y_var")
-  
-  na_exclude <- unique(c(prescription$key, y_var, date_var))
-  reg_excluded <- unique(c(na_exclude, parameter[["glmnet"]][["job"]][["reg_excluded"]]))
-  factor_var <- names(.data_tmp)[sapply(.data_tmp, function(x) ifelse(is.character(x) | is.factor(x), T, F))]
-  reg_var <- names(.data_tmp)[!(names(.data_tmp) %in% reg_excluded)]
-  
-  if(to_dummy){
-    .data_tmp[, reg_var] %>%
-      dummy_cols(
-        select_columns = factor_var, remove_first_dummy = T,
-        remove_selected_columns = T
-      ) %>%
-      as.matrix()
-  } else {
-    .data_tmp
-  }
-}
-
 #' Updating parameters given a grid
 #'
 #' @param parameter List. Parameters to be used to estimate model or define the job to be done.

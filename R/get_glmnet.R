@@ -23,7 +23,7 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
   if (is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- "y_var"
-    date_var <- "date"
+    date_var <- "date_var"
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
@@ -50,21 +50,23 @@ get_glmnet <- function(.data, y_var, date_var, parameter) {
     model_fit <- glmnet(
       x = x_data_matrix, y = y_var_int, weights = time_weights_tmp
       , alpha = parameter$glmnet$alpha
-      , lambda = lambda
+      , lambda = parameter$glmnet$lambda
     )
   } else {
     model_fit_tmp <- cv.glmnet(
-      x = x_data_matrix, y = y_var_int,
-      alpha = parameter$glmnet$alpha,
-      weights = time_weights_tmp,
-      type.measure = "mae"
+      x = x_data_matrix
+      , y = y_var_int
+      , alpha = parameter$glmnet$alpha
+      , weights = time_weights_tmp
+      , type.measure = "mae"
     )
 
     model_fit <- glmnet(
-      x = x_data_matrix, y = y_var_int,
-      weights = time_weights_tmp,
-      alpha = parameter$glmnet$alpha,
-      lambda = model_fit_tmp$lambda.min
+      x = x_data_matrix, y = y_var_int
+      , weights = time_weights_tmp
+      , alpha = parameter$glmnet$alpha
+      , lambda = model_fit_tmp$lambda.min
+      , family = "poisson"
     )
   }
 
