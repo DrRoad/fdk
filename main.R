@@ -26,7 +26,6 @@ source("R/autoforecast.R")
 source("R/feature_engineering.R")
 source("R/optim_ts.R")
 
-
 # Parameter ---------------------------------------------------------------
 
 grid_glmnet <- expand_grid(time_weight = seq(from = 0.7, to = 1, by = 0.05)
@@ -65,7 +64,7 @@ data_all <- data_init %>%
 ### Default parameters
 
 fit_1 <- data_all %>% 
-  filter(key == "FI: 34142") %>% 
+  filter(key == "FI: 34142") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
   #fit_ts(model = "glm", parameter = parameter) %>% 
@@ -76,7 +75,7 @@ fit_1 <- data_all %>%
   
 #### Forecast
 fit_1 %>% 
-  get_forecast(horizon = 100) # horizon creates a synthetic data, for counterfactual use argument "x_data".
+  get_forecast(horizon = 36) # horizon creates a synthetic data, for counterfactual use argument "x_data".
 
 ### Hyperparameter tuning
 
@@ -96,22 +95,29 @@ model_list <- c("glm", "glmnet", "neural_network", "arima", "ets"
 
 ## Fast
 
+.data <- data_all %>% 
+  filter(key == "FI: 34142")
+
+tictoc::tic()
 fast_optim_forecast <- autoforecast(.data = .data, horizon = 100
              , model = model_list
              , parameter = parameter, optim_profile = "fast", method = "kalman")
+tictoc::toc()
 
 fast_optim_forecast %>% 
   plot_ts()
 
 ## Light
 
+tictoc::tic()
 light_optim_forecast <- autoforecast(.data = .data, horizon = 100
                    , model = model_list
                    , parameter = parameter, optim_profile = "light", test_size = 6
                    , lag = 3, meta_data = T, method = "kalman") # since meta_data = T, a list will be printed.
+tictoc::toc()
 
 light_optim_forecast$forecast_output %>% 
-  plot_ts()
+  plot_ts(interactive = T)
 
 # Multiple items / Parallel ----------------------------------------------------------
 
@@ -121,7 +127,7 @@ library(parallel)
 
 my_cores <- detectCores()
 cluster <- makeCluster(2)
-registerDoParallel(cores = (my_cores - 1))
+registerDoParallel(cores = (my_cores - 2))
 
 tictoc::tic()
 results <- foreach(key_i = unique(data_all$key)[1:2], .combine = "rbind") %dopar% {
@@ -133,6 +139,18 @@ results <- foreach(key_i = unique(data_all$key)[1:2], .combine = "rbind") %dopar
                , lag = 3, meta_data = FALSE, method = "kalman")
 }
 tictoc::toc()
+
+future_map(unique(data_all$key)[1:2], ~.f = {
+  data_i <- data_all[data_all$key == .x,]
+  
+  autoforecast(.data = data_i, horizon = 100
+               , model = model_list
+               , parameter = parameter, optim_profile = "light", test_size = 6
+               , lag = 3, meta_data = FALSE, method = "kalman")
+})
+
+
+
 
 ## Plot
 
