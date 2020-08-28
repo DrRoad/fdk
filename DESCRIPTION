@@ -9,7 +9,7 @@ Authors@R:
     person(given = "Ignasi", family = "Pascual",
            role = c("aut","cre"),
            email = "ignasi.pascual@sanofi.com")
-Description: This package provides functions and tools for advanced statistical forecasting
+Description: AutoForecast provides a collection of automated procedures to analyze, forecast time series data, and, generate insights for decision makers
 License: GPL 
 Encoding: UTF-8
 LazyData: true

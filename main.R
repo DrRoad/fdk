@@ -127,6 +127,10 @@ library(parallel)
 
 my_cores <- detectCores()
 cluster <- makeCluster(2)
+doSNOW::registerDoSNOW(cl = cluster)
+cl <- makeCluster(5, type = "PSOCK") 
+doParallel::registerDoParallel(cl)
+
 registerDoParallel(cores = (my_cores - 2))
 
 tictoc::tic()
