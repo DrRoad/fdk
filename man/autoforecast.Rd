@@ -4,7 +4,17 @@
 \alias{autoforecast}
 \title{Autoforecast}
 \usage{
-autoforecast(.data, parameter, test_size, lag, horizon, model, optim_profile)
+autoforecast(
+  .data,
+  parameter,
+  test_size,
+  lag,
+  horizon,
+  model,
+  optim_profile,
+  meta_data = FALSE,
+  ...
+)
 }
 \arguments{
 \item{.data}{data-frame or tibble}
@@ -21,6 +31,10 @@ autoforecast(.data, parameter, test_size, lag, horizon, model, optim_profile)
 
 \item{optim_profile}{String. Defines how strict show the model look for the best parameter. Options are:
 fast, light, medium, and, complete.}
+
+\item{meta_data}{Logical. Whether to return the ranking of models in a list.}
+
+\item{...}{Other parameter from the sub-functions.}
 }
 \value{
 data-frame

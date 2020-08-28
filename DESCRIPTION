@@ -17,7 +17,7 @@ Depends:
     R (>= 3.6)
 Imports:
     DescTools, changepoint, doSNOW, stats, dvmisc, fastDummies, foreach, forecTheta, forecast, 
-    ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, prophet, purrr, readr, readxl, rlang, 
+    ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, prophet, purrr, readr, readxl, rlang, plotly,
     magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tidyverse, tsfeatures, tsibble, dplyr
 Suggests: 
     knitr,

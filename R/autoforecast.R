@@ -153,7 +153,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
 #' @param .data data-frame of class optim_output
 #' @param interactive Logical. Whether or not to return interative plotly graph
 #'
-#' @import ggplot
+#' @import ggplot2
 #' @import plotly
 #' @return graph
 #' @export
@@ -182,7 +182,7 @@ plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
     }
     
     if(interactive == TRUE){
-      plotly::ggplotly(graph_tmp)
+      ggplotly(graph_tmp)
     } else {
       graph_tmp
     }
