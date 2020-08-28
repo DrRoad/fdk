@@ -1,15 +1,18 @@
 #' Generate trend and seasonal components for regression based models
 #'
-#' @param .data DataFrame or tibble
+#' @param .data data-frame or tibble
 #' @param date_var String. Column name of the time index variable
 #' @param freq Numeric. Time series frequency
 #' @param parameter List.
 #' @param to_dummy Logical. Convert design matrix factors to binary.
 #'
-#' @return
+#' @return data-frame or tibble
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' get_design_matrix()
+#' }
 get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL, to_dummy = TRUE){
   
   if(is.null(attributes(.data)[["prescription"]])==FALSE){
@@ -36,15 +39,23 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
 }
 
 
-
-
-
+#' Automatic Time Series Feature Engineering
+#' 
+#' This function applies different heuristics to add time series features to the original data.
+#' 
+#' @param .data data-frame or tibble
+#'
+#' @return data-frame or tibble
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' feature_engineering_ts()
+#' }
 feature_engineering_ts <- function(.data){
-  
   prescription <- attributes(.data)[["prescription"]]
   
   # Internal
-  
   wide_reg_int <- function(.data){
     n_regressors <- n_distinct(.data[["reg_name"]])
     if(n_regressors == 1){
@@ -62,48 +73,8 @@ feature_engineering_ts <- function(.data){
     }
     return(.data_tmp)
   }
-  
   wide_reg_int(.data)
 }
-
-
-
-
-
-
-
-
-
-
-
-l %>% 
-  mutate(n_regressors = map_lgl(data, ~n_distinct(.x[["reg_name"]])>1)
-         , data = map2(n_regressors, data, .f = ~{
-           if(.x == TRUE){
-             .y %>% 
-               select(-reg_value, -reg_name)
-           } else {
-             wider_tmp <- .y %>% 
-               pivot_wider(names_from = "reg_name", values_from = "reg_value") %>% 
-               select(-matches("0|NA$")) %>% 
-               janitor::clean_names() %>% 
-               mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
-             attr(wider_tmp, "prescription") <- attributes(.data)[["prescription"]]
-             get_design_matrix(wider_tmp)
-           }
-         }))
-
-
-
-
-
-map(l$data, ~wide_reg(.x))
-
-
-
-
-wide_reg(.data) %>% attributes()
-
 
 
 

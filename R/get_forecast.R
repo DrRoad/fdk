@@ -8,10 +8,13 @@
 #' @import dplyr
 #' @import stats
 #' @import stringr
-#' @return
+#' @return data-frame
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' get_forecast()
+#' }
 get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE) {
   if(is.null(attributes(.fit_output)[["prescription"]]) == FALSE) {
     prescription <- attributes(.fit_output)[["prescription"]]
@@ -116,20 +119,23 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       )
     }
   } else if(.fit_output[["model"]] == "ets"){
-    if (tune == TRUE) {
-      x_data %>%
-        transmute(
-          y_var_true = y_var,
-          y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = str_remove_all(.fit_output[["model_fit"]][["method"]], "ETS|NNAR|,|\\)|\\(")
+    suppressWarnings({
+      if (tune == TRUE) {
+        x_data %>%
+          transmute(
+            y_var_true = y_var,
+            y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
+            , parameter = str_remove_all(.fit_output[["model_fit"]][["method"]], "ETS|NNAR|,|\\)|\\(")
+          )
+      } else {
+        tibble(
+          date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
+          y_var_fcst = as.numeric(predict(.fit_output[["model_fit"]], horizon)[["mean"]]),
+          model = .fit_output[["model"]]
         )
-    } else {
-      tibble(
-        date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
-        y_var_fcst = as.numeric(predict(.fit_output[["model_fit"]], horizon)[["mean"]]),
-        model = .fit_output[["model"]]
-      )
+      }
     }
+    )
   } else if(.fit_output[["model"]] == "neural_network"){
     if (tune == TRUE) {
       x_data %>%

@@ -14,9 +14,14 @@ make_reg_matrix(.fit_output, x_data = NULL, horizon = NULL)
 \item{horizon}{Numeric. How far in time to produce a synthetic design matrix.}
 }
 \value{
-
+data-frame or tibble
 }
 \description{
 This function takes the metadata from the fit to generate a template of the
 dependent variables to make forecast.
+}
+\examples{
+\dontrun{
+make_reg_matrix()
+}
 }

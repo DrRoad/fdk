@@ -12,8 +12,13 @@ mape(real, pred)
 \item{pred}{Numeric. Predicted value.}
 }
 \value{
-
+Numeric.
 }
 \description{
 Mean Average Prediction Error forecast accuracy metric
+}
+\examples{
+\dontrun{
+mape()
+}
 }

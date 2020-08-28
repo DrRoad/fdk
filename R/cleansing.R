@@ -84,10 +84,13 @@ na_winsorize <- function(y_var, na_marker=NULL, freq = 12, include = FALSE){
 #' @import rlang
 #' @import stlplus
 #' @author Obryan Poyser
-#' @return
+#' @return data-frame
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' impute_ts()
+#' }
 impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq = 12, replace_y_var = TRUE, ...) {
   
   imputation_switcher <- function(y_var, method, freq = freq, ...) {
@@ -143,7 +146,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
         )
       )
     } else if(method == "winsorize"){ # Not working correctly
-      message("Method: winsorize has been applied to clean the time series.")
+      #message("Method: winsorize has been applied to clean the time series.")
       tmp <- .data %>%
         mutate(y_var_clean = imputation_switcher(
           y_var = .data[["y_var"]],
@@ -199,12 +202,18 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
 #' @param y_var Column name of the variable to be forecasted.
 #' @param date_var Column name of time index.
 #' @param freq Frequency of the data.
+#' @param reg_name Column name of the regressors.
+#' @param reg_value Column name of the regressors' values.
 #'
-#' @return
+#' @return data-frame
+#' @import dplyr
 #' @export
 #'
 #' @examples
-prescribe_ts <- function(.data, key, y_var, date_var, reg_name = NULL, reg_value=NULL, freq){
+#' \dontrun{
+#' prescribe_ts()
+#' }
+prescribe_ts <- function(.data, key, y_var, date_var, reg_name = NULL, reg_value = NULL, freq){
   attr(.data, "prescription") <- list(key = "key", y_var = "y_var"
                                       , date_var = "date_var", freq = "freq"
                                       , max_date = as.Date("1970-01-01"))
@@ -252,10 +261,14 @@ prescribe_ts <- function(.data, key, y_var, date_var, reg_name = NULL, reg_value
 #'
 #' @import stats
 #' @import dplyr
-#' @return
+#' @import fastDummies
+#' @return data-frame, tibble or tsibble.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' clean_ts()
+#' }
 clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_exclude = NULL, replace_y_var = TRUE){
   if(is.null(attributes(.data)[["prescription"]])==FALSE){
     prescription <- attributes(.data)[["prescription"]]
@@ -270,7 +283,7 @@ clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_e
     freq <- prescription$freq
     key <- prescription$key
   }
-   
+  
   .data %>%
     dplyr::filter(cumsum(.data[["y_var"]])>0) %>% # Leading zeros
     impute_ts(y_var = y_var

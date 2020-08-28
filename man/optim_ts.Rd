@@ -23,8 +23,13 @@ The other 2 hyperparameters are time weights and trend discount.}
 \item{parallel}{Logical. Perform parallelization across different model selection (**experimental**).}
 }
 \value{
-
+data-frame or tibble
 }
 \description{
 Hyperparameter optimization for a glmnet model
+}
+\examples{
+\dontrun{
+optim_ts()
+}
 }

@@ -8,10 +8,13 @@
 #'
 #' @import forecast
 #' @import stats
-#' @return
+#' @return data-frame
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' get_arima()
+#' }
 get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {

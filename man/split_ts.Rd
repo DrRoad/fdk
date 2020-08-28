@@ -14,8 +14,15 @@ split_ts(.data, test_size, lag)
 \item{lag}{Numeric. How many periods ahead to start the test size.}
 }
 \value{
-
+Nested data-frames or tibbles.
 }
 \description{
-Automatic Time Series Cross-Validation split
+Time series CV split heuristics should keep temporal dependencies, henceforth, the sample should not 
+be "shuffled" into train and test. This function uses a different strategy to define the test and train sets
+maintain the order of the data.
+}
+\examples{
+\dontrun{
+split_ts()
+}
 }

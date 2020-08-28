@@ -4,16 +4,23 @@
 \alias{get_tbats}
 \title{Fit a TBATS model}
 \usage{
-get_tbats(.data, y_var)
+get_tbats(.data, y_var, parameter = NULL)
 }
 \arguments{
-\item{.data}{Data frame or tibble with a response variable.}
+\item{.data}{data-frame or tibble with a response variable.}
 
 \item{y_var}{String. Column name of the time series to be forecasted.}
+
+\item{parameter}{List. Optional parameters.}
 }
 \value{
-
+data-frame or tibble
 }
 \description{
 Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and Seasonal (TBATS)
+}
+\examples{
+\dontrun{
+get_tbats()
+}
 }

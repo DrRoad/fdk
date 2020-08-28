@@ -2,20 +2,28 @@
 % Please edit documentation in R/auxiliar.R
 \name{update_parameter}
 \alias{update_parameter}
-\title{Updating parameters given a grid}
+\title{Updating parameters given a grid.}
 \usage{
-update_parameter(parameter, new_parameter, model = "glmnet")
+update_parameter(old_parameter, new_parameter, model, optim = FALSE)
 }
 \arguments{
-\item{parameter}{List. Parameters to be used to estimate model or define the job to be done.}
+\item{old_parameter}{List. Parameters to be used to estimate model or define the job to be done.}
 
-\item{new_parameter}{Named list of data frame.}
+\item{new_parameter}{List or data-frame. Parameters that will replace the original list.}
 
 \item{model}{String. Model where the parameters will be replaced.}
+
+\item{optim}{Logical. Wether of not the results will be used for hyperparameter tuning of GLMNET models.}
 }
 \value{
-
+List of updated parameters.
 }
 \description{
-Updating parameters given a grid
+This function updates the parameter list by a set of values coming from a data-frame or tibble. 
+It is a fundamental for glmnet, glm and arima models.
+}
+\examples{
+\dontrun{
+update_parameter()
+}
 }

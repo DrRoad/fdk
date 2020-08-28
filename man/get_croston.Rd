@@ -16,8 +16,13 @@ get_croston(.data, y_var, horizon = 10, parameter = NULL)
 \item{parameter}{List. Parameter to be used for estimation, looks for alpha parameter.}
 }
 \value{
-
+data-frame
 }
 \description{
 Fit Croston model
+}
+\examples{
+\dontrun{
+get_croston()
+}
 }

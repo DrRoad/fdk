@@ -9,13 +9,18 @@ get_time_weights(y_var, time_weight)
 \arguments{
 \item{y_var}{numeric. Time series vector data.}
 
-\item{time_weight}{numeric. How rapidly recent observations weight for estimation.}
+\item{time_weight}{Numeric. How rapidly recent observations weight for estimation.}
 }
 \value{
-
+Numerical vector.
 }
 \description{
-Generate time weights
+Method to define data points' weights for regression based models.
+}
+\examples{
+\dontrun{
+get_time_weights()
+}
 }
 \author{
 Obryan Poyser

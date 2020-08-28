@@ -14,8 +14,13 @@ get_ets(.data, y_var, parameter = NULL)
 \item{parameter}{List. Combination of parameter to estimate the model.}
 }
 \value{
-
+data-frame
 }
 \description{
 Fit Error Trend Seasonal model
+}
+\examples{
+\dontrun{
+get_ets()
+}
 }

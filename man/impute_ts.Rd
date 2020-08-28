@@ -35,10 +35,15 @@ be attached to the data matrix.}
 .}
 }
 \value{
-
+data-frame
 }
 \description{
 Time series imputation
+}
+\examples{
+\dontrun{
+impute_ts()
+}
 }
 \author{
 Obryan Poyser

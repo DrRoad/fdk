@@ -34,8 +34,13 @@ replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_va
 be attached to the data matrix.}
 }
 \value{
-
+data-frame, tibble or tsibble.
 }
 \description{
 This function collects the data and applies imputation, time series cuts and leading zeros filtering
+}
+\examples{
+\dontrun{
+clean_ts()
+}
 }

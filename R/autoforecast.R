@@ -1,218 +1,168 @@
-
-# Data import -------------------------------------------------------------
-
-.data0 <- read_csv("demo_data.csv") %>% 
-  dplyr::filter(date < "2020-02-01") #%>% 
-  #select(-reg_name, -reg_value)
-
-.data_1 <- .data0 %>%
-  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
-               , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
-
-.data <- .data_1 %>% 
-  filter(key == "FI: 34142")
-
-
-
-model_list <- c("arima", "glmnet", "glm", "tbats", "seasonal_naive"
-                , "neural_network", "croston")
-
-model_list <- "neural_network"
-
-
-l <- autoforecast(.data = .data, horizon = 100
-            , model = c("glm", "glmnet", "neural_network", "arima", "ets"
-                        , "seasonal_naive", "tbats", "croston")
-            , parameter = parameter, optim_profile = "fast")
-
-l1 <- autoforecast(.data = .data, horizon = 100
-                  , model = c("glm", "glmnet", "neural_network", "arima", "ets"
-                              , "seasonal_naive", "tbats", "croston")
-                  , parameter = parameter, optim_profile = "light", test_size = 6, lag = 3)
-
-
-
-
-
-
-
-# Test --------------------------------------------------------------------
-
-optim_light <- .data_1 %>% 
-  filter(key == "FI: 34142") %>% 
-  feature_engineering_ts() %>% 
-  clean_ts(method = "winsorize") %>% 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter
-           , model = model_list)
+#' Fitting models for time-series data
+#' 
+#' Wrapper of single function call to simplify the estimation
+#'
+#' @param .data data-frame or tibble
+#' @param y_var Column name of the variable to be forecasted
+#' @param date_var Column name of the time index
+#' @param model String. Name of the model to be estimated.
+#' @param parameter List. Optional set of parameters to estimate models.
+#'
+#' @return data-frame
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' fit_ts()
+#' }
+fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
+  if(model == "glmnet"){
+    get_glmnet(.data = .data, y_var = y_var, date_var = date_var, parameter = parameter)
+  } else if(model == "glm"){
+    get_glm(.data = .data, y_var = y_var, date_var = date_var, parameter = parameter)
+  } else if(model == "ets"){
+    get_ets(.data = .data, y_var = y_var, parameter = parameter)
+  } else if(model == "arima"){
+    get_arima(.data = .data, y_var = y_var, parameter = parameter)
+  } else if(model == "neural_network"){
+    get_neural_network(.data = .data, y_var = y_var, parameter = parameter)
+  } else if(model == "seasonal_naive"){
+    get_seasonal_naive(.data = .data, y_var = y_var, parameter = parameter)
+  } else if(model == "tbats"){
+    get_tbats(.data = .data, y_var = y_var, parameter = parameter)
+  } else if(model == "croston"){
+    get_croston(.data = .data, y_var = y_var, parameter = parameter)
+  } 
+}
 
 
-fit_ts(.data = .data, parameter = update_parameter(parameter, optim_light$parameter[[1]]
-                                                   , model = "glmnet")
-       , model = "glmnet") %>% 
-  get_forecast(horizon= 100)
-
-
-
-
-
-best_model <- optim_ts(.data, test_size = 6, lag = 3, parameter = parameter, model = model_list)
-best_model_table <- best_model
-model <- "glmnet"
-
-
-
-
-
-optim_join <- function(.data, model, parameter, horizon, best_model){
-  if(model %in% c("glmnet", "glm")){ # missing arima
-    get_forecast_int(.data, model = model
-                     , parameter = update_parameter(parameter
-                                                    , best_model_table$parameter[[which(best_model_table$model==model)]]
-                                                    , model = model, optim = TRUE)
-                     , horizon = 100)
+#' Autoforecast
+#' 
+#' This function unifies all modules to bring an automatic forecast given a set of specification.
+#'
+#' @param .data data-frame or tibble
+#' @param parameter List. Optional set of parameters to estimate models.
+#' @param test_size Numeric. Number of splits to define the best hyperparameters/model.
+#' @param lag Numeric. Number of periods ahead to assess model accuracy.
+#' @param horizon Numeric. Number of periods in the future to generate the forecast.
+#' @param model String. Name of the model to be estimated.
+#' @param optim_profile String. Defines how strict show the model look for the best parameter. Options are:
+#' fast, light, medium, and, complete.
+#' @param meta_data Logical. Whether to return the ranking of models in a list.
+#' @param ... Other parameter from the sub-functions.
+#' 
+#' @import dplyr
+#' @import fastDummies
+#' @import foreach
+#' @import furrr
+#' @import purrr
+#' @import glmnet
+#' @import stats
+#' @import stlplus
+#' @import forecast
+#' @import imputeTS
+#' @return data-frame
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' autoforecast()
+#' }
+autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim_profile, meta_data = FALSE, ...){
+  cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
+  
+  .data_tmp <- .data  %>% 
+    feature_engineering_ts() %>% 
+    clean_ts(...)
+  
+  get_forecast_int <- function(.data, model, horizon, parameter){
+    .data %>% 
+      fit_ts(model = model, parameter = parameter) %>% 
+      get_forecast(horizon = horizon)
+  }
+  
+  optim_join <- function(.data, model, parameter, horizon, best_model){
+    if(model %in% c("glmnet", "glm")){ # missing arima
+      get_forecast_int(.data, model = model
+                       , parameter = update_parameter(parameter
+                                                      , best_model$parameter[[which(best_model$model==model)]]
+                                                      , model = model, optim = TRUE)
+                       , horizon = 100)
+    } else {
+      get_forecast_int(.data, model = model, parameter = parameter, horizon = horizon)
+    }
+  }
+  
+  if(optim_profile == "fast"){
+    cat(paste0("\nFast optimization for: ", length(model), " models + unweighted ensemble forecast"))
+    forecast_tmp <- map(model, ~get_forecast_int(.data = .data_tmp
+                                               , model = .x, horizon = horizon
+                                               , parameter = parameter)) %>% 
+      bind_rows() %>% 
+      mutate(y_var_fcst = ifelse(y_var_fcst<0, 0, y_var_fcst)) %>% 
+      rename(date_var = date, y_var = y_var_fcst) %>% 
+      mutate(type = "forecast") %>% 
+      bind_rows(.data_tmp, .) %>% 
+      select(key:y_var, model, type) %>% 
+      replace_na(replace = list(type = "history", model = "history"))
+    
+    ensemble_tmp <- forecast_tmp %>% 
+      filter(type != "history") %>% 
+      group_by(date_var) %>% 
+      summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
+    
+    forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp) %>% 
+      fill(key, .direction = "down")
+    
+    attr(forecast_tmp, "output_type") <- "optim_output"
+  } else if(optim_profile == "light"){
+    best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag, parameter = parameter, model = model)
+    
+    print(knitr::kable(best_model_int, "simple", 2))
+    
+    forecast_tmp <- map(model, ~optim_join(.data_tmp, model = .x, parameter = parameter
+                                                , horizon = horizon, best_model = best_model_int)) %>% 
+      bind_rows() %>% 
+      mutate(y_var_fcst = ifelse(y_var_fcst<0, 0, y_var_fcst)) %>% 
+      rename(date_var = date, y_var = y_var_fcst) %>% 
+      mutate(type = "forecast") %>% 
+      bind_rows(.data_tmp, .) %>% 
+      select(key:y_var, model, type) %>% 
+      replace_na(replace = list(type = "history", model = "history")) 
+    
+    ensemble_tmp <- forecast_tmp %>% 
+      filter(type != "history") %>% 
+      group_by(date_var) %>% 
+      summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
+    
+    forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp) %>% 
+      fill(key, .direction = "down")
+    
+    attr(forecast_tmp, "output_type") <- "optim_output"
+  }
+  
+  if(meta_data == TRUE){
+    return(list(forecast_output = forecast_tmp, ranking = best_model_int))
   } else {
-    get_forecast_int(.data, model = model, parameter = parameter, horizon = horizon)
+    return(forecast_tmp)
   }
 }
 
-optim_join(.data, "seasonal_naive", parameter, 100, best_model)
-
-
-
-forecast_tmp <- map(model_list, ~optim_join(.data, model = .x, parameter = parameter, horizon = 100, best_model)) %>% 
-  bind_rows() %>% 
-  rename(date_var = date, y_var = y_var_fcst) %>% 
-  mutate(type = "forecast") %>% 
-  bind_rows(.data_tmp, .) %>% 
-  select(key:y_var, model, type) %>% 
-  replace_na(replace = list(type = "history", model = "history"))
-
-ensemble_tmp <- forecast_tmp %>% 
-  filter(type != "history") %>% 
-  group_by(date_var) %>% 
-  summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
-
-forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp)
-
-attr(forecast_tmp, "output_type") <- "optim_output"
-
-
-optim_join(.data, model = "glmnet"
-           , parameter = parameter
-           , horizon = 10)
-
-
-
-
-which(light_optim_best_par$model=="glmnet")
-
-
-fast_optim_int(.data, model = "glmnet"
-               , parameter = update_parameter(parameter
-                                              , light_optim_best_par$parameter[[which(light_optim_best_par$model=="glmnet")]]
-                                              , "glmnet")
-               , horizon = 100)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-new_parameter <- optim_light$parameter[[1]]
-old_parameter <- parameter
-
-
-update_parameter(old_parameter = parameter, new_parameter = new_parameter, model = "glmnet")
-
-
-
-
-
-
-
-
-.data <- .data_1 %>% 
-  filter(key == "FI: 34142")
-
-
-
-.data_1 %>% 
-  filter(key == "FI: 34142") %>% 
-  feature_engineering_ts() %>% 
-  clean_ts(method = "winsorize") %>% 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter
-           , model = model_list)
-tictoc::toc()
-
-
-
-.forecast <- .data_1 %>% 
-  filter(key == "DK: 578281") %>% 
-  feature_engineering_ts() %>% 
-  clean_ts(method = "winsorize") %>% 
-  fit_ts(model = "tbats", parameter = parameter) %>% 
-  get_forecast(horizon = 100)
-
-
-optim_profile <- c("fast", "light", "medium", "complete")
-
-
-
-.data <- .data %>% 
-  feature_engineering_ts() %>% 
-  clean_ts(method = "winsorize")
-
-
-.data %>% 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "ets")
-
-l %>% 
-  filter(type != "history") %>% 
-  group_by(date_var) %>% 
-  summarise(y_var = mean(y_var), model = "ensemble", type = "forecast")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-l1 %>% 
-  print_ts(interactive = T)
-
-
-
-
-
-
-l <- forecast_ts(.data = .data, horizon = 100
-            , model = c("glm", "glmnet", "arima", "ets", "seasonal_naive", "tbats", "croston")
-            , parameter = parameter, optim_profile = "fast")
-
-print_ts <- function(.data, interactive = FALSE){
+#' Plot time series forecast
+#'
+#' @param .data data-frame of class optim_output
+#' @param interactive Logical. Whether or not to return interative plotly graph
+#'
+#' @import ggplot
+#' @import plotly
+#' @return graph
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' plot_ts()
+#' }
+plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
   if(attributes(.data)[["output_type"]] != "optim_output"){
     stop("Error, the input data is not class optim_output")
   } else {
@@ -226,122 +176,15 @@ print_ts <- function(.data, interactive = FALSE){
       theme(axis.text = element_text(size = 12)
             , axis.text.x = element_text(angle = 90))
     
+    if(multiple_keys == TRUE){
+      graph_tmp <- graph_tmp +
+        facet_wrap(~key, scales = "free")
+    }
+    
     if(interactive == TRUE){
       plotly::ggplotly(graph_tmp)
     } else {
       graph_tmp
     }
   }
-} 
-
-
-
-
-.data <- .data_1 %>% 
-  filter(key == "DK: 578281") 
-
-
-
-
-
-
-
-%>% 
-  clean_ts(method = "kalman") %>% 
-  get_ets() %>% 
-  get_forecast(horizon = 100)
-
-.data <- .data_1$data[[1]] %>% 
-  clean_ts(method = "kalman") %>% 
-  optim_ts(test_size = 6, lag = 3, model = c("arima", "glmnet"), parameter = parameter)
-
-
-pkg <- c("magrittr", "dplyr", "stlplus", "glmnet", "forecast")
-
-
-foreach(key=seq_along(.data_1$key), .packages = pkg) %dopar% {
-  .data_1$data[[key]] %>% 
-    clean_ts(method = "winsorize") %>% 
-    get_ets() %>% 
-    get_forecast(horizon = 100)
 }
-
-
-function
-
-
-
-.data_1$data[[1]] %>% 
-  clean_ts(method = c("kalman", "winsorize")) %>% 
-  ggplot(aes(date_var, y_var))+
-  geom_line()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-.data <- .data$data[[1]]
-
-.data %>% 
-  clean_ts() %>% 
-  View()
-
-
-t1$data[[1]] %>% 
-  pivot_wider(names_from = "reg_name", values_from = "reg_value") %>% 
-  select(-matches("0|NA$")) %>% 
-  janitor::clean_names() %>% 
-  mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x)) %>% 
-  get_design_matrix()
-
-
-
-
-
-keep_reg <- sum(t1$data[[1]][["reg_value"]])>0
-
-if(keep_reg == FALSE){
-  x %>% 
-    select(-reg_value, -reg_name)
-} else {
-  x
-}
-t1$data[[1]] %>% 
-  select_if(sum(reg_value))
-
-sum(unique(t1$data[[1]]$reg_name)!="0")
-
-
-
-
-
-
-
-.data_tmp %>% 
-  group_by(key) %>% 
-  mutate(reg_name = ifelse(reg_name == 0, NA, reg_name)) %>% 
-  summarise(obs = n()
-            , n_regressor = n_distinct(na.omit(unique(reg_name)))
-            , date_range = paste0(min(date), " / ", max(date))
-            , .groups = "drop") %>% 
-  knitr::kable(., "simple")
-
-
-cat(paste0("#", unique(.data_tmp$key)))

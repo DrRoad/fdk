@@ -5,15 +5,20 @@
 #' @param date_var String.Column name of the time series to be forecasted.
 #' @param parameter List. Trend discount and time weight parameters.
 #'
-#' @return
+#' @return data-frame
+#' @import stats
+#' @import dplyr
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' get_glm()
+#' }
 get_glm <- function(.data, y_var, date_var, parameter) {
   if (is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- "y_var"
-    date_var <- "date"
+    date_var <- "date_var"
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }

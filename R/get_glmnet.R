@@ -12,7 +12,7 @@
 #' @import fastDummies
 #' @import glmnet
 #' @author Obryan Poyser
-#' @return
+#' @return data-frame
 #' @export
 #'
 #' @examples

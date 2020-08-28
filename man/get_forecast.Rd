@@ -16,8 +16,13 @@ get_forecast(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE)
 \item{tune}{Logical. Results will be used to define the best model.}
 }
 \value{
-
+data-frame
 }
 \description{
 Generate forecast figures
+}
+\examples{
+\dontrun{
+get_forecast()
+}
 }

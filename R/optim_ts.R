@@ -18,10 +18,13 @@
 #' @import purrr
 #' @import furrr
 #' 
-#' @return
+#' @return data-frame or tibble
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' optim_ts()
+#' }
 optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
   optim_switcher <- function(model){
     if(model == "glmnet"){
@@ -41,18 +44,20 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                                                          , model = "glmnet")) %>% 
                               get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true) %>% 
+        rowwise() %>% 
+        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
         group_by(trend_discount, time_weight, alpha) %>% 
-        summarise(cv_mape = mean(mape_i)
-                  , lambda_median = median(lambda)
-                  , lambda_cov = sd(lambda)/mean(lambda)
+        summarise(cv_mape = mean(mape_i, na.rm = TRUE)
+                  , lambda_median = median(lambda, na.rm = TRUE)
+                  , lambda_cov = sd(lambda)/mean(lambda, na.rm = TRUE)
                   , .groups = "drop") %>% 
         arrange(cv_mape, -lambda_cov)
       
       tibble(model = "glmnet"
              , cv_mape = splits_tmp_cv$cv_mape[1]
-             , parameter = list(select(splits_tmp_cv, trend_discount, time_weight
+             , parameter = list(select(splits_tmp_cv, time_weight, trend_discount
                                        , alpha, lambda = lambda_median) %>% 
+                                  mutate_all(.funs = ~round(.x, 2)) %>% 
                                   slice(1)))
       
     } else if(model == "arima") {
@@ -67,11 +72,17 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                , .f = ~get_arima(.data = .x[["train"]]) %>% 
                                  get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
             bind_rows() %>%
-            mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true) %>%
+            rowwise() %>% 
+            mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>%
             select_if(names(.) %in% c("y_var_true", "y_var_fcst", "p"
-                                      , "d", "q", "P", "D", "Q", "mape_i"))
-          
-          tibble(model = "arima", cv_mape = mean(splits_tmp_cv$mape_i)
+                                      , "d", "q", "P", "D", "Q", "mape_i")) %>% 
+            bind_rows((tibble(y_var_true = NA, y_var_fcst = NA
+                                             , p = NA, d = NA, q = NA, P = NA
+                                             , D = NA, Q = NA, mape_i = NA) %>% 
+                                        slice(0)), .) %>% 
+            mutate_at(.vars = vars(matches("p$|d$|q$")), ~ifelse(is.na(.x), 0, .x))
+            
+          tibble(model = "arima", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
                  , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
                                            , -mape_i) %>% 
                                       slice(n())))
@@ -98,15 +109,17 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                                                          , model = "glm")) %>% 
                               get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true) %>% 
+        rowwise() %>% 
+        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
         group_by(trend_discount, time_weight) %>%
-        summarise(cv_mape = mean(mape_i), .groups = "drop") %>% 
+        summarise(cv_mape = mean(mape_i, na.rm = TRUE), .groups = "drop") %>% 
         top_n(n = 1, wt = -cv_mape)
       })
       
       tibble(model = "glm"
              , cv_mape = splits_tmp_cv[["cv_mape"]]
-             , parameter = list(select(splits_tmp_cv, trend_discount, time_weight)
+             , parameter = list(select(splits_tmp_cv, time_weight, trend_discount) %>% 
+                                  mutate_all(.funs = ~round(.x, 2))
                                 )
              )
     } else if(model == "croston"){
@@ -119,9 +132,11 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                            , .f = ~get_croston(.data = .x[["train"]]) %>% 
                              get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true)
+        rowwise() %>%
+        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
+        ungroup()
       
-      tibble(model = "croston", cv_mape = mean(splits_tmp_cv$mape_i)
+      tibble(model = "croston", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
              , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
                                        , -mape_i) %>% 
                                   slice(n())))
@@ -135,9 +150,11 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                            , .f = ~get_tbats(.data = .x[["train"]]) %>% 
                              get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true)
+        rowwise() %>%
+        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
+        ungroup()
       
-      tibble(model = "tbats", cv_mape = mean(splits_tmp_cv$mape_i)
+      tibble(model = "tbats", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
              , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
                                        , -mape_i) %>% 
                                   slice(n())))
@@ -151,9 +168,11 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                            , .f = ~get_seasonal_naive(.data = .x[["train"]]) %>% 
                              get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true)
+        rowwise() %>% 
+        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
+        ungroup()
       
-      tibble(model = "seasonal_naive", cv_mape = mean(splits_tmp_cv$mape_i)
+      tibble(model = "seasonal_naive", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
              , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
                                        , -mape_i) %>% 
                                   slice(n())))
@@ -167,9 +186,11 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                            , .f = ~get_ets(.data = .x[["train"]]) %>% 
                              get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true)
+        rowwise() %>% 
+        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
+        ungroup()
       
-      tibble(model = "ets", cv_mape = mean(splits_tmp_cv$mape_i)
+      tibble(model = "ets", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
              , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
                                        , -mape_i) %>% 
                                   slice(n())))
@@ -183,9 +204,11 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                            , .f = ~get_neural_network(.data = .x[["train"]]) %>% 
                              get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        mutate(mape_i = abs(y_var_true - y_var_fcst)/y_var_true)
+        rowwise() %>% 
+        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
+        ungroup()
       
-      tibble(model = "neural_network", cv_mape = mean(splits_tmp_cv$mape_i)
+      tibble(model = "neural_network", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
              , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
                                        , -mape_i) %>% 
                                   slice(n())))

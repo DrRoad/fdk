@@ -55,7 +55,7 @@ grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
 parameter <- list(glmnet = list(time_weight = .94, trend_discount = .93, alpha = 0, lambda = .1
                                 , grid_glmnet = grid_glmnet
                                 , job = list(optim_lambda = TRUE, x_excluded = NULL
-                                             , random_search_size = 0.1
+                                             , random_search_size = 0.05
                                              , n_best_model = 1))
                   , croston = list(alpha = 0.1)
                   , glm = list(time_weight = .99, trend_discount = 0.97

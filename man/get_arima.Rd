@@ -18,8 +18,13 @@ get_arima(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq)
 \item{freq}{Numeric. Time series frequency.}
 }
 \value{
-
+data-frame
 }
 \description{
 Fit Auto Regressive Integrated Moving Average Model
+}
+\examples{
+\dontrun{
+get_arima()
+}
 }

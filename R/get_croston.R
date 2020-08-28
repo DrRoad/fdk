@@ -7,10 +7,13 @@
 #'
 #' @import forecast
 #' @import stats
-#' @return
+#' @return data-frame
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' get_croston()
+#' }
 get_croston <- function(.data, y_var, horizon=10, parameter = NULL){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {

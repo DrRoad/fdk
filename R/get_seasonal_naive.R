@@ -1,22 +1,20 @@
-#' Fit a TBATS model
+#' Fit a Seasonal Naive Model
 #'
-#' Trigonometric seasonality, Box-Cox transformation, ARMA errors, Trend and Seasonal (TBATS)
-#' 
-#' @param .data data-frame or tibble with a response variable.
+#' @param .data Data frame or tibble with a response variable.
 #' @param y_var String. Column name of the time series to be forecasted.
 #' @param parameter List. Optional parameters.
-#'
-#' @import forecast
+#' @param horizon Numeric. Number of periods ahead to forecast.
+#' 
 #' @import stats
+#' @import forecast
 #' @return data-frame or tibble
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' get_tbats()
+#' get_seasonal_naive()
 #' }
-get_tbats <- function(.data, y_var, parameter = NULL){
-  
+get_seasonal_naive <- function(.data, y_var, parameter = NULL, horizon){
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- prescription$y_var
@@ -26,21 +24,15 @@ get_tbats <- function(.data, y_var, parameter = NULL){
   }
   
   y_var_int <- ts(.data[[y_var]], frequency = freq) # maybe not optimal
+  model_fit <- snaive(y_var_int)
   
-  model_fit <- tbats(y_var_int)
-  
-  .fit_output <- list(model = "tbats"
+  .fit_output <- list(model = "seasonal_naive"
                       , model_fit = model_fit
-                      , y_var_pred = as.numeric(model_fit[["fitted.values"]])
-                      , parameter = model_fit$parameters$vect
-  )
+                      , y_var_int = y_var_int
+                      , y_var_pred = as.numeric(model_fit$fitted)
+                      )
   
   attr(.fit_output, "prescription") <- prescription
   class(.fit_output) <- ".fit_output"
   return(.fit_output)
 }
-
-
-
-
-

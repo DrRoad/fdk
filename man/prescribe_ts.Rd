@@ -4,7 +4,15 @@
 \alias{prescribe_ts}
 \title{Data prescription}
 \usage{
-prescribe_ts(.data, key, y_var, date_var, freq, extend_design = TRUE)
+prescribe_ts(
+  .data,
+  key,
+  y_var,
+  date_var,
+  reg_name = NULL,
+  reg_value = NULL,
+  freq
+)
 }
 \arguments{
 \item{.data}{DataFrame or tibble.}
@@ -15,13 +23,20 @@ prescribe_ts(.data, key, y_var, date_var, freq, extend_design = TRUE)
 
 \item{date_var}{Column name of time index.}
 
-\item{freq}{Frequency of the data.}
+\item{reg_name}{Column name of the regressors.}
 
-\item{extend_design}{Logical. Print the data, TRUE by default.}
+\item{reg_value}{Column name of the regressors' values.}
+
+\item{freq}{Frequency of the data.}
 }
 \value{
-
+data-frame
 }
 \description{
 Prescribe provides a simple way to define the metadata
+}
+\examples{
+\dontrun{
+prescribe_ts()
+}
 }

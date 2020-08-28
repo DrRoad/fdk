@@ -19,7 +19,7 @@ Any number that lies between is considered as ElasticNet regression, a combinati
 The other 2 parametereters are time weights and trend discount.}
 }
 \value{
-
+data-frame
 }
 \description{
 Fit a Regularized Generalize Linear Model

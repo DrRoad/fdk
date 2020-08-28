@@ -1,98 +1,3 @@
-#' #' Check inputs
-#' #'
-#' #' Check for data structure compliance.
-#' #' @param .data DataFrame
-#' #'
-#' #' @return
-#' #' @export
-#' #' @noRd
-#' #' @examples
-#' check_inputs <- function(.data){
-#'   # Colnames checks
-#'   if(colnames(data)[1]!="key"){
-#'     print("Check first column name please")
-#'   }
-#'   if(colnames(data)[2]!="y"){
-#'     print("Check second column name please")
-#'   }
-#'   if(colnames(data)[3]!="date"){
-#'     print("Check third column name please")
-#'   }
-#'   if(colnames(data)[4]!="reg"){
-#'     print("Check fourth column name please")
-#'   }
-#'   # Format checks
-#' }
-
-#' #' Detect seasonality
-#' #' 
-#' #' This is a consensus tool to decide if a time series exhibit regular patterns over time.
-#' #' 
-#' #' The consensus is formed as Kruskal test, seasonal strength, and statistical significance
-#' #' of a linear regression model. Rule: if 2 out of 3 methods show evidence in favor of seasonality
-#' #' then, the data will employ seasonal models to generate the forecast.
-#' #'
-#' #' @param data numeric. Time series data
-#' #'
-#' #' @import seastests
-#' #' @return
-#' #' @export
-#' #'
-#' #' @examples
-#' detect_seasonality <- function(data){
-#'   # Aux functions
-#'   seas_test_kw <- function(ts){
-#'     kwtest <- kw(ts)
-#'     if(kwtest$Pval < 0.05){
-#'       return(TRUE)
-#'     }else{
-#'       return(FALSE)
-#'     }
-#'   }
-#'   seas_test_ftrs <- function(ts){
-#'     # Calculate Seasonality Strength and reformat
-#'     features <- as.data.frame(t(stl_features(ts)))
-#'     if(features$seasonal_strength>0.7){
-#'       return(TRUE)
-#'     }else{
-#'       return(FALSE)
-#'     }
-#'   }
-#'   seas_test_lm <- function(ts){
-#'     # Add 1 diff
-#'     lm.1=lm(y~factor(time_seas),data=ts)
-#'     p.vals=summary(lm.1)
-#'     p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
-#'                   p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
-#'     if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
-#'       return(TRUE)
-#'     }else{
-#'       return(FALSE)
-#'     }
-#'   }
-#'   # Main test
-#'   Count <- 0
-#'   # Test1: Kruskal-Wallis
-#'   if(seas_test_kw(data[[1]])){
-#'     Count <- Count + 1
-#'   }
-#'   # Test2: Time Series Features
-#'   if(seas_test_ftrs(data[[1]])){
-#'     Count <- Count + 1
-#'   }
-#'   # Test3: Linear Model
-#'   if(seas_test_lm(data[[2]])){
-#'     Count <- Count + 1
-#'   }
-#'   # Final Decision
-#'   if(Count>=2){
-#'     return(TRUE)
-#'   }else{
-#'     return(FALSE)
-#'   }
-#' }
-
-
 # Regression helpers -------------------------------
 
 #' Generate trend discounts
@@ -108,10 +13,13 @@
 #' @param lag Numeric. Lag to be used for cross-validation purposes.
 #'
 #' @author Obryan Poyser
-#' @return
+#' @return Numerical vector.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' get_trend_discounts()
+#' }
 get_trend_discounts <- function(y_var_length, trend_discount, horizon=NULL, lag = NULL){
   if(length(y_var_length)>1){
     y_var_length <- length(y_var_length)
@@ -134,14 +42,19 @@ get_trend_discounts <- function(y_var_length, trend_discount, horizon=NULL, lag 
 }
 
 #' Generate time weights
+#' 
+#' Method to define data points' weights for regression based models.
 #'
 #' @param y_var numeric. Time series vector data.
-#' @param time_weight numeric. How rapidly recent observations weight for estimation.
+#' @param time_weight Numeric. How rapidly recent observations weight for estimation.
 #' @author Obryan Poyser
-#' @return
+#' @return Numerical vector.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' get_time_weights()
+#' }
 get_time_weights <- function(y_var, time_weight){
   if(length(time_weight)!=1) stop("Only one time weight value should be provided")
   time_weight^(length(1:length(y_var))-(1:length(y_var)))^2
@@ -158,10 +71,13 @@ get_time_weights <- function(y_var, time_weight){
 #' 
 #' @import stats
 #' @import dplyr
-#' @return
+#' @return data-frame or tibble
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' make_reg_matrix()
+#' }
 make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
   
   prescription <- attributes(.fit_output)[["prescription"]]
@@ -216,53 +132,25 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
   }
 }
 
-
-
-
-
 # Splits -------------------------------
 
-# Main ts_split function
-
-#' Time Series Cross-Validation split
+#' Automatic Time Series Cross-Validation split
 #' 
 #' Time series CV split heuristics should keep temporal dependencies, henceforth, the sample should not 
 #' be "shuffled" into train and test. This function uses a different strategy to define the test and train sets
 #' maintain the order of the data.
 #'
-#' @param data DataFrame or tibble
-#' @param test_size Numeric. How many periods will be use to asses the forecast accuracy.
-#' @param lag Numeric. How many periods ahead to start the test size. 
-#' @param i Numeric. Iteration.
-#'
-#' @return
-#' @export
-#'
-#' @examples
-ts_split_all <- function(data, test_size, lag, i){
-  if(class(data)[1] == "ts"){
-    ts_len <- length(data)
-    train <- subset(data, end = ts_len-test_size-lag+i)
-    test <- subset(data, start = ts_len-test_size+i, end = ts_len-test_size+i)
-    train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
-  }else{
-    ts_len <- length(data[,1][[1]])
-    train <- data[1:(ts_len-test_size-lag+i),]
-    test <- data[ts_len-test_size+i,]
-    train_test=list(train = train, test = test, pars = list(lag = lag, iter = i))
-  }
-}
-
-#' Automatic Time Series Cross-Validation split
-#'
 #' @param .data DataFrame, tibble or tsibble structures.
 #' @param test_size Numeric. How many periods will be use to asses the forecast accuracy.
 #' @param lag Numeric. How many periods ahead to start the test size. 
 #'
-#' @return
+#' @return Nested data-frames or tibbles.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' split_ts()
+#' }
 split_ts <- function(.data, test_size, lag){
   split_ts_helper <- function(.data, test_size, lag, iter){
     attr(.data, "prescription")[["lag"]] <- lag
@@ -275,31 +163,48 @@ split_ts <- function(.data, test_size, lag){
   map(1:test_size, ~split_ts_helper(.data = .data, test_size = test_size, lag = lag, iter = .x))
 }
 
-#' MAPE
+#' Accuracy metrics
 #' 
 #' Mean Average Prediction Error forecast accuracy metric
 #'
-#' @param real Numeric. Observed value.
-#' @param pred Numeric. Predicted value.
+#' @param y_var_true Numeric. Observed value.
+#' @param y_var_pred Numeric. Predicted value.
 #'
-#' @return
+#' @return Numeric.
 #' @export
 #'
 #' @examples
-mape <- function(real, pred){
-  return(round((abs(real-pred)/real),3))
+#' \dontrun{
+#' mape()
+#' }
+accuracy_metric <- function(y_var_true, y_var_pred, metric = "mape"){
+  if(metric == "mape"){
+    if((is.na(y_var_true) == T | (round(y_var_true, 0) == 0) == TRUE)){
+      mape_tmp <- NA
+    } else {
+      mape_tmp <- abs(y_var_true - y_var_pred)/y_var_true
+    }
+    return(mape_tmp)
+  }
 }
 
-#' Updating parameters given a grid
+#' Updating parameters given a grid.
+#' 
+#' This function updates the parameter list by a set of values coming from a data-frame or tibble. 
+#' It is a fundamental for glmnet, glm and arima models.
 #'
-#' @param parameter List. Parameters to be used to estimate model or define the job to be done.
-#' @param new_parameter Named list of data frame.
+#' @param old_parameter List. Parameters to be used to estimate model or define the job to be done.
+#' @param new_parameter List or data-frame. Parameters that will replace the original list.
 #' @param model String. Model where the parameters will be replaced.
+#' @param optim Logical. Wether of not the results will be used for hyperparameter tuning of GLMNET models.
 #'
-#' @return
+#' @return List of updated parameters.
 #' @export
 #'
 #' @examples
+#' \dontrun{
+#' update_parameter()
+#' }
 update_parameter <- function(old_parameter, new_parameter, model, optim = FALSE){
   parameter_tmp <- old_parameter
   if(model == "glmnet"){
@@ -317,117 +222,4 @@ update_parameter <- function(old_parameter, new_parameter, model, optim = FALSE)
     stop("No model has been set")
   }
   return(parameter_tmp)
-}
-
-# get_metric <- function(.forecast_output){
-#   .forecast_output %>% 
-#     mutate(mape_i = abs(.y_var_true - .y_var_pred)/.y_var_true) %>% 
-#     group_by(trend_discount, time_weight, alpha) %>% 
-#     summarise(mape = mean(mape_i)
-#               , lambda_median = median(lambda)
-#               , lambda_cov = sd(lambda)/mean(lambda)
-#               , .groups = "drop") %>% 
-#     arrange(mape, -lambda_cov) %>%
-#     select(1:3, lambda = lambda_median, cv_mape = mape) %>% 
-#     .[1,]
-# }
-
-
-
-#' Filter out time series
-#'
-#' @param y_var Numeric or ts.
-#' @param freq Time series frequency.
-#'
-#' @return
-#' @export
-#'
-#' @examples
-tscut <- function (y_var, freq = 12) {
-  x_1 <- c(10, 100, 1000, 10000)
-  y <- c(10, 4, 2, 1.5)
-  fit <- lm(log(y) ~ log(x_1))
-  p_1 <- fit$coefficients[2]
-  p_2 <- exp(fit$coefficients[1])
-  if (is.ts(y_var) == FALSE) {
-    x <- ts(y_var, frequency = freq)
-  }
-  else {
-    x <- y_var
-  }
-  if (length(x) != 0) {
-    check_count <- 0
-    for (check in 1:length(x)) {
-      if (x[check] == 0) {
-        check_count <- check_count + 1
-      }
-      else {
-        x <- subset(x, start = check_count + 1)
-        break
-      }
-    }
-    x_no_leading_zeros <- x
-    if (length(x) >= 4) {
-      dfu_break <- cpt.meanvar(x, penalty = "None", 
-                               method = "AMOC", Q = 1)
-      bp <- cpts(dfu_break)
-      x_after <- subset(x, start = bp + 1)
-      dfu_break_var <- cpt.var(x, penalty = "None", 
-                               method = "AMOC", Q = 1)
-      bp_var <- cpts(dfu_break_var)
-      x_after_var <- subset(x, start = bp_var + 1)
-      if (length(x_after) > 24) {
-        min_mean <- min(mean(x[1:bp]), mean(x[bp:length(x)]))
-        max_mean <- max(mean(x[1:bp]), mean(x[bp:length(x)]))
-        threshold <- p_2 * min_mean^p_1
-        if (max_mean/min_mean >= threshold) {
-          x <- x_after
-        }
-        else {
-          if (length(x_after_var) > 24) {
-            min_iqr <- min(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)])) + 
-              1e-04
-            max_iqr <- max(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)]))
-            if (max_iqr/min_iqr > 2) {
-              x <- x_after_var
-            }
-            else {
-              x <- x
-            }
-          }
-          else {
-            x <- x
-          }
-        }
-        if (x[1] == 0) {
-          x <- x_no_leading_zeros
-        }
-        return(x)
-      }
-      else {
-        if (length(x_after_var) > 24) {
-          min_iqr <- min(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)])) + 
-            1e-04
-          max_iqr <- max(IQR(x[1:bp_var]), IQR(x[bp_var:length(x)]))
-          if (max_iqr/min_iqr > 2) {
-            x <- x_after_var
-          }
-          else {
-            x <- x
-          }
-        }
-        else {
-          x <- x
-        }
-        if (x[1] == 0) {
-          x <- x_no_leading_zeros
-        }
-        return(x)
-      }
-    }
-    else {
-      x <- x
-      return(x)
-    }
-  }
 }

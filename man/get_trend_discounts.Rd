@@ -2,74 +2,7 @@
 % Please edit documentation in R/auxiliar.R
 \name{get_trend_discounts}
 \alias{get_trend_discounts}
-\title{#' Detect seasonality
-#' 
-#' This is a consensus tool to decide if a time series exhibit regular patterns over time.
-#' 
-#' The consensus is formed as Kruskal test, seasonal strength, and statistical significance
-#' of a linear regression model. Rule: if 2 out of 3 methods show evidence in favor of seasonality
-#' then, the data will employ seasonal models to generate the forecast.
-#'
-#' @param data numeric. Time series data
-#'
-#' @import seastests
-#' @return
-#' @export
-#'
-#' @examples
-detect_seasonality <- function(data){
-  # Aux functions
-  seas_test_kw <- function(ts){
-    kwtest <- kw(ts)
-    if(kwtest$Pval < 0.05){
-      return(TRUE)
-    }else{
-      return(FALSE)
-    }
-  }
-  seas_test_ftrs <- function(ts){
-    # Calculate Seasonality Strength and reformat
-    features <- as.data.frame(t(stl_features(ts)))
-    if(features$seasonal_strength>0.7){
-      return(TRUE)
-    }else{
-      return(FALSE)
-    }
-  }
-  seas_test_lm <- function(ts){
-    # Add 1 diff
-    lm.1=lm(y~factor(time_seas),data=ts)
-    p.vals=summary(lm.1)
-    p.vals.lt<-pf(p.vals$fstatistic[1], p.vals$fstatistic[2], # Compute p-value from the F-statistics
-                  p.vals$fstatistic[3], lower.tail=FALSE) # and degree of freedom
-    if(p.vals.lt < 0.10 & !is.nan(p.vals.lt)){
-      return(TRUE)
-    }else{
-      return(FALSE)
-    }
-  }
-  # Main test
-  Count <- 0
-  # Test1: Kruskal-Wallis
-  if(seas_test_kw(data[[1]])){
-    Count <- Count + 1
-  }
-  # Test2: Time Series Features
-  if(seas_test_ftrs(data[[1]])){
-    Count <- Count + 1
-  }
-  # Test3: Linear Model
-  if(seas_test_lm(data[[2]])){
-    Count <- Count + 1
-  }
-  # Final Decision
-  if(Count>=2){
-    return(TRUE)
-  }else{
-    return(FALSE)
-  }
-}
-Generate trend discounts}
+\title{Generate trend discounts}
 \usage{
 get_trend_discounts(y_var_length, trend_discount, horizon = NULL, lag = NULL)
 }
@@ -83,7 +16,7 @@ get_trend_discounts(y_var_length, trend_discount, horizon = NULL, lag = NULL)
 \item{lag}{Numeric. Lag to be used for cross-validation purposes.}
 }
 \value{
-
+Numerical vector.
 }
 \description{
 Regression based models use a linear trend to account for the change in level over time. 
@@ -91,6 +24,11 @@ In practical terms, it is measured as a vector of equidistant integers.
 Often, the trend component can significantly impact the forecast in the long run. One way to solve
 this issue is to apply a "discount" on the trend vector, henceforth, reducing the marginal effect on the 
 predictions.
+}
+\examples{
+\dontrun{
+get_trend_discounts()
+}
 }
 \author{
 Obryan Poyser

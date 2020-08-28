@@ -16,8 +16,13 @@ get_glm(.data, y_var, date_var, parameter)
 \item{parameter}{List. Trend discount and time weight parameters.}
 }
 \value{
-
+data-frame
 }
 \description{
 Fit a Generalized Linear Model
+}
+\examples{
+\dontrun{
+get_glm()
+}
 }
