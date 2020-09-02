@@ -14,7 +14,9 @@
 #' \dontrun{
 #' get_seasonal_naive()
 #' }
-get_seasonal_naive <- function(.data, y_var, parameter = NULL, horizon){
+get_seasonal_naive <- function(.data, y_var, parameter = NULL, horizon = 30){
+  # horizon = 30 to reuse forecast as subset in get_forecast
+  
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- prescription$y_var
@@ -24,7 +26,7 @@ get_seasonal_naive <- function(.data, y_var, parameter = NULL, horizon){
   }
   
   y_var_int <- ts(.data[[y_var]], frequency = freq) # maybe not optimal
-  model_fit <- snaive(y_var_int)
+  model_fit <- snaive(y_var_int, h = horizon)
   
   .fit_output <- list(model = "seasonal_naive"
                       , model_fit = model_fit

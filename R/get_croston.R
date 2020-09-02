@@ -14,7 +14,7 @@
 #' \dontrun{
 #' get_croston()
 #' }
-get_croston <- function(.data, y_var, horizon=10, parameter = NULL){
+get_croston <- function(.data, y_var, horizon = 10, parameter = NULL){
   
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
@@ -33,7 +33,8 @@ get_croston <- function(.data, y_var, horizon=10, parameter = NULL){
     }
     .fit_output <- list(model = "croston"
                         , y_var_int = y_var_int
-                        , y_var_fcst = as.numeric(model_fit$mean)
+                        , model_fit = model_fit
+                        , y_var_pred = as.numeric(model_fit$mean)
                         , parameter = list(alpha = ifelse(is.null(parameter$croston$alpha), 0.1 , parameter$croston$alpha))
                          )
     
