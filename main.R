@@ -206,27 +206,14 @@ results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind") %dopar
 tictoc::toc()
 
 
-
-
-
-
-
-
-
-
-
-
-
 future_map(unique(data_all$key)[1:2], ~.f = {
   data_i <- data_all[data_all$key == .x,]
   
   autoforecast(.data = data_i, horizon = 100
                , model = model_list
-               , parameter = parameter, optim_profile = "light", test_size = 6
+               , parameter = parameter, optim_profile = "fast", test_size = 6
                , lag = 3, meta_data = FALSE, method = "kalman")
 })
-
-
 
 ## Plot
 
