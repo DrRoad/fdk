@@ -52,6 +52,7 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' fast, light, medium, and, complete.
 #' @param meta_data Logical. Whether to return the ranking of models in a list.
 #' @param ... Other parameter from the sub-functions.
+#' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
 #' 
 #' @import dplyr
 #' @import fastDummies
@@ -70,7 +71,8 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' \dontrun{
 #' autoforecast()
 #' }
-autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim_profile, meta_data = FALSE, ...){
+autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim_profile
+                         , meta_data = FALSE, tune_parallel = FALSE, ...){
   cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
   
   .data_tmp <- .data  %>% 
@@ -89,7 +91,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
                        , parameter = update_parameter(parameter
                                                       , best_model$parameter[[which(best_model$model==model)]]
                                                       , model = model, optim = TRUE)
-                       , horizon = 100)
+                       , horizon = horizon)
     } else {
       get_forecast_int(.data, model = model, parameter = parameter, horizon = horizon)
     }
@@ -109,7 +111,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       replace_na(replace = list(type = "history", model = "history"))
     
     ensemble_tmp <- forecast_tmp %>% 
-      filter(type != "history") %>% 
+      filter(type != "history", (model != "neural_network")) %>% 
       group_by(date_var) %>% 
       summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
     
@@ -118,7 +120,9 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
     
     attr(forecast_tmp, "output_type") <- "optim_output"
   } else if(optim_profile == "light"){
-    best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag, parameter = parameter, model = model)
+    best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
+                               , parameter = parameter, model = setdiff(model, c("tbats"))
+                               , tune_parallel = tune_parallel)
     
     print(knitr::kable(best_model_int, "simple", 2))
     
@@ -133,7 +137,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       replace_na(replace = list(type = "history", model = "history")) 
     
     ensemble_tmp <- forecast_tmp %>% 
-      filter(type != "history") %>% 
+      filter(type != "history", model %in% best_model_int$model[1:3]) %>% # top 3 models cv
       group_by(date_var) %>% 
       summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
     
@@ -154,6 +158,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
 #'
 #' @param .data data-frame of class optim_output
 #' @param interactive Logical. Whether or not to return interative plotly graph
+#' @param multiple_keys Logical. The data has or not multiple keys to plot as grid.
 #'
 #' @import ggplot2
 #' @import plotly
@@ -165,13 +170,15 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
 #' plot_ts()
 #' }
 plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
+  prescription <- attributes(.data)[["prescription"]]
   if(attributes(.data)[["output_type"]] != "optim_output"){
     stop("Error, the input data is not class optim_output")
   } else {
     graph_tmp <- .data %>% 
       ggplot(aes(date_var, y_var, col = model))+
       geom_line()+
-      labs(x = "", y = "y_var")+
+      labs(x = "", y = "y_var", col = "Model")+
+      geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed")+
       scale_y_continuous(n.breaks = 10, minor_breaks = NULL)+
       scale_x_date(date_breaks = "6 month", minor_breaks = NULL)+
       theme_minimal()+
