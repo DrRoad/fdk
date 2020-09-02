@@ -107,8 +107,9 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     if (tune == TRUE) {
       x_data %>%
         transmute(
-          y_var_true = y_var,
-          y_var_fcst = as.numeric(croston(.fit_output$y_var_int)[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]]
+          y_var_true = y_var
+          , y_var_fcst = as.numeric(.fit_output$model_fit[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]] # as subset = seasonal_naive
+          #, y_var_fcst = as.numeric(croston(.fit_output$y_var_int)[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]]
           , parameter = list(NULL)
         )
     } else {
@@ -170,8 +171,9 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     if (tune == TRUE) {
       x_data %>%
         transmute(
-          y_var_true = y_var,
-          y_var_fcst = last(as.numeric(snaive(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
+          y_var_true = y_var
+          , y_var_fcst = as.numeric(.fit_output$model_fit[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]] # as subset
+          #, y_var_fcst = last(as.numeric(snaive(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
           , parameter = list(.fit_output[["model_fit"]][["parameters"]][["vect"]])
         )
     } else {
