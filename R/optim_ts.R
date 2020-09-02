@@ -26,6 +26,36 @@
 #' optim_ts()
 #' }
 optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
+  
+  best_parameter_int <- function(best_par_string){
+    if(is.numeric(best_par_string)== TRUE){
+      round(median(best_par_string, na.rm = TRUE), 3)
+    } else if(is.character(best_par_string) == TRUE ){
+      unique_par <- unlist(unique(best_par_string))
+      names(sort(sapply(unique_par, FUN = function(x) sum(x == best_par_string)), decreasing = T))[1]
+    } else {
+      NULL
+    }
+  }
+  
+  split_general_int <- function(model){
+    splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
+      enframe(name = "iter", value = "splits")
+    
+    map(.x = splits_tmp$splits
+        , .f = ~fit_ts(.data = .x[["train"]], model = model) %>% 
+          get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
+      bind_rows() %>% 
+      summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                          , y_var_pred = sum(y_var_fcst))
+                , model = model
+                , ranking = NA_integer_
+                , parameter = list(best_parameter_int(.[["parameter"]]))
+                , .groups = "drop") %>% 
+      arrange(cv_mape) %>% 
+      select(ranking, model, cv_mape, parameter)
+  }
+
   optim_switcher <- function(model){
     if(model == "glmnet"){
       random_grid <- sample(x = 1:nrow(parameter$glmnet$grid)
@@ -38,27 +68,26 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
         expand_grid(random_grid)
       
       splits_tmp_cv <- map2(.x = splits_tmp$splits, .y = splits_tmp$random_grid
-                            , ~get_glmnet(.data = .x[["train"]]
+                            , ~fit_ts(.data = .x[["train"]]
                                           , parameter = update_parameter(old_parameter = parameter
                                                                          , new_parameter = parameter$glmnet$grid[.y, ]
-                                                                         , model = "glmnet")) %>% 
+                                                                         , model = "glmnet"), model = "glmnet") %>% 
                               get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
-        bind_rows() %>%
-        rowwise() %>% 
-        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
-        group_by(trend_discount, time_weight, alpha) %>% 
-        summarise(cv_mape = mean(mape_i, na.rm = TRUE)
-                  , lambda_median = median(lambda, na.rm = TRUE)
+        bind_rows() %>% 
+        group_by(trend_discount, time_weight, alpha) %>%
+        summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                            , y_var_pred = sum(y_var_fcst))
                   , lambda_cov = sd(lambda)/mean(lambda, na.rm = TRUE)
-                  , .groups = "drop") %>% 
-        arrange(cv_mape, -lambda_cov)
-      
-      tibble(model = "glmnet"
-             , cv_mape = splits_tmp_cv$cv_mape[1]
-             , parameter = list(select(splits_tmp_cv, time_weight, trend_discount
-                                       , alpha, lambda = lambda_median) %>% 
-                                  mutate_all(.funs = ~round(.x, 2)) %>% 
-                                  slice(1)))
+                  , lambda = median(lambda, na.rm = TRUE)
+                  , model = "glmnet"
+                  , ranking = NA_integer_
+                  , .groups = "drop") %>%
+        arrange(cv_mape, lambda_cov) %>%
+        slice(1) %>%
+        transmute(ranking, model, cv_mape, parameter = list(select(., trend_discount
+                                                                   , time_weight
+                                                                   , alpha
+                                                                   , lambda)))
       
     } else if(model == "arima") {
       cat(paste0("\nARIMA: Hyperparameter tuning...\n"))
@@ -72,24 +101,20 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                                , .f = ~get_arima(.data = .x[["train"]]) %>% 
                                  get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
             bind_rows() %>%
-            rowwise() %>% 
-            mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>%
             select_if(names(.) %in% c("y_var_true", "y_var_fcst", "p"
                                       , "d", "q", "P", "D", "Q", "mape_i")) %>% 
             bind_rows((tibble(y_var_true = NA, y_var_fcst = NA
-                                             , p = NA, d = NA, q = NA, P = NA
-                                             , D = NA, Q = NA, mape_i = NA) %>% 
-                                        slice(0)), .) %>% 
-            mutate_at(.vars = vars(matches("p$|d$|q$")), ~ifelse(is.na(.x), 0, .x))
-            
-          tibble(model = "arima", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
-                 , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
-                                           , -mape_i) %>% 
-                                      slice(n())))
+                              , p = NA, d = NA, q = NA, P = NA
+                              , D = NA, Q = NA) %>% 
+                         slice(0)), .) %>% 
+            mutate_at(.vars = vars(matches("p$|d$|q$")), ~ifelse(is.na(.x), 0, .x)) %>% 
+            summarise(ranking = NA, model = "arima
+                      ", cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                                   , y_var_pred = sum(y_var_fcst))
+                      , parameter = list(select(., 3:last_col()) %>% slice(n())))
         }
       )
     } else if(model == "glm"){
-      
       
       random_grid <- sample(x = 1:nrow(parameter$glm$grid_glm)
                             , size = round(length(1:nrow(parameter$glm$grid_glm))*parameter$glm$job$random_search_size)
@@ -100,118 +125,31 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
         enframe(name = "iter", value = "splits") %>% 
         expand_grid(random_grid)
       
-      
       suppressWarnings({
-      splits_tmp_cv <- map2(.x = splits_tmp$splits, .y = splits_tmp$random_grid
-                            , ~get_glm(.data = .x[["train"]]
-                                          , parameter = update_parameter(old_parameter = parameter
-                                                                         , new_parameter = parameter[["glm"]][["grid_glm"]][.y, ]
-                                                                         , model = "glm")) %>% 
-                              get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
+        splits_tmp_cv <- map2(.x = splits_tmp$splits, .y = splits_tmp$random_grid
+                              , ~fit_ts(.data = .x[["train"]]
+                                        , parameter = update_parameter(old_parameter = parameter
+                                                                       , new_parameter = parameter[["glm"]][["grid_glm"]][.y, ]
+                                                                       , model = "glm"), model = "glm") %>% 
+                                get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
         bind_rows() %>%
-        rowwise() %>% 
-        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
-        group_by(trend_discount, time_weight) %>%
-        summarise(cv_mape = mean(mape_i, na.rm = TRUE), .groups = "drop") %>% 
-        top_n(n = 1, wt = -cv_mape)
-      })
+        group_by(trend_discount, time_weight) %>% 
+        summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                            , y_var_pred = sum(y_var_fcst))
+                  , model = "glm"
+                  , ranking = NA_integer_
+                  , .groups = "drop") %>% 
+        arrange(cv_mape) %>%
+        slice(1) %>% 
+        transmute(ranking, model, cv_mape, parameter = list(select(., trend_discount
+                                                                   , time_weight)))
+      }
+      )
+    } else if((model %in% c("croston", "tbats", "seasonal_naive", "ets")) == TRUE){
+      cat(paste0("\n", toupper(model), ": Hyperparameter tuning...\n"))
       
-      tibble(model = "glm"
-             , cv_mape = splits_tmp_cv[["cv_mape"]]
-             , parameter = list(select(splits_tmp_cv, time_weight, trend_discount) %>% 
-                                  mutate_all(.funs = ~round(.x, 2))
-                                )
-             )
-    } else if(model == "croston"){
-      cat(paste0("\nCROSTON: Hyperparameter tuning...\n"))
+      splits_tmp_cv <- split_general_int(model)
       
-      splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
-        enframe(name = "iter", value = "splits")
-      
-      splits_tmp_cv <- map(.x = splits_tmp$splits
-                           , .f = ~get_croston(.data = .x[["train"]]) %>% 
-                             get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
-        bind_rows() %>%
-        rowwise() %>%
-        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
-        ungroup()
-      
-      tibble(model = "croston", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
-             , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
-                                       , -mape_i) %>% 
-                                  slice(n())))
-    } else if(model == "tbats"){
-      cat(paste0("\nTBATS: Hyperparameter tuning...\n"))
-      
-      splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
-        enframe(name = "iter", value = "splits")
-      
-      splits_tmp_cv <- map(.x = splits_tmp$splits
-                           , .f = ~get_tbats(.data = .x[["train"]]) %>% 
-                             get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
-        bind_rows() %>%
-        rowwise() %>%
-        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
-        ungroup()
-      
-      tibble(model = "tbats", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
-             , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
-                                       , -mape_i) %>% 
-                                  slice(n())))
-    } else if(model == "seasonal_naive"){
-      cat(paste0("\nSEASONAL NAIVE: Hyperparameter tuning...\n"))
-      
-      splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
-        enframe(name = "iter", value = "splits")
-      
-      splits_tmp_cv <- map(.x = splits_tmp$splits
-                           , .f = ~get_seasonal_naive(.data = .x[["train"]]) %>% 
-                             get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
-        bind_rows() %>%
-        rowwise() %>% 
-        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
-        ungroup()
-      
-      tibble(model = "seasonal_naive", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
-             , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
-                                       , -mape_i) %>% 
-                                  slice(n())))
-    } else if(model == "ets"){
-      cat(paste0("\nETS: Hyperparameter tuning...\n"))
-      
-      splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
-        enframe(name = "iter", value = "splits")
-      
-      splits_tmp_cv <- map(.x = splits_tmp$splits
-                           , .f = ~get_ets(.data = .x[["train"]]) %>% 
-                             get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
-        bind_rows() %>%
-        rowwise() %>% 
-        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
-        ungroup()
-      
-      tibble(model = "ets", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
-             , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
-                                       , -mape_i) %>% 
-                                  slice(n())))
-    } else if(model == "neural_network"){
-      cat(paste0("\nNEURAL NETWORK: Hyperparameter tuning...\n"))
-      
-      splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
-        enframe(name = "iter", value = "splits")
-      
-      splits_tmp_cv <- map(.x = splits_tmp$splits
-                           , .f = ~get_neural_network(.data = .x[["train"]]) %>% 
-                             get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
-        bind_rows() %>%
-        rowwise() %>% 
-        mutate(mape_i = accuracy_metric(y_var_true, y_var_fcst, metric = "mape")) %>% 
-        ungroup()
-      
-      tibble(model = "neural_network", cv_mape = mean(splits_tmp_cv$mape_i, na.rm = TRUE)
-             , parameter = list(select(splits_tmp_cv, -y_var_true, -y_var_fcst
-                                       , -mape_i) %>% 
-                                  slice(n())))
     }
   } # Close switcher
   
@@ -222,8 +160,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
     arrange(cv_mape) %>% 
     mutate(ranking = 1:n(), .before = "model")
   
-  for(i in seq_along(optim_out$model)){
-    attr(optim_out[["parameter"]][[i]], "output_type") <- "optim_out"
-  }
+  attr(optim_out, "output_type") <- "optim_out"
+  
   return(optim_out)
 }

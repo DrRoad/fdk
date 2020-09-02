@@ -32,7 +32,7 @@ get_tbats <- function(.data, y_var, parameter = NULL){
   .fit_output <- list(model = "tbats"
                       , model_fit = model_fit
                       , y_var_pred = as.numeric(model_fit[["fitted.values"]])
-                      , parameter = model_fit$parameters$vect
+                      , parameter = unlist(model_fit$parameters$vect)
   )
   
   attr(.fit_output, "prescription") <- prescription

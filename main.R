@@ -8,6 +8,11 @@ library("fastDummies")
 library("imputeTS")
 library("tidyverse")
 library("plotly")
+library("doParallel")
+library("foreach")
+library("parallel")
+library("tsibble")
+
 
 # Source ------------------------------------------------------------------
 
@@ -28,8 +33,8 @@ source("R/optim_ts.R")
 
 # Parameter ---------------------------------------------------------------
 
-grid_glmnet <- expand_grid(time_weight = seq(from = 0.7, to = 1, by = 0.05)
-                           , trend_discount = seq(from = 0.9, to = 1, by = 0.05)
+grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
+                           , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
                            , alpha = seq(from = 0, to = 1, by = 0.10))
 grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
                         , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
@@ -53,6 +58,17 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .93, alpha =
 data_init <- read_csv("demo_data.csv") %>% 
   dplyr::filter(date < "2020-02-01")
 
+
+ap0 <- AirPassengers %>%
+  as_tsibble() %>%
+  as_tibble() %>%
+  mutate(key = "airpassenger", reg_name = "0", reg_value = 0
+         , index = as.Date(yearmonth(index))) %>%
+  select(key, date=index, value, reg_name, reg_value)
+
+ap <- prescribe_ts(.data = ap0, key = "key", y_var = "value", date_var = "date"
+                   , reg_name = "reg_name", reg_value = "reg_value", freq = 12)
+
 ## Every data to be autoforecasted should "prescribed" first to allow attribute inheritance.
 
 data_all <- data_init %>%
@@ -67,11 +83,12 @@ fit_1 <- data_all %>%
   filter(key == "FI: 34142") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  #fit_ts(model = "glm", parameter = parameter) %>% 
-  get_glm(parameter = parameter) # in v0.1.2 a generalized version is also possible (see line above)
+  fit_ts(model = "ets", parameter = parameter)
 
 #### Fit output
-  summary(fit_1)
+  #summary(fit_1)
+  attributes(data_all) %>% 
+    str()
   
 #### Forecast
 fit_1 %>% 
@@ -96,34 +113,62 @@ model_list <- c("glm", "glmnet", "neural_network", "arima", "ets"
 ## Fast
 
 .data <- data_all %>% 
-  filter(key == "FI: 34142")
+  filter(key == "FI: 515188") #%>% 
+  #feature_engineering_ts() %>% 
+  #clean_ts()
+
+.data <- ap
 
 tictoc::tic()
 fast_optim_forecast <- autoforecast(.data = .data, horizon = 100
              , model = model_list
-             , parameter = parameter, optim_profile = "fast", method = "kalman")
+             , parameter = parameter, optim_profile = "fast", method = "winsorize")
 tictoc::toc()
 
 fast_optim_forecast %>% 
-  plot_ts()
+  plot_ts(interactive = T)
 
 ## Light
 
+set.seed(1)
+
 tictoc::tic()
 light_optim_forecast <- autoforecast(.data = .data, horizon = 100
-                   , model = model_list
+                   , model = setdiff(model_list, c("tbats"))
                    , parameter = parameter, optim_profile = "light", test_size = 6
-                   , lag = 3, meta_data = T, method = "kalman") # since meta_data = T, a list will be printed.
+                   , lag = 3, meta_data = T, method = "winsorize") # since meta_data = T, a list will be printed.
 tictoc::toc()
 
 light_optim_forecast$forecast_output %>% 
   plot_ts(interactive = T)
+
 
 # Multiple items / Parallel ----------------------------------------------------------
 
 library(doParallel)
 library(foreach)
 library(parallel)
+
+
+plan(multisession(workers = 6))
+
+tictoc::tic()
+data_all$key %>%
+  unique() %>% 
+  .[1:2] %>% 
+  future_map(.f = ~autoforecast(.data = filter(data_all, key == .x), horizon = 100
+                            , model = setdiff(model_list, c("tbats"))
+                            , parameter = parameter, optim_profile = "light", test_size = 6
+                            , lag = 3, meta_data = T, method = "winsorize"))
+tictoc::toc()
+
+
+
+
+
+
+
+
 
 my_cores <- detectCores()
 cluster <- makeCluster(2)
@@ -134,7 +179,7 @@ doParallel::registerDoParallel(cl)
 registerDoParallel(cores = (my_cores - 2))
 
 tictoc::tic()
-results <- foreach(key_i = unique(data_all$key)[1:2], .combine = "rbind") %dopar% {
+results <- foreach(key_i = unique(data_all$key)[1:2], .combine = "rbind") %do% {
   data_i <- data_all[data_all$key == key_i,]
   
   autoforecast(.data = data_i, horizon = 100
@@ -152,7 +197,6 @@ future_map(unique(data_all$key)[1:2], ~.f = {
                , parameter = parameter, optim_profile = "light", test_size = 6
                , lag = 3, meta_data = FALSE, method = "kalman")
 })
-
 
 
 

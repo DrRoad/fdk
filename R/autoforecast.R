@@ -32,7 +32,9 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
     get_tbats(.data = .data, y_var = y_var, parameter = parameter)
   } else if(model == "croston"){
     get_croston(.data = .data, y_var = y_var, parameter = parameter)
-  } 
+  } else if(model == "dynamic_theta"){
+    get_theta() # add
+  }
 }
 
 
