@@ -13,6 +13,7 @@ autoforecast(
   model,
   optim_profile,
   meta_data = FALSE,
+  tune_parallel = FALSE,
   ...
 )
 }
@@ -33,6 +34,8 @@ autoforecast(
 fast, light, medium, and, complete.}
 
 \item{meta_data}{Logical. Whether to return the ranking of models in a list.}
+
+\item{tune_parallel}{Logical. Perform parallelization across different model selection (**experimental**).}
 
 \item{...}{Other parameter from the sub-functions.}
 }

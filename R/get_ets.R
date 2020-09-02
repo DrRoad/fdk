@@ -30,7 +30,8 @@ get_ets <- function(.data, y_var, parameter = NULL){
         #message("ETS optimization...")
         model_fit <- ets(y = y_var_int, model = "ZZZ", damped = NULL, allow.multiplicative.trend = FALSE)
       } else {
-        model_fit <- ets(y = y_var_int, model = parameter[["ets"]][["ets"]], damped = NULL, allow.multiplicative.trend = FALSE)
+        model_fit <- ets(y = y_var_int, model = parameter[["ets"]][["ets"]]
+                         , damped = TRUE, allow.multiplicative.trend = FALSE)
       }
       
       # Timelapse

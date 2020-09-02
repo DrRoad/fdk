@@ -8,7 +8,7 @@
 #' Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
 #' The other 2 hyperparameters are time weights and trend discount.
 #' @param model String. Model to be optimized.
-#' @param parallel Logical. Perform parallelization across different model selection (**experimental**).
+#' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
 #'
 #' @importFrom rlang .data
 #' @import glmnet
@@ -17,6 +17,7 @@
 #' @import dplyr
 #' @import purrr
 #' @import furrr
+#' @import foreach
 #' 
 #' @return data-frame or tibble
 #' @export
@@ -25,7 +26,10 @@
 #' \dontrun{
 #' optim_ts()
 #' }
-optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
+optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FALSE){
+  
+  # Find the best parameter among the vector
+  ## For strings takes the mode, for numeric average.
   
   best_parameter_int <- function(best_par_string){
     if(is.numeric(best_par_string)== TRUE){
@@ -37,6 +41,8 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
       NULL
     }
   }
+  
+  # General function for ts based models
   
   split_general_int <- function(model){
     splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
@@ -108,9 +114,9 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
                               , D = NA, Q = NA) %>% 
                          slice(0)), .) %>% 
             mutate_at(.vars = vars(matches("p$|d$|q$")), ~ifelse(is.na(.x), 0, .x)) %>% 
-            summarise(ranking = NA, model = "arima
-                      ", cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                                   , y_var_pred = sum(y_var_fcst))
+            summarise(ranking = NA, model = "arima"
+                      , cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                                  , y_var_pred = sum(y_var_fcst))
                       , parameter = list(select(., 3:last_col()) %>% slice(n())))
         }
       )
@@ -153,12 +159,27 @@ optim_ts <- function(.data, test_size, lag, parameter, model, parallel = FALSE){
     }
   } # Close switcher
   
+  
+  # Safe version of the switcher
+  
   optim_switcher_safe <- purrr::possibly(optim_switcher, otherwise = NA)
-    
-  optim_out <- map(model, .f = ~optim_switcher_safe(.x)) %>% 
-    bind_rows() %>% 
-    arrange(cv_mape) %>% 
-    mutate(ranking = 1:n(), .before = "model")
+  
+  # Nested parallel/cores by model
+  
+  if(tune_parallel == TRUE){
+    optim_out <- foreach(model_i = model, .combine = "rbind") %dopar% {
+      optim_switcher(model_i)
+      } %>% 
+      arrange(cv_mape) %>% 
+      mutate(ranking = 1:n(), .before = "model")
+  } else if(tune_parallel == FALSE){ # Sequential
+    optim_out <- map(model, .f = ~optim_switcher_safe(.x)) %>% 
+      bind_rows() %>% 
+      arrange(cv_mape) %>% 
+      mutate(ranking = 1:n(), .before = "model")
+  }
+  
+  # Sequential
   
   attr(optim_out, "output_type") <- "optim_out"
   

@@ -13,7 +13,6 @@ library("foreach")
 library("parallel")
 library("tsibble")
 
-
 # Source ------------------------------------------------------------------
 
 source("R/get_seasonal_naive.R")
@@ -39,13 +38,13 @@ grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
 grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
                         , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
 
-parameter <- list(glmnet = list(time_weight = .94, trend_discount = .93, alpha = 0, lambda = .1
+parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha = 0, lambda = .1
                                 , grid_glmnet = grid_glmnet
                                 , job = list(optim_lambda = TRUE, x_excluded = NULL
                                              , random_search_size = 0.05
                                              , n_best_model = 1))
                   , croston = list(alpha = 0.1)
-                  , glm = list(time_weight = .99, trend_discount = 0.97
+                  , glm = list(time_weight = .99, trend_discount = 0.70
                                , grid_glm = grid_glm
                                , job = list(x_excluded = NULL
                                             , random_search_size = 0.1
@@ -79,11 +78,21 @@ data_all <- data_init %>%
 
 ### Default parameters
 
-fit_1 <- data_all %>% 
+profvis::profvis({
+  fit_1 <- data_all %>% 
+    filter(key == "FI: 34142") %>%
+    feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
+    clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
+    fit_ts(model = "ets", parameter = parameter) %>% 
+    get_forecast(horizon = 100)
+})
+
+.data <- data_all %>% 
   filter(key == "FI: 34142") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter)
+  fit_ts(model = "ets", parameter = parameter) %>% 
+  get_forecast(horizon = 100)
 
 #### Fit output
   #summary(fit_1)
@@ -100,7 +109,7 @@ data_all %>%
   filter(key == "FI: 34142") %>% 
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glm")
+  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glmnet")
 
 
 ## Optimization ------------------------------------------------------------
@@ -108,23 +117,24 @@ data_all %>%
 optim_profile <- c("fast", "light") # fast = default parameter, light = small random search
 
 model_list <- c("glm", "glmnet", "neural_network", "arima", "ets"
-                , "seasonal_naive", "tbats", "croston")
-
+                , "seasonal_naive", "croston"
+                , "tbats"
+                )
 ## Fast
 
 .data <- data_all %>% 
-  filter(key == "FI: 515188") #%>% 
+  dplyr::filter(key == "FI: 515188") #%>% 
   #feature_engineering_ts() %>% 
   #clean_ts()
 
 .data <- ap
 
-tictoc::tic()
-fast_optim_forecast <- autoforecast(.data = .data, horizon = 100
-             , model = model_list
-             , parameter = parameter, optim_profile = "fast", method = "winsorize")
-tictoc::toc()
-
+fast_optim_forecast <- autoforecast(.data = .data
+                                    , horizon = 100
+                                    , model = setdiff(model_list, c("tbats"))
+                                    , parameter = parameter
+                                    , optim_profile = "fast"
+                                    , method = "kalman")
 fast_optim_forecast %>% 
   plot_ts(interactive = T)
 
@@ -132,16 +142,19 @@ fast_optim_forecast %>%
 
 set.seed(1)
 
-tictoc::tic()
-light_optim_forecast <- autoforecast(.data = .data, horizon = 100
-                   , model = setdiff(model_list, c("tbats"))
-                   , parameter = parameter, optim_profile = "light", test_size = 6
-                   , lag = 3, meta_data = T, method = "winsorize") # since meta_data = T, a list will be printed.
-tictoc::toc()
+light_optim_forecast <- autoforecast(.data = .data
+                                     , horizon = 100
+                                     , model = model_list
+                                     , parameter = parameter
+                                     , optim_profile = "light"
+                                     , test_size = 6
+                                     , lag = 3
+                                     , meta_data = FALSE
+                                     , tune_parallel = T
+                                     , method = "winsorize") # since meta_data = T, a list will be printed.
 
-light_optim_forecast$forecast_output %>% 
+light_optim_forecast %>% 
   plot_ts(interactive = T)
-
 
 # Multiple items / Parallel ----------------------------------------------------------
 
@@ -149,6 +162,7 @@ library(doParallel)
 library(foreach)
 library(parallel)
 
+registerDoParallel(cores = 3)
 
 plan(multisession(workers = 6))
 
@@ -167,27 +181,41 @@ tictoc::toc()
 
 
 
-
+cl <- parallel::makeCluster(2)
+doParallel::registerDoParallel(cl)
 
 
 my_cores <- detectCores()
 cluster <- makeCluster(2)
 doSNOW::registerDoSNOW(cl = cluster)
-cl <- makeCluster(5, type = "PSOCK") 
+cl <- makeCluster(5, type = "PSOCK")
 doParallel::registerDoParallel(cl)
 
-registerDoParallel(cores = (my_cores - 2))
+
+
+registerDoParallel(cores = (my_cores - 1))
 
 tictoc::tic()
-results <- foreach(key_i = unique(data_all$key)[1:2], .combine = "rbind") %do% {
+results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind") %dopar% {
   data_i <- data_all[data_all$key == key_i,]
-  
   autoforecast(.data = data_i, horizon = 100
                , model = model_list
-               , parameter = parameter, optim_profile = "light", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "kalman")
+               , parameter = parameter, optim_profile = "fast", test_size = 6
+               , lag = 3, meta_data = FALSE, method = "kalman", tune_parallel = TRUE)
 }
 tictoc::toc()
+
+
+
+
+
+
+
+
+
+
+
+
 
 future_map(unique(data_all$key)[1:2], ~.f = {
   data_i <- data_all[data_all$key == .x,]

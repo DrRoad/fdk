@@ -10,6 +10,8 @@ accuracy_metric(y_var_true, y_var_pred, metric = "mape")
 \item{y_var_true}{Numeric. Observed value.}
 
 \item{y_var_pred}{Numeric. Predicted value.}
+
+\item{metric}{String. Name of the accuracy metric.}
 }
 \value{
 Numeric.
@@ -19,6 +21,6 @@ Mean Average Prediction Error forecast accuracy metric
 }
 \examples{
 \dontrun{
-mape()
+accuracy_metric()
 }
 }

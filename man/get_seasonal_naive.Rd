@@ -4,7 +4,7 @@
 \alias{get_seasonal_naive}
 \title{Fit a Seasonal Naive Model}
 \usage{
-get_seasonal_naive(.data, y_var, parameter = NULL, horizon)
+get_seasonal_naive(.data, y_var, parameter = NULL, horizon = 30)
 }
 \arguments{
 \item{.data}{Data frame or tibble with a response variable.}

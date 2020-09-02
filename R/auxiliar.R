@@ -169,13 +169,14 @@ split_ts <- function(.data, test_size, lag){
 #'
 #' @param y_var_true Numeric. Observed value.
 #' @param y_var_pred Numeric. Predicted value.
+#' @param metric String. Name of the accuracy metric.
 #'
 #' @return Numeric.
 #' @export
 #'
 #' @examples
 #' \dontrun{
-#' mape()
+#' accuracy_metric()
 #' }
 accuracy_metric <- function(y_var_true, y_var_pred, metric = "mape"){
   if(metric == "mape"){
