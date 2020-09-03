@@ -1,4 +1,4 @@
-#' Fit Theta Model
+#' Fit Prophet Model
 #'
 #' @param .data Data frame or tibble.
 #' @param y_var String. Column name of the time series to be forecasted.
@@ -6,7 +6,7 @@
 #' 
 #' @import forecast
 #' @import stats
-#' @import forecTheta
+#' @import prophet
 #' @return data-frame
 #' @export
 #'
@@ -24,16 +24,34 @@ get_prophet <- function(.data, y_var, horizon = 12, parameter = NULL){
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
-  # Ts Object
-  y_var_int <- ts(.data[[y_var]], frequency = freq)
+  # Freq handling
+  weekly.seasonality <- daily.seasonality  <- yearly.seasonality <- FALSE
+  if(freq == 12){
+    yearly.seasonality <- "auto"
+    frequency <- "months"
+  } else if(freq == 52){
+    weekly.seasonality <- TRUE
+    frequency <- "weeks"
+  } else if(freq == 365){
+    daily.seasonality <- TRUE
+    frequency <- "days"
+  }
+  # Ts object
+  xd <- .data %>% rename(y = y_var, ds = date_var)
   # Model fit
-  model_fit <- dotm(y_var_int, h = horizon)
+  model_fit <- prophet(xd, growth ="linear",
+                   daily.seasonality = daily.seasonality,
+                   weekly.seasonality = weekly.seasonality,
+                   yearly.seasonality = yearly.seasonality,
+                   seasonality.prior.scale = 50)
+  # Future
+  predicted <- predict(model, xd)
   # Timelapse
-  .fit_output <- list(model = "theta"
+  .fit_output <- list(model = "prophet"
                       , model_fit = model_fit
-                      , y_var_int = y_var_int
-                      , y_var_fcst = as.numeric(model_fit$mean)
-                      , parameter = model_fit$method
+                      , y_var_int = xd$y
+                      , y_var_fcst = as.numeric(predicted$yhat)
+                      , parameter = "Prophet"
   )
   # Output
   attr(.fit_output, "prescription") <- prescription

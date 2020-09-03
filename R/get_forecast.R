@@ -213,6 +213,31 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
         model = .fit_output[["model"]]
       )
     }
+  } else if(.fit_output[["model"]] == "prophet"){
+    if (tune == TRUE) {
+      # Main df
+      future <- make_future_dataframe(.fit_output$model_fit, 
+                                      periods = attributes(x_data)[["prescription"]][["lag"]],
+                                      freq = "months")
+      # Output
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = predict(.fit_output$model_fit, future)$yhat
+          , parameter = list(NULL)
+        )
+    } else {
+      # Main df
+      future <- make_future_dataframe(.fit_output$model_fit, 
+                                      periods = horizon,
+                                      freq = "months")
+      # Output
+      tibble(
+        date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
+        y_var_fcst = tail(predict(.fit_output$model_fit, future)$yhat,horizon),
+        model = .fit_output[["model"]]
+      )
+    }
   }
 }
   

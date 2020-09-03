@@ -1,5 +1,5 @@
 
-# Package -----------------------------------------------------------------
+# Testing
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
          "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
@@ -19,7 +19,7 @@ source("R/get_croston.R")
 source("R/get_neural_network.R")
 source("R/get_tbats.R")
 source("R/get_dyn_theta.R")
-# source("R/get_prophet.R")
+source("R/get_prophet.R")
 source("R/get_tslm.R")
 source("R/cleansing.R")
 source("R/auxiliar.R")
@@ -80,7 +80,7 @@ fit_1 <- data_all %>%
   filter(key == "FI: 515188") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "tslm", parameter = parameter)
+  fit_ts(model = "dynamic_theta", parameter = parameter)
 
 ### Fcst
 
@@ -98,7 +98,7 @@ data_all %>%
   filter(key == "FI: 515188") %>% 
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "tslm")
+  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "dynamic_theta")
 
 ## Optimization ------------------------------------------------------------
 
@@ -107,6 +107,8 @@ optim_profile <- c("fast", "light") # fast = default parameter, light = small ra
 model_list <- c("glm", "glmnet", "neural_network", "arima", "ets",
                 "seasonal_naive", "croston", "tbats", "dynamic_theta",
                 "tslm")
+
+model_list <- c("prophet")
 
 ## Fast
 

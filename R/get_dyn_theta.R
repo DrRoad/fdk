@@ -1,4 +1,4 @@
-#' Fit Theta Model
+#' Fit Dynamic Theta Model
 #'
 #' @param .data Data frame or tibble.
 #' @param y_var String. Column name of the time series to be forecasted.

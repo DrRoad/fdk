@@ -1,8 +1,9 @@
 
-# Package -----------------------------------------------------------------
+# Main
 
-pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
-         , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW")
+pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
+         "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
+         "prophet")
 
 lapply(pkg, require, character.only = TRUE)
 
@@ -41,9 +42,7 @@ data_all <- data_init %>%
 
 # List of models
 
-model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets", "seasonal_naive", "croston","tbats")
-
-model_list <- c("tslm","dynamic_theta")
+model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets", "seasonal_naive", "croston","tbats","dynamic_theta","tslm")
 
 # Multiple items / Parallel
 

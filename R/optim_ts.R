@@ -122,6 +122,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                       , parameter = list(select(., 3:last_col()) %>% slice(n())))
         }
       )
+      
     } else if(model == "glm"){
       
       random_grid <- sample(x = 1:nrow(parameter$glm$grid_glm)
@@ -153,6 +154,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                                                                    , time_weight)))
       }
       )
+      
     } else if(model == "dynamic_theta") {
       
       cat(paste0("\nDYNAMIC THETA: Tuning...\n"))
@@ -176,6 +178,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
             select(ranking, model, cv_mape, parameter)
         }
       )
+      
     } else if(model == "tslm") {
       
       cat(paste0("\nSIMPLE LINEAR MODEL: Tuning...\n"))
@@ -199,10 +202,34 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
             select(ranking, model, cv_mape, parameter)
         }
       )
+      
+    } else if(model == "prophet") {
+      
+      cat(paste0("\nPROPHET: Tuning...\n"))
+      
+      suppressMessages(
+        {
+          splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
+            enframe(name = "iter", value = "splits")
+          
+          map(.x = splits_tmp$splits
+              , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
+                get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
+            bind_rows() %>% 
+            summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                                , y_var_pred = sum(y_var_fcst))
+                      , model = model
+                      , ranking = NA_integer_
+                      , parameter = "Prophet"
+                      , .groups = "drop") %>% 
+            arrange(cv_mape) %>% 
+            select(ranking, model, cv_mape, parameter)
+        }
+      )
+      
     } else if((model %in% c("croston", "tbats", "seasonal_naive", "ets")) == TRUE){ # Forecast models
       
       cat(paste0("\n", toupper(model), ": Hyperparameter tuning...\n"))
-      
       splits_tmp_cv <- split_general_int(model)
       
     }
