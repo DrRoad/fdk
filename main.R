@@ -2,26 +2,26 @@
 # Package -----------------------------------------------------------------
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
-         , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW")
+         , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW", "autoforecast")
 
 lapply(pkg, require, character.only = TRUE)
 
 # Source ------------------------------------------------------------------
 
-source("R/get_seasonal_naive.R")
-source("R/get_forecast.R")
-source("R/get_ets.R")
-source("R/get_arima.R")
-source("R/get_glm.R")
-source("R/get_glmnet.R")
-source("R/get_croston.R")
-source("R/get_neural_network.R")
-source("R/get_tbats.R")
-source("R/cleansing.R")
-source("R/auxiliar.R")
-source("R/autoforecast.R")
-source("R/feature_engineering.R")
-source("R/optim_ts.R")
+# source("R/get_seasonal_naive.R")
+# source("R/get_forecast.R")
+# source("R/get_ets.R")
+# source("R/get_arima.R")
+# source("R/get_glm.R")
+# source("R/get_glmnet.R")
+# source("R/get_croston.R")
+# source("R/get_neural_network.R")
+# source("R/get_tbats.R")
+# source("R/cleansing.R")
+# source("R/auxiliar.R")
+# source("R/autoforecast.R")
+# source("R/feature_engineering.R")
+# source("R/optim_ts.R")
 
 # Parameter ---------------------------------------------------------------
 
@@ -48,7 +48,8 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 # Data import -------------------------------------------------------------
 
 data_init <- read_csv("demo_data.csv") %>% 
-  dplyr::filter(date < "2020-02-01")
+  dplyr::filter(date < "2020-02-01"
+                , forecast_item != "FI: 34122")
 
 # ap0 <- AirPassengers %>%
 #   as_tsibble() %>%
