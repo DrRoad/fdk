@@ -78,14 +78,12 @@ data_all <- data_init %>%
 
 ### Default parameters
 
-profvis::profvis({
-  fit_1 <- data_all %>% 
-    filter(key == "FI: 34142") %>%
-    feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-    clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-    fit_ts(model = "ets", parameter = parameter) %>% 
-    get_forecast(horizon = 100)
-})
+fit_1 <- data_all %>% 
+  filter(key == "FI: 34142") %>%
+  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
+  clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
+  fit_ts(model = "ets", parameter = parameter) %>% 
+  get_forecast(horizon = 100)
 
 .data <- data_all %>% 
   filter(key == "FI: 34142") %>%
@@ -127,10 +125,10 @@ model_list <- c("glm", "glmnet", "neural_network", "arima", "ets"
   #feature_engineering_ts() %>% 
   #clean_ts()
 
-.data <- ap
+# .data <- ap
 
 fast_optim_forecast <- autoforecast(.data = .data
-                                    , horizon = 100
+                                    , horizon = 36
                                     , model = setdiff(model_list, c("tbats"))
                                     , parameter = parameter
                                     , optim_profile = "fast"
@@ -142,6 +140,9 @@ fast_optim_forecast %>%
 
 set.seed(1)
 
+my_cores <- detectCores()
+registerDoParallel(cores = (my_cores - 2))
+
 light_optim_forecast <- autoforecast(.data = .data
                                      , horizon = 100
                                      , model = model_list
@@ -150,7 +151,7 @@ light_optim_forecast <- autoforecast(.data = .data
                                      , test_size = 6
                                      , lag = 3
                                      , meta_data = FALSE
-                                     , tune_parallel = T
+                                     , tune_parallel = FALSE
                                      , method = "winsorize") # since meta_data = T, a list will be printed.
 
 light_optim_forecast %>% 
@@ -158,57 +159,34 @@ light_optim_forecast %>%
 
 # Multiple items / Parallel ----------------------------------------------------------
 
-library(doParallel)
 library(foreach)
-library(parallel)
+library(doSNOW)
+library(snow)
 
-registerDoParallel(cores = 3)
-
-plan(multisession(workers = 6))
-
-tictoc::tic()
-data_all$key %>%
-  unique() %>% 
-  .[1:2] %>% 
-  future_map(.f = ~autoforecast(.data = filter(data_all, key == .x), horizon = 100
-                            , model = setdiff(model_list, c("tbats"))
-                            , parameter = parameter, optim_profile = "light", test_size = 6
-                            , lag = 3, meta_data = T, method = "winsorize"))
-tictoc::toc()
-
-
-
-
-
-
-cl <- parallel::makeCluster(2)
-doParallel::registerDoParallel(cl)
-
-
-my_cores <- detectCores()
-cluster <- makeCluster(2)
-doSNOW::registerDoSNOW(cl = cluster)
-cl <- makeCluster(5, type = "PSOCK")
-doParallel::registerDoParallel(cl)
-
-
-
-registerDoParallel(cores = (my_cores - 1))
+cluster = makeCluster(4, type = "SOCK")
+registerDoSNOW(cluster)
+ntasks <- length(unique(data_all$key)[1:5])
+progress <- function(n) {
+  cat(sprintf(" %d Keys(s) / %.2f%% percent remaining\n",ntasks-n,(ntasks-n)*100/ntasks))
+}
+opts <- list(progress=progress)
 
 tictoc::tic()
-results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind") %dopar% {
+results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts, .packages=c("autoforecast")) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
   autoforecast(.data = data_i, horizon = 100
                , model = model_list
-               , parameter = parameter, optim_profile = "fast", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "kalman", tune_parallel = TRUE)
+               , parameter = parameter, optim_profile = "light", test_size = 6
+               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = FALSE)
 }
 tictoc::toc()
 
+stopCluster(cl)
+
+### ----------------------------------------------------------
 
 future_map(unique(data_all$key)[1:2], ~.f = {
   data_i <- data_all[data_all$key == .x,]
-  
   autoforecast(.data = data_i, horizon = 100
                , model = model_list
                , parameter = parameter, optim_profile = "fast", test_size = 6

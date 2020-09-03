@@ -152,13 +152,13 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
       }
       )
     } else if((model %in% c("croston", "tbats", "seasonal_naive", "ets")) == TRUE){
+      
       cat(paste0("\n", toupper(model), ": Hyperparameter tuning...\n"))
       
       splits_tmp_cv <- split_general_int(model)
       
     }
   } # Close switcher
-  
   
   # Safe version of the switcher
   
@@ -184,4 +184,5 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
   attr(optim_out, "output_type") <- "optim_out"
   
   return(optim_out)
+  
 }

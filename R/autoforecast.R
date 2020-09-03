@@ -54,13 +54,13 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' @param ... Other parameter from the sub-functions.
 #' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
 #' 
-#' @import dplyr
+#' @import stats
 #' @import fastDummies
 #' @import foreach
 #' @import furrr
 #' @import purrr
 #' @import glmnet
-#' @import stats
+#' @import dplyr
 #' @import stlplus
 #' @import forecast
 #' @import imputeTS
@@ -73,11 +73,18 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' }
 autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, ...){
+  
   cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
   
   .data_tmp <- .data  %>% 
     feature_engineering_ts() %>% 
     clean_ts(...)
+  
+  # Check data length
+  
+  if(nrow(.data_tmp) < 12 ){
+    model <- "croston"
+  }
   
   get_forecast_int <- function(.data, model, horizon, parameter){
     .data %>% 
@@ -98,6 +105,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
   }
   
   if(optim_profile == "fast"){
+    
     cat(paste0("\nFast optimization for: ", length(model), " models + unweighted ensemble forecast"))
     forecast_tmp <- map(model, ~get_forecast_int(.data = .data_tmp
                                                , model = .x, horizon = horizon
@@ -111,7 +119,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       replace_na(replace = list(type = "history", model = "history"))
     
     ensemble_tmp <- forecast_tmp %>% 
-      filter(type != "history", (model != "neural_network")) %>% 
+      dplyr::filter(type != "history", (model != "neural_network")) %>% 
       group_by(date_var) %>% 
       summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
     
@@ -119,9 +127,11 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       fill(key, .direction = "down")
     
     attr(forecast_tmp, "output_type") <- "optim_output"
+    
   } else if(optim_profile == "light"){
+    
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
-                               , parameter = parameter, model = setdiff(model, c("tbats"))
+                               , parameter = parameter, model = setdiff(model, c("tbats","neural_network"))
                                , tune_parallel = tune_parallel)
     
     print(knitr::kable(best_model_int, "simple", 2))
@@ -137,7 +147,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       replace_na(replace = list(type = "history", model = "history")) 
     
     ensemble_tmp <- forecast_tmp %>% 
-      filter(type != "history", model %in% best_model_int$model[1:3]) %>% # top 3 models cv
+      dplyr::filter(type != "history", model %in% best_model_int$model[1:3]) %>% # top 3 models cv
       group_by(date_var) %>% 
       summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
     
@@ -145,6 +155,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       fill(key, .direction = "down")
     
     attr(forecast_tmp, "output_type") <- "optim_output"
+    
   }
   
   if(meta_data == TRUE){
@@ -161,7 +172,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
 #' @param multiple_keys Logical. The data has or not multiple keys to plot as grid.
 #'
 #' @import ggplot2
-#' @import plotly
+#' @importFrom plotly ggplotly
 #' @return graph
 #' @export
 #'
@@ -184,7 +195,6 @@ plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
       theme_minimal()+
       theme(axis.text = element_text(size = 12)
             , axis.text.x = element_text(angle = 90))
-    
     if(multiple_keys == TRUE){
       graph_tmp <- graph_tmp +
         facet_wrap(~key, scales = "free")
