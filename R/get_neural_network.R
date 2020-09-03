@@ -21,11 +21,8 @@ get_neural_network <- function(.data, y_var, x_data = NULL, parameter = NULL){
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
-  
   y_var_int <- ts(.data[[y_var]], frequency = freq) # maybe not optimal
-  
   model_fit <- nnetar(y = y_var_int)
-  
   # Output
   .fit_output <- list(model = "neural_network"
                       , model_fit = model_fit

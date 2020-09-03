@@ -16,7 +16,6 @@
 #' get_tbats()
 #' }
 get_tbats <- function(.data, y_var, parameter = NULL){
-  
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- prescription$y_var
@@ -24,11 +23,8 @@ get_tbats <- function(.data, y_var, parameter = NULL){
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
-  
   y_var_int <- ts(.data[[y_var]], frequency = freq) # maybe not optimal
-  
-  model_fit <- tbats(y_var_int)
-  
+  model_fit <- tbats(y_var_int, use.parallel = TRUE)
   .fit_output <- list(model = "tbats"
                       , model_fit = model_fit
                       , y_var_pred = as.numeric(model_fit[["fitted.values"]])
@@ -39,8 +35,3 @@ get_tbats <- function(.data, y_var, parameter = NULL){
   class(.fit_output) <- ".fit_output"
   return(.fit_output)
 }
-
-
-
-
-
