@@ -107,7 +107,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
   if(optim_profile == "fast"){
     
     cat(paste0("\nFast optimization for: ", length(model), " models + unweighted ensemble forecast"))
-    forecast_tmp <- map(model, ~get_forecast_int(.data = .data_tmp
+    forecast_tmp <- map(setdiff(model, c("tbats","neural_network")), ~get_forecast_int(.data = .data_tmp
                                                , model = .x, horizon = horizon
                                                , parameter = parameter)) %>% 
       bind_rows() %>% 
@@ -136,7 +136,8 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
     
     print(knitr::kable(best_model_int, "simple", 2))
     
-    forecast_tmp <- map(model, ~optim_join(.data_tmp, model = .x, parameter = parameter
+    forecast_tmp <- map(setdiff(model, c("tbats","neural_network"))
+                        , ~optim_join(.data_tmp, model = .x, parameter = parameter
                                                 , horizon = horizon, best_model = best_model_int)) %>% 
       bind_rows() %>% 
       mutate(y_var_fcst = ifelse(y_var_fcst<0, 0, y_var_fcst)) %>% 

@@ -1,17 +1,10 @@
 
 # Package -----------------------------------------------------------------
 
-library("glmnet")
-library("forecast")
-library("stlplus")
-library("fastDummies")
-library("imputeTS")
-library("tidyverse")
-library("plotly")
-library("doParallel")
-library("foreach")
-library("parallel")
-library("tsibble")
+pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
+         , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW")
+
+lapply(pkg, require, character.only = TRUE)
 
 # Source ------------------------------------------------------------------
 
@@ -57,17 +50,15 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 data_init <- read_csv("demo_data.csv") %>% 
   dplyr::filter(date < "2020-02-01")
 
-
-ap0 <- AirPassengers %>%
-  as_tsibble() %>%
-  as_tibble() %>%
-  mutate(key = "airpassenger", reg_name = "0", reg_value = 0
-         , index = as.Date(yearmonth(index))) %>%
-  select(key, date=index, value, reg_name, reg_value)
-
-ap <- prescribe_ts(.data = ap0, key = "key", y_var = "value", date_var = "date"
-                   , reg_name = "reg_name", reg_value = "reg_value", freq = 12)
-
+# ap0 <- AirPassengers %>%
+#   as_tsibble() %>%
+#   as_tibble() %>%
+#   mutate(key = "airpassenger", reg_name = "0", reg_value = 0
+#          , index = as.Date(yearmonth(index))) %>%
+#   select(key, date=index, value, reg_name, reg_value)
+# 
+# ap <- prescribe_ts(.data = ap0, key = "key", y_var = "value", date_var = "date"
+#                    , reg_name = "reg_name", reg_value = "reg_value", freq = 12)
 ## Every data to be autoforecasted should "prescribed" first to allow attribute inheritance.
 
 data_all <- data_init %>%
@@ -82,15 +73,7 @@ fit_1 <- data_all %>%
   filter(key == "FI: 34142") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter) %>% 
-  get_forecast(horizon = 100)
-
-.data <- data_all %>% 
-  filter(key == "FI: 34142") %>%
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter) %>% 
-  get_forecast(horizon = 100)
+  fit_ts(model = "ets", parameter = parameter)
 
 #### Fit output
   #summary(fit_1)
@@ -125,8 +108,6 @@ model_list <- c("glm", "glmnet", "neural_network", "arima", "ets"
   #feature_engineering_ts() %>% 
   #clean_ts()
 
-# .data <- ap
-
 fast_optim_forecast <- autoforecast(.data = .data
                                     , horizon = 36
                                     , model = setdiff(model_list, c("tbats"))
@@ -139,7 +120,6 @@ fast_optim_forecast %>%
 ## Light
 
 set.seed(1)
-
 my_cores <- detectCores()
 registerDoParallel(cores = (my_cores - 2))
 
@@ -159,10 +139,6 @@ light_optim_forecast %>%
 
 # Multiple items / Parallel ----------------------------------------------------------
 
-library(foreach)
-library(doSNOW)
-library(snow)
-
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
 ntasks <- length(unique(data_all$key)[1:5])
@@ -172,26 +148,18 @@ progress <- function(n) {
 opts <- list(progress=progress)
 
 tictoc::tic()
-results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts, .packages=c("autoforecast")) %dopar% {
+results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts
+                   , .packages=pkg
+                   ) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
   autoforecast(.data = data_i, horizon = 100
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = FALSE)
+               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE)
 }
 tictoc::toc()
 
-stopCluster(cl)
-
-### ----------------------------------------------------------
-
-future_map(unique(data_all$key)[1:2], ~.f = {
-  data_i <- data_all[data_all$key == .x,]
-  autoforecast(.data = data_i, horizon = 100
-               , model = model_list
-               , parameter = parameter, optim_profile = "fast", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "kalman")
-})
+stopCluster(cluster)
 
 ## Plot
 
