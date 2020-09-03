@@ -33,10 +33,13 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
   } else if(model == "croston"){
     get_croston(.data = .data, y_var = y_var, parameter = parameter)
   } else if(model == "dynamic_theta"){
-    get_theta() # add
+    get_dyn_theta(.data = .data, y_var = y_var, parameter = parameter)
+  } else if(model == "prophet"){
+    get_dyn_theta(.data = .data, y_var = y_var, parameter = parameter)
+  } else if(model == "tslm"){
+    get_tslm(.data = .data, y_var = y_var, parameter = parameter)
   }
 }
-
 
 #' Autoforecast
 #' 
@@ -74,11 +77,38 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, ...){
   
+  # Source default parameters
+  
+  if(is.null(parameter)){
+    # Glm and glmnet
+    grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
+                               , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
+                               , alpha = seq(from = 0, to = 1, by = 0.10))
+    grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
+                            , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
+    # All default parameters
+    parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha = 0, lambda = .1
+                                    , grid_glmnet = grid_glmnet
+                                    , job = list(optim_lambda = TRUE, x_excluded = NULL
+                                                 , random_search_size = 0.05
+                                                 , n_best_model = 1))
+                      , croston = list(alpha = 0.1)
+                      , glm = list(time_weight = .99, trend_discount = 0.70
+                                   , grid_glm = grid_glm
+                                   , job = list(x_excluded = NULL
+                                                , random_search_size = 0.1
+                                                , n_best_model = 1))
+                      , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
+                      , ets = list(ets = "ZZZ"))
+  }
+  
+  # First message
+  
   cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
   
   .data_tmp <- .data  %>% 
     feature_engineering_ts() %>% 
-    clean_ts(...)
+    clean_ts()
   
   # Check data length
   
@@ -185,21 +215,29 @@ plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
   if(attributes(.data)[["output_type"]] != "optim_output"){
     stop("Error, the input data is not class optim_output")
   } else {
+    # key
+    subtitle <- paste0("Selected Key:"," ",unique(.data$key))
+    # graph
     graph_tmp <- .data %>% 
-      ggplot(aes(date_var, y_var, col = model))+
-      geom_line()+
+      ggplot(aes(date_var, y_var, col = model), size = 1.0005)+
+      geom_line(size = 1.0005)+
       labs(x = "", y = "y_var", col = "Model")+
       geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed")+
       scale_y_continuous(n.breaks = 10, minor_breaks = NULL)+
-      scale_x_date(date_breaks = "6 month", minor_breaks = NULL)+
-      theme_minimal()+
-      theme(axis.text = element_text(size = 12)
-            , axis.text.x = element_text(angle = 90))
+      scale_x_date(expand = c(0,0),date_breaks = "2 month", minor_breaks = NULL)+
+      theme_bw() +
+      theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
+            plot.subtitle = element_text(size = 13, hjust = 0.5, face = "bold"),
+            axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+            axis.title = element_text(size = 13, hjust = 0.5, face = "bold"),
+            legend.position = "right",
+            legend.title = element_text(size = 15),
+            legend.text = element_text(size = 13)) +
+      labs(x="Time",y="Sales", title = "Generated Forecast", subtitle = subtitle) +
     if(multiple_keys == TRUE){
       graph_tmp <- graph_tmp +
-        facet_wrap(~key, scales = "free")
+        facet_wrap( ~ key, scales = "free")
     }
-    
     if(interactive == TRUE){
       ggplotly(graph_tmp)
     } else {
@@ -207,3 +245,5 @@ plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
     }
   }
 }
+
+#---

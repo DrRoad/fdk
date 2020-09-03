@@ -1,34 +1,10 @@
 
 # Package -----------------------------------------------------------------
 
-library("glmnet")
-library("forecast")
-library("stlplus")
-library("fastDummies")
-library("imputeTS")
-library("tidyverse")
-library("plotly")
-library("doParallel")
-library("foreach")
-library("parallel")
-library("tsibble")
+pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
+         , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW")
 
-# Source ------------------------------------------------------------------
-
-source("R/get_seasonal_naive.R")
-source("R/get_forecast.R")
-source("R/get_ets.R")
-source("R/get_arima.R")
-source("R/get_glm.R")
-source("R/get_glmnet.R")
-source("R/get_croston.R")
-source("R/get_neural_network.R")
-source("R/get_tbats.R")
-source("R/cleansing.R")
-source("R/auxiliar.R")
-source("R/autoforecast.R")
-source("R/feature_engineering.R")
-source("R/optim_ts.R")
+lapply(pkg, require, character.only = TRUE)
 
 # Parameter ---------------------------------------------------------------
 
@@ -52,116 +28,24 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
                   , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
                   , ets = list(ets = "ZZZ"))
 
-# Data import -------------------------------------------------------------
+# Data import
 
 data_init <- read_csv("demo_data.csv") %>% 
   dplyr::filter(date < "2020-02-01")
 
-
-ap0 <- AirPassengers %>%
-  as_tsibble() %>%
-  as_tibble() %>%
-  mutate(key = "airpassenger", reg_name = "0", reg_value = 0
-         , index = as.Date(yearmonth(index))) %>%
-  select(key, date=index, value, reg_name, reg_value)
-
-ap <- prescribe_ts(.data = ap0, key = "key", y_var = "value", date_var = "date"
-                   , reg_name = "reg_name", reg_value = "reg_value", freq = 12)
-
-## Every data to be autoforecasted should "prescribed" first to allow attribute inheritance.
+# Every data to be autoforecasted should "prescribed" first to allow attribute inheritance 
 
 data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
-# Single item forecast / modularity ---------------------------------------
+# List of models
 
-### Default parameters
+model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets", "seasonal_naive", "croston","tbats")
 
-fit_1 <- data_all %>% 
-  filter(key == "FI: 34142") %>%
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter) %>% 
-  get_forecast(horizon = 100)
+model_list <- c("tslm","dynamic_theta")
 
-.data <- data_all %>% 
-  filter(key == "FI: 34142") %>%
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter) %>% 
-  get_forecast(horizon = 100)
-
-#### Fit output
-  #summary(fit_1)
-  attributes(data_all) %>% 
-    str()
-  
-#### Forecast
-fit_1 %>% 
-  get_forecast(horizon = 36) # horizon creates a synthetic data, for counterfactual use argument "x_data".
-
-### Hyperparameter tuning
-
-data_all %>% 
-  filter(key == "FI: 34142") %>% 
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glmnet")
-
-
-## Optimization ------------------------------------------------------------
-
-optim_profile <- c("fast", "light") # fast = default parameter, light = small random search
-
-model_list <- c("glm", "glmnet", "neural_network", "arima", "ets"
-                , "seasonal_naive", "croston"
-                , "tbats"
-                )
-## Fast
-
-.data <- data_all %>% 
-  dplyr::filter(key == "FI: 515188") #%>% 
-  #feature_engineering_ts() %>% 
-  #clean_ts()
-
-# .data <- ap
-
-fast_optim_forecast <- autoforecast(.data = .data
-                                    , horizon = 36
-                                    , model = setdiff(model_list, c("tbats"))
-                                    , parameter = parameter
-                                    , optim_profile = "fast"
-                                    , method = "kalman")
-fast_optim_forecast %>% 
-  plot_ts(interactive = T)
-
-## Light
-
-set.seed(1)
-
-my_cores <- detectCores()
-registerDoParallel(cores = (my_cores - 2))
-
-light_optim_forecast <- autoforecast(.data = .data
-                                     , horizon = 100
-                                     , model = model_list
-                                     , parameter = parameter
-                                     , optim_profile = "light"
-                                     , test_size = 6
-                                     , lag = 3
-                                     , meta_data = FALSE
-                                     , tune_parallel = FALSE
-                                     , method = "winsorize") # since meta_data = T, a list will be printed.
-
-light_optim_forecast %>% 
-  plot_ts(interactive = T)
-
-# Multiple items / Parallel ----------------------------------------------------------
-
-library(foreach)
-library(doSNOW)
-library(snow)
+# Multiple items / Parallel
 
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
@@ -172,7 +56,7 @@ progress <- function(n) {
 opts <- list(progress=progress)
 
 tictoc::tic()
-results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts, .packages=c("autoforecast")) %dopar% {
+results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts, .packages = pkg) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
   autoforecast(.data = data_i, horizon = 100
                , model = model_list
@@ -183,17 +67,9 @@ tictoc::toc()
 
 stopCluster(cl)
 
-### ----------------------------------------------------------
-
-future_map(unique(data_all$key)[1:2], ~.f = {
-  data_i <- data_all[data_all$key == .x,]
-  autoforecast(.data = data_i, horizon = 100
-               , model = model_list
-               , parameter = parameter, optim_profile = "fast", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "kalman")
-})
-
-## Plot
+# Plotting
 
 results %>% 
   plot_ts(multiple_keys = T, interactive = T)
+
+#---

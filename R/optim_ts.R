@@ -45,11 +45,12 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
   # General function for ts based models
   
   split_general_int <- function(model){
+    
     splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
       enframe(name = "iter", value = "splits")
     
     map(.x = splits_tmp$splits
-        , .f = ~fit_ts(.data = .x[["train"]], model = model) %>% 
+        , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
           get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
       bind_rows() %>% 
       summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
@@ -60,6 +61,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                 , .groups = "drop") %>% 
       arrange(cv_mape) %>% 
       select(ranking, model, cv_mape, parameter)
+    
   }
 
   optim_switcher <- function(model){
@@ -151,7 +153,53 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                                                                    , time_weight)))
       }
       )
-    } else if((model %in% c("croston", "tbats", "seasonal_naive", "ets")) == TRUE){
+    } else if(model == "dynamic_theta") {
+      
+      cat(paste0("\nDYNAMIC THETA: Tuning...\n"))
+      
+      suppressMessages(
+        {
+          splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
+            enframe(name = "iter", value = "splits")
+          
+          map(.x = splits_tmp$splits
+              , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
+                get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
+            bind_rows() %>% 
+            summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                                , y_var_pred = sum(y_var_fcst))
+                      , model = model
+                      , ranking = NA_integer_
+                      , parameter = "Dynamic Theta"
+                      , .groups = "drop") %>% 
+            arrange(cv_mape) %>% 
+            select(ranking, model, cv_mape, parameter)
+        }
+      )
+    } else if(model == "tslm") {
+      
+      cat(paste0("\nSIMPLE LINEAR MODEL: Tuning...\n"))
+      
+      suppressMessages(
+        {
+          splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
+            enframe(name = "iter", value = "splits")
+          
+          map(.x = splits_tmp$splits
+              , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
+                get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
+            bind_rows() %>% 
+            summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
+                                                , y_var_pred = sum(y_var_fcst))
+                      , model = model
+                      , ranking = NA_integer_
+                      , parameter = "Simple Linear Model"
+                      , .groups = "drop") %>% 
+            arrange(cv_mape) %>% 
+            select(ranking, model, cv_mape, parameter)
+        }
+      )
+    } else if((model %in% c("croston", "tbats", "seasonal_naive", "ets")) == TRUE){ # Forecast models
       
       cat(paste0("\n", toupper(model), ": Hyperparameter tuning...\n"))
       
