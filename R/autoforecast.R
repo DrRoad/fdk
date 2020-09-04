@@ -212,15 +212,15 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
 #' \dontrun{
 #' plot_ts()
 #' }
-plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
-  prescription <- attributes(.data)[["prescription"]]
-  if(attributes(.data)[["output_type"]] != "optim_output"){
+plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
+  prescription <- attributes(.optim_output)[["prescription"]]
+  if(attributes(.optim_output)[["output_type"]] != "optim_output"){
     stop("Error, the input data is not class optim_output")
   } else {
     # key
-    subtitle <- paste0("Selected Key:"," ",unique(.data$key))
+    subtitle <- paste0("Selected Key:"," ",unique(.optim_output$key))
     # graph
-    graph_tmp <- .data %>% 
+    graph_tmp <- .optim_output %>% 
       ggplot(aes(date_var, y_var, col = model), size = 1.0005)+
       geom_line(size = 1.0005)+
       labs(x = "", y = "y_var", col = "Model")+
@@ -235,7 +235,7 @@ plot_ts <- function(.data, interactive = FALSE, multiple_keys = FALSE){
             legend.position = "right",
             legend.title = element_text(size = 15),
             legend.text = element_text(size = 13)) +
-      labs(x="Time",y="Sales", title = "Generated Forecast", subtitle = subtitle) +
+      labs(x="Time",y="Sales", title = "Generated Forecast", subtitle = subtitle)
     if(multiple_keys == TRUE){
       graph_tmp <- graph_tmp +
         facet_wrap( ~ key, scales = "free")

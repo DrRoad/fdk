@@ -1,7 +1,10 @@
+
 # Package -----------------------------------------------------------------
+
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
          "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
-         "prophet", "autoforecast", "forecTheta")
+         "prophet", "forecTheta", "autoforecast")
+
 lapply(pkg, require, character.only = TRUE)
 
 # Source ------------------------------------------------------------------
@@ -25,7 +28,6 @@ source("R/get_dyn_theta.R")
 source("R/get_prophet.R")
 
 # Main
-
 
 # Parameter ---------------------------------------------------------------
 
@@ -67,13 +69,15 @@ fit_1 <- data_all %>%
   filter(key == "FI: 515188") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter)
+  fit_ts(model = "tslm", parameter = parameter)
 
-#### Fit output
-  attributes(data_all) %>% 
-    str()
+### Fit output
+
+attributes(data_all) %>% 
+  str()
   
-#### Forecast
+### Forecast
+
 fit_1 %>% 
   get_forecast(horizon = 36) # horizon creates a synthetic data, for counterfactual use argument "x_data".
 
@@ -83,8 +87,7 @@ data_all %>%
   filter(key == "FI: 515188") %>% 
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glmnet")
-
+  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "tslm")
 
 ## Optimization ------------------------------------------------------------
 
@@ -92,9 +95,7 @@ optim_profile <- c("fast", "light") # fast = default parameter, light = small ra
 
 # List of models
 
-model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets"
-                 , "seasonal_naive", "croston","tbats", "dynamic_theta"
-                 ,"tslm")
+model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
 
 .data <- data_all %>% 
   dplyr::filter(key == "FI: 515188") #%>% 
@@ -112,12 +113,12 @@ fast_optim_forecast %>%
 
 ## Light
 
-set.seed(1)
-my_cores <- detectCores()
-registerDoParallel(cores = (my_cores - 2))
+# set.seed(1)
+# my_cores <- detectCores()
+# registerDoParallel(cores = (my_cores - 2))
 
 light_optim_forecast <- autoforecast(.data = .data
-                                     , horizon = 100
+                                     , horizon = 36
                                      , model = model_list
                                      , parameter = parameter
                                      , optim_profile = "light"
@@ -140,19 +141,17 @@ progress <- function(n) {
 }
 opts <- list(progress=progress)
 
-results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind"
+tictoc::tic()
+results <- foreach(key_i = unique(data_all$key), .combine = "rbind"
                    , .options.snow=opts, .packages = pkg) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
-  autoforecast(.data = data_i, horizon = 100
+  autoforecast(.data = data_i, horizon = 36
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
                , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE)
 }
+tictoc::toc()
 
 stopCluster(cluster)
 
-# Plotting
-
-results %>% 
-  plot_ts(multiple_keys = T, interactive = T)
-
+#---

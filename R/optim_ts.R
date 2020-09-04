@@ -189,7 +189,6 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
         {
           splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
             enframe(name = "iter", value = "splits")
-          
           map(.x = splits_tmp$splits
               , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
@@ -213,7 +212,6 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
         {
           splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
             enframe(name = "iter", value = "splits")
-          
           map(.x = splits_tmp$splits
               , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 

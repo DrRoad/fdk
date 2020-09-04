@@ -22,12 +22,10 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     #date_var <- prescription$date_var
     #freq <- prescription$freq
     #na_exclude <- unique(c(prescription$key, y_var, date_var))
-    
     if (prescription$freq == 12) {
       freq_string <- "month"
     }
   }
-
   if (.fit_output[["model"]] == "arima") {
     if (tune == TRUE) {
       #message("here")
@@ -78,9 +76,7 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       return(x_data_tmp)
     }
   } else if (.fit_output[["model"]]== "glm") {
-    
     x_data_int <- make_reg_matrix(.fit_output = .fit_output, x_data = x_data, horizon = horizon)
-    
     if (tune == TRUE) {
       x_data %>%
         transmute(
