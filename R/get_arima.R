@@ -7,7 +7,6 @@
 #' @param freq Numeric. Time series frequency.
 #'
 #' @import forecast
-#' @import stats
 #' @return data-frame
 #' @export
 #'

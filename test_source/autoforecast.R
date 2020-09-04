@@ -57,9 +57,11 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' @param ... Other parameter from the sub-functions.
 #' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
 #' 
+#' @import stats
 #' @import fastDummies
 #' @import foreach
-#' @importFrom purrr map
+#' @import furrr
+#' @import purrr
 #' @import glmnet
 #' @import dplyr
 #' @import stlplus
@@ -74,9 +76,6 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' }
 autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, ...){
-  
-  #utils::globalVariables(c("y_var_fcst", ".", "key", "y_var", "type", "date_var"))
-  #y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
   
   # Source default parameters
   
@@ -183,7 +182,7 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       group_by(date_var) %>% 
       summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
     
-    forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp) %>%
+    forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp) %>% 
       fill(key, .direction = "down")
     
     attr(forecast_tmp, "output_type") <- "optim_output"

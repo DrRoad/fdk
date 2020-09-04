@@ -7,7 +7,6 @@
 #' @param parameter List. Optional parameters.
 #'
 #' @import forecast
-#' @import stats
 #' @return data-frame or tibble
 #' @export
 #'

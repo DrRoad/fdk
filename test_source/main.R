@@ -1,37 +1,32 @@
-
-<<<<<<< HEAD:test_source/main.R
 # Package -----------------------------------------------------------------
-
-pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
-         , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW", "autoforecast")
-
+pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
+         "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
+         "prophet", "autoforecast", "forecTheta")
 lapply(pkg, require, character.only = TRUE)
 
 # Source ------------------------------------------------------------------
 
-# source("R/get_seasonal_naive.R")
-# source("R/get_forecast.R")
-# source("R/get_ets.R")
-# source("R/get_arima.R")
-# source("R/get_glm.R")
-# source("R/get_glmnet.R")
-# source("R/get_croston.R")
-# source("R/get_neural_network.R")
-# source("R/get_tbats.R")
-# source("R/cleansing.R")
-# source("R/auxiliar.R")
-# source("R/autoforecast.R")
-# source("R/feature_engineering.R")
-# source("R/optim_ts.R")
-=======
+source("R/get_seasonal_naive.R")
+source("R/get_forecast.R")
+source("R/get_ets.R")
+source("R/get_arima.R")
+source("R/get_glm.R")
+source("R/get_glmnet.R")
+source("R/get_croston.R")
+source("R/get_neural_network.R")
+source("R/get_tbats.R")
+source("R/cleansing.R")
+source("R/auxiliar.R")
+source("R/autoforecast.R")
+source("R/feature_engineering.R")
+source("R/optim_ts.R")
+source("R/get_tslm.R")
+source("R/get_dyn_theta.R")
+source("R/get_prophet.R")
+
 # Main
 
-pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
-         "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
-         "prophet")
 
-lapply(pkg, require, character.only = TRUE)
->>>>>>> 796e39b3f4d9756dd94e2a6e113517ca2b89ad7e:main.R
 
 # Parameter ---------------------------------------------------------------
 
@@ -57,38 +52,20 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 
 # Data import
 
-data_init <- read_csv("demo_data.csv") %>% 
-<<<<<<< HEAD:test_source/main.R
+data_init <- read_csv("/home/poyser/Dropbox/Sanofi/Projects/autoforecast/test_source/demo_data.csv") %>%
   dplyr::filter(date < "2020-02-01"
-                , forecast_item != "FI: 34122")
-
-# ap0 <- AirPassengers %>%
-#   as_tsibble() %>%
-#   as_tibble() %>%
-#   mutate(key = "airpassenger", reg_name = "0", reg_value = 0
-#          , index = as.Date(yearmonth(index))) %>%
-#   select(key, date=index, value, reg_name, reg_value)
-# 
-# ap <- prescribe_ts(.data = ap0, key = "key", y_var = "value", date_var = "date"
-#                    , reg_name = "reg_name", reg_value = "reg_value", freq = 12)
-## Every data to be autoforecasted should "prescribed" first to allow attribute inheritance.
-=======
-  dplyr::filter(date < "2020-02-01")
-
-# Every data to be autoforecasted should "prescribed" first to allow attribute inheritance 
->>>>>>> 796e39b3f4d9756dd94e2a6e113517ca2b89ad7e:main.R
+                , forecast_item != "FI: 34142")
 
 data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
-<<<<<<< HEAD:test_source/main.R
 # Single item forecast / modularity ---------------------------------------
 
 ### Default parameters
 
 fit_1 <- data_all %>% 
-  filter(key == "FI: 34142") %>%
+  filter(key == "FI: 515188") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
   fit_ts(model = "ets", parameter = parameter)
@@ -105,7 +82,7 @@ fit_1 %>%
 ### Hyperparameter tuning
 
 data_all %>% 
-  filter(key == "FI: 34142") %>% 
+  filter(key == "FI: 515188") %>% 
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
   optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glmnet")
@@ -114,13 +91,13 @@ data_all %>%
 ## Optimization ------------------------------------------------------------
 
 optim_profile <- c("fast", "light") # fast = default parameter, light = small random search
-=======
+
 # List of models
->>>>>>> 796e39b3f4d9756dd94e2a6e113517ca2b89ad7e:main.R
 
-model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets", "seasonal_naive", "croston","tbats","dynamic_theta","tslm")
+model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets"
+                 , "seasonal_naive", "croston","tbats", "dynamic_theta"
+                 ,"tslm")
 
-<<<<<<< HEAD:test_source/main.R
 .data <- data_all %>% 
   dplyr::filter(key == "FI: 515188") #%>% 
   #feature_engineering_ts() %>% 
@@ -156,9 +133,6 @@ light_optim_forecast %>%
   plot_ts(interactive = T)
 
 # Multiple items / Parallel ----------------------------------------------------------
-=======
-# Multiple items / Parallel
->>>>>>> 796e39b3f4d9756dd94e2a6e113517ca2b89ad7e:main.R
 
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
@@ -168,33 +142,19 @@ progress <- function(n) {
 }
 opts <- list(progress=progress)
 
-tictoc::tic()
-<<<<<<< HEAD:test_source/main.R
-results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts
-                   , .packages=pkg
-                   ) %dopar% {
-=======
-results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts, .packages = pkg) %dopar% {
->>>>>>> 796e39b3f4d9756dd94e2a6e113517ca2b89ad7e:main.R
+results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind"
+                   , .options.snow=opts, .packages = pkg) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
   autoforecast(.data = data_i, horizon = 100
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
                , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE)
 }
-tictoc::toc()
 
-<<<<<<< HEAD:test_source/main.R
 stopCluster(cluster)
 
-## Plot
-=======
-stopCluster(cl)
-
 # Plotting
->>>>>>> 796e39b3f4d9756dd94e2a6e113517ca2b89ad7e:main.R
 
 results %>% 
   plot_ts(multiple_keys = T, interactive = T)
 
-#---
