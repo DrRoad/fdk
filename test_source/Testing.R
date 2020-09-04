@@ -1,73 +1,3 @@
-<<<<<<< HEAD:test_source/Testing.R
-
-# autoforecast - testing
-
-# If needed: load_pkgs --------------
-
-require(pacman)
-pacman::p_load(forecast,tidyverse,seastests,tsfeatures,dplyr,
-               lubridate,zoo,DescTools,dvmisc,ggplot2,tsibble,
-               prophet,imputeTS,glmnet, tictoc, fastDummies,
-               devtools,git2r, foreach, doSNOW, snow)
-
-# Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS=TRUE)
-# pkg <- "https://emea-aws-gitlab.sanofi.com:3001/statistical_forecasting/packages/autoforecast.git"
-# cred <- git2r::cred_user_pass(rstudioapi::askForPassword("Username"), rstudioapi::askForPassword("Password"))
-# devtools::install_git(pkg, credentials = cred)
-
-# Skus --------------
-
-Skus <- c("SE: 198026", "DK: 578280", "DK: 688222")
-# Skus <- Skus[1]
-
-# Reading Csv file
-
-data0 <- read.csv("../demo_data.csv", sep=",")
-
-# Formatting
-data0$key <- as.character(data0$key)
-data0$y <- as.numeric(data0$y)
-data0$date <- as.Date(data0$date,format="%m/%d/%Y")
-data0$reg <- as.numeric(data0$reg)
-
-# Filtering selected sku and dates
-
-data0 <- data0 %>% filter(key %in% Skus)
-data <- data0 %>% filter(date < "2020-07-01") %>% arrange(key,date)
-head(data)
-
-# Parameters --------------
-
-parameters <- list(params_arima = NULL, params_croston = NULL,
-                   glmnet = list(alpha = NULL,
-                                 lambda = NULL,
-                                 trend_decay = NULL,
-                                 time_weight = NULL))
-
-# Models --------------
-
-list_models <- c("naive","snaive","croston","ets","theta",
-                 "arima","tbats","ensemble","stlm","theta_dyn",
-                 "nn","prophet","tslm")
-
-# Parameters
-
-frequency <- 52
-
-# Algo study
-
-algos1 <- data %>% build_ts(frequency = frequency) %>% algo_study(models=list_models)
-
-# Generate forecast
-
-fcst1 <- data %>% build_ts(frequency = frequency) %>% gen_fcst(models=list_models,h=36)
-
-# Autoforecast
-
-obj1 <- autoforecast(data, frequency = frequency, models = list_models, algo_study = TRUE)
-
-#---
-=======
 
 # Testing
 
@@ -79,23 +9,23 @@ lapply(pkg, require, character.only = TRUE)
 
 # Source ------------------------------------------------------------------
 
-source("R/get_seasonal_naive.R")
-source("R/get_forecast.R")
-source("R/get_ets.R")
-source("R/get_arima.R")
-source("R/get_glm.R")
-source("R/get_glmnet.R")
-source("R/get_croston.R")
-source("R/get_neural_network.R")
-source("R/get_tbats.R")
-source("R/get_dyn_theta.R")
-source("R/get_prophet.R")
-source("R/get_tslm.R")
-source("R/cleansing.R")
-source("R/auxiliar.R")
-source("R/autoforecast.R")
-source("R/feature_engineering.R")
-source("R/optim_ts.R")
+# source("R/get_seasonal_naive.R")
+# source("R/get_forecast.R")
+# source("R/get_ets.R")
+# source("R/get_arima.R")
+# source("R/get_glm.R")
+# source("R/get_glmnet.R")
+# source("R/get_croston.R")
+# source("R/get_neural_network.R")
+# source("R/get_tbats.R")
+# source("R/get_dyn_theta.R")
+# source("R/get_prophet.R")
+# source("R/get_tslm.R")
+# source("R/cleansing.R")
+# source("R/auxiliar.R")
+# source("R/autoforecast.R")
+# source("R/feature_engineering.R")
+# source("R/optim_ts.R")
 
 # Parameter ---------------------------------------------------------------
 
@@ -121,7 +51,7 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 
 # Data import -------------------------------------------------------------
 
-data_init <- read_csv("demo_data.csv") %>% 
+data_init <- read_csv("test_source/demo_data.csv") %>% 
   dplyr::filter(date < "2020-02-01")
 
 # 
@@ -177,8 +107,6 @@ optim_profile <- c("fast", "light") # fast = default parameter, light = small ra
 model_list <- c("glm", "glmnet", "neural_network", "arima", "ets",
                 "seasonal_naive", "croston", "tbats", "dynamic_theta",
                 "tslm")
-
-model_list <- c("prophet")
 
 ## Fast
 
@@ -252,4 +180,3 @@ results %>%
   plot_ts(multiple_keys = T, interactive = T)
 
 #---
->>>>>>> 796e39b3f4d9756dd94e2a6e113517ca2b89ad7e:Testing.R
