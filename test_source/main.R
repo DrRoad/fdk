@@ -27,7 +27,6 @@ source("R/get_prophet.R")
 # Main
 
 
-
 # Parameter ---------------------------------------------------------------
 
 grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
@@ -52,7 +51,7 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 
 # Data import
 
-data_init <- read_csv("/home/poyser/Dropbox/Sanofi/Projects/autoforecast/test_source/demo_data.csv") %>%
+data_init <- read_csv("test_source/demo_data.csv") %>%
   dplyr::filter(date < "2020-02-01"
                 , forecast_item != "FI: 34142")
 
@@ -71,7 +70,6 @@ fit_1 <- data_all %>%
   fit_ts(model = "ets", parameter = parameter)
 
 #### Fit output
-  #summary(fit_1)
   attributes(data_all) %>% 
     str()
   
@@ -105,7 +103,7 @@ model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets"
 
 fast_optim_forecast <- autoforecast(.data = .data
                                     , horizon = 36
-                                    , model = setdiff(model_list, c("tbats"))
+                                    , model = model_list
                                     , parameter = parameter
                                     , optim_profile = "fast"
                                     , method = "kalman")
