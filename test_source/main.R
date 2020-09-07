@@ -31,8 +31,8 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 
 # Data import
 
-data_init <- read_csv("../hexyon_all.csv") 
-data_init <- data_init[,-1]
+data_init <- read_csv("test_source/demo_data.csv") %>% 
+  dplyr::filter(date < "2020-02-01")
 
 data_all <- data_init %>%
   prescribe_ts(key = "key", y_var = "y_var", date_var = "date_var"
