@@ -3,6 +3,7 @@
 #' @param .data Data frame or tibble.
 #' @param y_var String. Column name of the time series to be forecasted.
 #' @param horizon Numeric. Number of periods to forecast.
+#' @param parameter List.
 #' 
 #' @import forecast
 #' @import stats

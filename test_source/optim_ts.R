@@ -10,13 +10,13 @@
 #' @param model String. Model to be optimized.
 #' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
 #'
+#' @importFrom rlang .data
 #' @import glmnet
 #' @import forecast
 #' @import tidyr
 #' @import dplyr
-#' @import utils
-#' @importFrom purrr map
-#' @importFrom purrr map2
+#' @import purrr
+#' @import furrr
 #' @import foreach
 #' 
 #' @return data-frame or tibble
@@ -27,8 +27,6 @@
 #' optim_ts()
 #' }
 optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FALSE){
-  #y_var_true <- cv_mape <- ranking <- y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
-  #globalVariables(c("trend_discount", "time_weight", "lambda", "lambda_cov", "model_i"))
   
   # Find the best parameter among the vector
   ## For strings takes the mode, for numeric average.
@@ -174,7 +172,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                                                 , y_var_pred = sum(y_var_fcst))
                       , model = model
                       , ranking = NA_integer_
-                      , parameter = list(NULL)
+                      , parameter = "Dynamic Theta"
                       , .groups = "drop") %>% 
             arrange(cv_mape) %>% 
             select(ranking, model, cv_mape, parameter)
@@ -189,6 +187,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
         {
           splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
             enframe(name = "iter", value = "splits")
+          
           map(.x = splits_tmp$splits
               , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
@@ -197,7 +196,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                                                 , y_var_pred = sum(y_var_fcst))
                       , model = model
                       , ranking = NA_integer_
-                      , parameter = list(NULL)
+                      , parameter = "Simple Linear Model"
                       , .groups = "drop") %>% 
             arrange(cv_mape) %>% 
             select(ranking, model, cv_mape, parameter)
@@ -212,6 +211,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
         {
           splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
             enframe(name = "iter", value = "splits")
+          
           map(.x = splits_tmp$splits
               , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
@@ -220,12 +220,13 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                                                 , y_var_pred = sum(y_var_fcst))
                       , model = model
                       , ranking = NA_integer_
-                      , parameter = list(NULL)
+                      , parameter = "Prophet"
                       , .groups = "drop") %>% 
             arrange(cv_mape) %>% 
             select(ranking, model, cv_mape, parameter)
         }
       )
+      
     } else if((model %in% c("croston", "tbats", "seasonal_naive", "ets")) == TRUE){ # Forecast models
       
       cat(paste0("\n", toupper(model), ": Hyperparameter tuning...\n"))

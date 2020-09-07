@@ -1,9 +1,9 @@
 
-# Main
+# Package -----------------------------------------------------------------
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
          "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
-         "prophet","forecTheta","autoforecast")
+         "prophet", "forecTheta", "autoforecast")
 
 lapply(pkg, require, character.only = TRUE)
 
@@ -32,18 +32,11 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 # Data import
 
 data_init <- read_csv("test_source/demo_data.csv") %>% 
-  dplyr::filter(date < "2020-02-01"
-                , forecast_item != "FI: 34122")
-
-# Every data to be autoforecasted should "prescribed" first to allow attribute inheritance 
+  dplyr::filter(date < "2020-02-01")
 
 data_all <- data_init %>%
-  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
+  prescribe_ts(key = "key", y_var = "y_var", date_var = "date_var"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
-
-# List of models
-
-model_list <- c("glm","glmnet","arima","ets","dynamic_theta","seasonal_naive","croston")
 
 # Multiple items / Parallel ----------------------------------------------------------
 
@@ -56,20 +49,24 @@ progress <- function(n) {
 opts <- list(progress=progress)
 
 tictoc::tic()
-results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts
-                   , .packages=pkg
-                   ) %dopar% {
+results <- foreach(key_i = unique(data_all$key), .combine = "rbind"
+                   , .options.snow=opts, .packages = pkg) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
-  autoforecast(.data = data_i, horizon = 100
+  autoforecast(.data = data_i, horizon = 24
                , model = model_list
-               , parameter = parameter, optim_profile = "fast", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE)
+               , parameter = parameter, optim_profile = "light", test_size = 6
+               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
+               , ensemble = TRUE)
 }
 tictoc::toc()
 
-stopCluster(cl)
+stopCluster(cluster)
 
-results %>% 
-  plot_ts(multiple_keys = T, interactive = T)
+# Plot
+
+# plot_res <- results %>% filter(key == unique(data_all$key)[3]) %>% 
+#   plot_ts(interactive = F)
+# 
+# plot_res
 
 #---

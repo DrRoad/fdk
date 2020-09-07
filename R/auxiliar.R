@@ -69,7 +69,6 @@ get_time_weights <- function(y_var, time_weight){
 #' @param x_data Optional DataFrame to use as design matrix.
 #' @param horizon Numeric. How far in time to produce a synthetic design matrix.
 #' 
-#' @import stats
 #' @import dplyr
 #' @return data-frame or tibble
 #' @export
