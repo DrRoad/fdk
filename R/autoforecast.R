@@ -73,7 +73,7 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' autoforecast()
 #' }
 autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim_profile
-                         , meta_data = FALSE, tune_parallel = FALSE, ...){
+                         , meta_data = FALSE, tune_parallel = FALSE, ensemble = FALSE,...){
   
   #utils::globalVariables(c("y_var_fcst", ".", "key", "y_var", "type", "date_var"))
   #y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
@@ -144,15 +144,17 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
       bind_rows() %>% 
       mutate(y_var_fcst = ifelse(y_var_fcst<0, 0, y_var_fcst)) %>% 
       rename(date_var = date, y_var = y_var_fcst) %>% 
-      mutate(type = "forecast") %>% 
+      dplyr::mutate(type = "forecast") %>% 
       bind_rows(.data_tmp, .) %>% 
-      select(key:y_var, model, type) %>% 
+      dplyr::select(key, date_var, y_var, model, type) %>% 
       replace_na(replace = list(type = "history", model = "history"))
     
     ensemble_tmp <- forecast_tmp %>% 
       dplyr::filter(type != "history", (model != "neural_network")) %>% 
-      group_by(date_var) %>% 
-      summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
+      dplyr::group_by(date_var) %>% 
+      dplyr::summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
+    
+    
     
     forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp) %>% 
       fill(key, .direction = "down")
@@ -161,32 +163,58 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
     
   } else if(optim_profile == "light"){
     
+    # Models not activated
+    
+    model <- setdiff(model, c("tbats"))
+    
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
-                               , parameter = parameter, model = setdiff(model, c("tbats","neural_network"))
+                               , parameter = parameter, model = model
                                , tune_parallel = tune_parallel)
     
     print(knitr::kable(best_model_int, "simple", 2))
     
-    forecast_tmp <- map(setdiff(model, c("tbats","neural_network"))
+    forecast_tmp <- map(model
                         , ~optim_join(.data_tmp, model = .x, parameter = parameter
                                                 , horizon = horizon, best_model = best_model_int)) %>% 
       bind_rows() %>% 
       mutate(y_var_fcst = ifelse(y_var_fcst<0, 0, y_var_fcst)) %>% 
       rename(date_var = date, y_var = y_var_fcst) %>% 
-      mutate(type = "forecast") %>% 
+      dplyr::mutate(type = "forecast") %>% 
       bind_rows(.data_tmp, .) %>% 
-      select(key:y_var, model, type) %>% 
+      dplyr::select(key, date_var, y_var, model, type) %>% 
       replace_na(replace = list(type = "history", model = "history")) 
     
     ensemble_tmp <- forecast_tmp %>% 
       dplyr::filter(type != "history", model %in% best_model_int$model[1:3]) %>% # top 3 models cv
-      group_by(date_var) %>% 
-      summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
+      dplyr::group_by(date_var) %>% 
+      dplyr::summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
     
-    forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp) %>%
-      fill(key, .direction = "down")
+    # Ensemble mode: Just output ensemble + conf interval
     
-    attr(forecast_tmp, "output_type") <- "optim_output"
+    if(ensemble == TRUE){
+      # Calculate Pred Intervals
+      ts_object <- ts(.data$y_var, start = c(1,1), freq = 12)
+      ts_decomp <- stl(ts_object, s.window = "periodic")
+      coef <- sd(ts_decomp$time.series[,3])
+      ensemble_down <- ensemble_tmp %>% 
+        dplyr::mutate(y_var = y_var - 1.5*coef,
+                      type = "down_limit")
+      ensemble_up <- ensemble_tmp %>% 
+        dplyr::mutate(y_var = y_var + 1.5*coef,
+                      type = "upper_limit")
+      forecast_tmp <- bind_rows(forecast_tmp, ensemble_down, ensemble_up, ensemble_tmp) %>%
+        fill(key, .direction = "down")
+      forecast_tmp <- forecast_tmp %>% 
+        dplyr::filter(model %in% c("history","ensemble"))
+      attr(forecast_tmp, "output_type") <- "ensemble"
+      
+    # Main output  
+      
+    }else{ 
+      forecast_tmp <- bind_rows(forecast_tmp, ensemble_tmp) %>%
+        fill(key, .direction = "down")
+      attr(forecast_tmp, "output_type") <- "optim_output"
+    }
     
   }
   
@@ -212,11 +240,30 @@ autoforecast <- function(.data, parameter, test_size, lag, horizon, model, optim
 #' \dontrun{
 #' plot_ts()
 #' }
+#'     stop("Error, the input data is not class optim_output")
 plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
   prescription <- attributes(.optim_output)[["prescription"]]
-  if(attributes(.optim_output)[["output_type"]] != "optim_output"){
-    stop("Error, the input data is not class optim_output")
-  } else {
+  if(attributes(.optim_output)[["output_type"]] == "ensemble"){ # Ensemble option
+    # key
+    subtitle <- paste0("Selected Key:"," ",unique(.optim_output$key))
+    # graph
+    graph_tmp <- .optim_output %>% 
+      ggplot(aes(date_var, y_var, col = type), size = 1.0005) +
+      geom_line(size = 1.0005) +
+      labs(x = "", y = "y_var", col = "Model") +
+      geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed") +
+      scale_y_continuous(n.breaks = 10, minor_breaks = NULL)+
+      scale_x_date(expand = c(0,0),date_breaks = "2 month", minor_breaks = NULL) +
+      theme_bw() +
+      theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
+            plot.subtitle = element_text(size = 13, hjust = 0.5, face = "bold"),
+            axis.text.x = element_text(size = 11, angle = 45, hjust = 1),
+            axis.title = element_text(size = 13, hjust = 0.5, face = "bold"),
+            legend.position = "right",
+            legend.title = element_text(size = 15),
+            legend.text = element_text(size = 13)) +
+      labs(x="Time",y="Sales", title = "Ensemble forecast", subtitle = subtitle)
+  } else if(attributes(.optim_output)[["output_type"]] == "optim_output") { # Optim output
     # key
     subtitle <- paste0("Selected Key:"," ",unique(.optim_output$key))
     # graph
@@ -236,15 +283,17 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
             legend.title = element_text(size = 15),
             legend.text = element_text(size = 13)) +
       labs(x="Time",y="Sales", title = "Generated Forecast", subtitle = subtitle)
-    if(multiple_keys == TRUE){
-      graph_tmp <- graph_tmp +
-        facet_wrap( ~ key, scales = "free")
-    }
-    if(interactive == TRUE){
-      ggplotly(graph_tmp)
-    } else {
-      graph_tmp
-    }
+  } else { # Error of input
+    stop("Error, the input data is not class optim_output")
+  }
+  if(multiple_keys == TRUE){ # Multiple keys
+    graph_tmp <- graph_tmp +
+      facet_wrap( ~ key, scales = "free")
+  }
+  if(interactive == TRUE){ # Interactive
+    ggplotly(graph_tmp)
+  } else {
+    graph_tmp
   }
 }
 

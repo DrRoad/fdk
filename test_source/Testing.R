@@ -72,6 +72,8 @@ data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
+data_all %>% select(key) %>% attributes()
+
 # Single item forecast / modularity ---------------------------------------
 
 ### Default parameters
