@@ -205,7 +205,7 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     } else {
       tibble(
         date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
-        y_var_fcst = as.numeric(forecast(fit_1$model_fit, h = horizon)[["mean"]]),
+        y_var_fcst = as.numeric(forecast(.fit_output$model_fit, h = horizon)[["mean"]]),
         model = .fit_output[["model"]]
       )
     }
@@ -236,5 +236,3 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     }
   }
 }
-  
-  

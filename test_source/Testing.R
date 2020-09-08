@@ -32,8 +32,8 @@ lapply(pkg, require, character.only = TRUE)
 grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
                            , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
                            , alpha = seq(from = 0, to = 1, by = 0.10))
-grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
-                        , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
+grid_glm <- expand_grid(time_weight = seq(from = 0.85, to = 1, by = 0.02)
+                        , trend_discount = seq(from = 0.90, to = 1, by = 0.02))
 
 parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha = 0, lambda = .1
                                 , grid_glmnet = grid_glmnet
@@ -51,83 +51,79 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 
 # Data import -------------------------------------------------------------
 
-data_init <- read_csv("test_source/demo_data.csv") %>% 
-  dplyr::filter(date < "2020-02-01")
+data_init <- read_csv("../hexyon_all.csv")
+data_init <- data_init[,-1]
 
-# 
-# ap0 <- AirPassengers %>%
-#   as_tsibble() %>%
-#   as_tibble() %>%
-#   mutate(key = "airpassenger", reg_name = "0", reg_value = 0
-#          , index = as.Date(yearmonth(index))) %>%
-#   select(key, date=index, value, reg_name, reg_value)
-#
-# ap <- prescribe_ts(.data = ap0, key = "key", y_var = "value", date_var = "date"
-#                    , reg_name = "reg_name", reg_value = "reg_value", freq = 12)
-#
-
-## Every data to be autoforecasted should "prescribed" first to allow attribute inheritance.
+# Every data to be autoforecasted should "prescribed" first to allow attribute inheritance.
 
 data_all <- data_init %>%
-  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
+  prescribe_ts(key = "key", y_var = "y_var", date_var = "date_var"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
-data_all %>% select(key) %>% attributes()
+# data_all %>% select(key) %>% attributes()
 
 # Single item forecast / modularity ---------------------------------------
 
-### Default parameters
+# Default parameters
 
 fit_1 <- data_all %>% 
-  filter(key == "FI: 515188") %>%
+  filter(key == "hexyon_vol") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "dynamic_theta", parameter = parameter)
+  fit_ts(model = "tslm", parameter = parameter)
 
-### Fcst
+# Fcst
 
 fit_1 %>% 
   get_forecast(horizon = 36)
 
-### Fit output
+# Fit output
 
 attributes(data_all) %>% 
   str()
 
-### Hyperparameter tuning
+# Hyperparameter tuning
 
 data_all %>% 
-  filter(key == "FI: 515188") %>% 
+  filter(key == "hexyon_vol") %>% 
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "dynamic_theta")
+  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "tslm")
 
-## Optimization ------------------------------------------------------------
+# Optimization ------------------------------------------------------------
 
 optim_profile <- c("fast", "light") # fast = default parameter, light = small random search
 
-model_list <- c("glm", "glmnet", "neural_network", "arima", "ets",
-                "seasonal_naive", "croston", "tbats", "dynamic_theta",
-                "tslm")
+model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
 
+<<<<<<< HEAD
 ## Fast
+=======
+# model_list <- c("prophet")
+
+# Fast
+>>>>>>> 1702b60509595d62e73deb0ccbb34f3551227fad
 
 .data <- data_all %>% 
-  dplyr::filter(key == "FI: 515188") #%>% 
+  dplyr::filter(key == "hexyon_vol") #%>% 
 
 fast_optim_forecast <- autoforecast(.data = .data
-                                    , horizon = 36
+                                    , horizon = 24
                                     , model = model_list
                                     , parameter = parameter
                                     , optim_profile = "fast"
-                                    , method = "kalman")
+                                    , method = "winsorize"
+                                    , ensemble = FALSE)
+
 fast_optim_forecast %>% 
   plot_ts(interactive = F)
 
-## Light
+# Light
+
+model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
 
 light_optim_forecast <- autoforecast(.data = .data
-                                     , horizon = 100
+                                     , horizon = 24
                                      , model = model_list
                                      , parameter = parameter
                                      , optim_profile = "light"
@@ -135,7 +131,9 @@ light_optim_forecast <- autoforecast(.data = .data
                                      , lag = 3
                                      , meta_data = FALSE
                                      , tune_parallel = FALSE
-                                     , method = "winsorize") # since meta_data = T, a list will be printed.
+                                     , method = "winsorize"
+                                     , number_best_models = 3
+                                     , ensemble = FALSE)
 
 light_optim_forecast %>% 
   plot_ts(interactive = T)
@@ -157,7 +155,7 @@ opts <- list(progress=progress)
 tictoc::tic()
 results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .options.snow=opts, .packages=c("autoforecast")) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
-  autoforecast(.data = data_i, horizon = 100
+  autoforecast(.data = data_i, horizon = 24
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
                , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = FALSE)
@@ -165,16 +163,6 @@ results <- foreach(key_i = unique(data_all$key)[1:5], .combine = "rbind", .optio
 tictoc::toc()
 
 stopCluster(cl)
-
-### ----------------------------------------------------------
-
-future_map(unique(data_all$key)[1:2], ~.f = {
-  data_i <- data_all[data_all$key == .x,]
-  autoforecast(.data = data_i, horizon = 100
-               , model = model_list
-               , parameter = parameter, optim_profile = "fast", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "kalman")
-})
 
 ## Plot
 

@@ -1,5 +1,5 @@
 
-# Package -----------------------------------------------------------------
+# Main package
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
          "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
@@ -39,6 +39,8 @@ data_all <- data_init %>%
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
 # Multiple items / Parallel ----------------------------------------------------------
+
+model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
 
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
