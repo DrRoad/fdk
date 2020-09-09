@@ -4,14 +4,14 @@
 \alias{plot_ts}
 \title{Plot time series forecast}
 \usage{
-plot_ts(.data, interactive = FALSE, multiple_keys = FALSE)
+plot_ts(.optim_output, interactive = FALSE, multiple_keys = FALSE)
 }
 \arguments{
-\item{.data}{data-frame of class optim_output}
-
 \item{interactive}{Logical. Whether or not to return interative plotly graph}
 
 \item{multiple_keys}{Logical. The data has or not multiple keys to plot as grid.}
+
+\item{.data}{data-frame of class optim_output}
 }
 \value{
 graph
