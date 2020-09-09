@@ -99,7 +99,7 @@ fast_optim_forecast <- autoforecast(.data = .data
                                     , optim_profile = "fast"
                                     , method = "kalman"
                                     , number_best_models = 3
-                                    , pred_interval = FALSE)
+                                    , pred_interval = TRUE)
 fast_optim_forecast %>% 
   plot_ts(interactive = T)
 
@@ -124,6 +124,16 @@ light_optim_forecast <- autoforecast(.data = .data
 
 light_optim_forecast %>% 
   plot_ts(interactive = T)
+
+
+
+
+
+
+
+
+
+
 
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)

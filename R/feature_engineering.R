@@ -30,12 +30,15 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
     reg_seasonal <- function(date) factor(lubridate::week(date), levels = 1:53)
   }
   
-  seasonal_var <- reg_seasonal(.data[[date_var]])
+  seasonal_var <- reg_seasonal(.data[["date_var"]])
   trend <- 1:length(seasonal_var)
   
-  .data %>% 
+  .design_matrix <- .data %>% 
     bind_cols(tibble(trend = trend, seasonal_var = seasonal_var)) %>% 
     relocate("trend", "seasonal_var", .after = "y_var")
+  
+  attr(.design_matrix, "prescription") <- attributes(.data)[["prescription"]]
+  return(.design_matrix)
 }
 
 
@@ -71,6 +74,7 @@ feature_engineering_ts <- function(.data){
       attr(.data_tmp, "prescription") <- prescription
       .data_tmp <- get_design_matrix(.data_tmp, to_dummy = FALSE)
     }
+    attr(.data_tmp, "prescription") <- attributes(.data)[["prescription"]]
     return(.data_tmp)
   }
   wide_reg_int(.data)
