@@ -129,7 +129,9 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   # Check data quality
   
-  if(nrow(.data_tmp) < 12 | cumsum(.data_tmp$y_var) == 0){
+  quantity_test_size <- sum(.data_tmp[["y_var"]][(nrow(.data_tmp)-test_size):(nrow(.data_tmp))])
+
+  if(nrow(.data_tmp) < 12 | cumsum(.data_tmp$y_var) == 0 | quantity_test_size == 0){
     model <- "croston"
   }
   

@@ -71,6 +71,7 @@ feature_engineering_ts <- function(.data){
       attr(.data_tmp, "prescription") <- prescription
       .data_tmp <- get_design_matrix(.data_tmp, to_dummy = FALSE)
     }
+    attr(.data_tmp, "prescription") <- attributes(.data)[["prescription"]]
     return(.data_tmp)
   }
   wide_reg_int(.data)
