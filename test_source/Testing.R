@@ -9,23 +9,23 @@ lapply(pkg, require, character.only = TRUE)
 
 # Source ------------------------------------------------------------------
 
-source("R/get_seasonal_naive.R")
-source("R/get_forecast.R")
-source("R/get_ets.R")
-source("R/get_arima.R")
-source("R/get_glm.R")
-source("R/get_glmnet.R")
-source("R/get_croston.R")
-source("R/get_neural_network.R")
-source("R/get_tbats.R")
-source("R/get_dyn_theta.R")
-source("R/get_prophet.R")
-source("R/get_tslm.R")
-source("R/cleansing.R")
-source("R/auxiliar.R")
-source("R/autoforecast.R")
-source("R/feature_engineering.R")
-source("R/optim_ts.R")
+# source("R/get_seasonal_naive.R")
+# source("R/get_forecast.R")
+# source("R/get_ets.R")
+# source("R/get_arima.R")
+# source("R/get_glm.R")
+# source("R/get_glmnet.R")
+# source("R/get_croston.R")
+# source("R/get_neural_network.R")
+# source("R/get_tbats.R")
+# source("R/get_dyn_theta.R")
+# source("R/get_prophet.R")
+# source("R/get_tslm.R")
+# source("R/cleansing.R")
+# source("R/auxiliar.R")
+# source("R/autoforecast.R")
+# source("R/feature_engineering.R")
+# source("R/optim_ts.R")
 
 # Parameter ---------------------------------------------------------------
 
@@ -96,9 +96,7 @@ optim_profile <- c("fast", "light") # fast = default parameter, light = small ra
 
 model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
 
-# model_list <- c("prophet")
-
-# Fast
+## Fast
 
 .data <- data_all %>% 
   dplyr::filter(key == "hexyon_vol") #%>% 
