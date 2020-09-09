@@ -278,7 +278,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
 #' \dontrun{
 #' plot_ts()
 #' }
-#'     stop("Error, the input data is not class optim_output")
 plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
   prescription <- attributes(.optim_output)[["prescription"]]
   
@@ -298,6 +297,7 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
             legend.title = element_text(size = 15),
             legend.text = element_text(size = 13))
   }
+  
   if(attributes(.optim_output)[["output_type"]] == "optim_output_pi"){ # Ensemble option
     
     graph_tmp <- .optim_output %>% 
@@ -344,5 +344,3 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
     graph_tmp
   }
 }
-
-.optim_output <- fast_optim_forecast
