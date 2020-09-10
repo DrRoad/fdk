@@ -1,4 +1,3 @@
-
 # Testing
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
@@ -64,34 +63,35 @@ data_all <- data_init %>%
 
 # Single item forecast / modularity ---------------------------------------
 
-# Default parameters
-
-fit_1 <- data_all %>% 
-  filter(key == "hexyon_vol") %>%
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "tslm", parameter = parameter)
-
-# Fcst
-
-fit_1 %>% 
-  get_forecast(horizon = 36)
-
-# Fit output
-
-attributes(data_all) %>% 
-  str()
-
-# Hyperparameter tuning
-
-data_all %>% 
-  filter(key == "hexyon_vol") %>% 
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "tslm")
+# # Default parameters
+# 
+# fit_1 <- data_all %>% 
+#   filter(key == "hexyon_vol") %>%
+#   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
+#   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
+#   fit_ts(model = "prophet", parameter = parameter)
+# 
+# # Fcst
+# 
+# fit_1 %>% 
+#   get_forecast(horizon = 36)
+# 
+# # Fit output
+# 
+# attributes(data_all) %>% 
+#   str()
+# 
+# # Hyperparameter tuning
+# 
+# data_all %>% 
+#   filter(key == "hexyon_vol") %>% 
+#   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
+#   clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
+#   optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "prophet")
 
 # Optimization ------------------------------------------------------------
 
+<<<<<<< HEAD
 optim_profile <- c("fast", "light") # fast = default parameter, light = small random search
 
 model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
@@ -117,10 +117,29 @@ fast_optim_forecast <- autoforecast(.data = .data
 
 fast_optim_forecast %>% 
   plot_ts(interactive = F)
+=======
+# model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
+# 
+# ## Fast
+# 
+# .data <- data_all %>% 
+#   dplyr::filter(key == "hexyon_vol") #%>% 
+# 
+# fast_optim_forecast <- autoforecast(.data = .data
+#                                     , horizon = 24
+#                                     , model = model_list
+#                                     , parameter = parameter
+#                                     , optim_profile = "fast"
+#                                     , method = "winsorize"
+#                                     , ensemble = FALSE)
+# 
+# fast_optim_forecast %>% 
+#   plot_ts(interactive = F)
+>>>>>>> 90c06d9660e442d6f73b865c78c0049730be2201
 
 # Light
 
-model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
+model_list <- c("prophet","dynamic_theta","arima","ets")
 
 light_optim_forecast <- autoforecast(.data = .data
                                      , horizon = 24
@@ -132,8 +151,10 @@ light_optim_forecast <- autoforecast(.data = .data
                                      , meta_data = FALSE
                                      , tune_parallel = FALSE
                                      , method = "winsorize"
-                                     , number_best_models = 3
-                                     , ensemble = FALSE)
+                                     , number_best_models = 1
+                                     , ensemble = FALSE
+                                     , pred_interval = TRUE
+                                     , metric = "mape")
 
 light_optim_forecast %>% 
   plot_ts(interactive = T)

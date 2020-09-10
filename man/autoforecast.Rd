@@ -7,13 +7,16 @@
 autoforecast(
   .data,
   parameter,
-  test_size,
-  lag,
-  horizon,
+  test_size = 6,
+  lag = 3,
+  horizon = 36,
   model,
   optim_profile,
   meta_data = FALSE,
   tune_parallel = FALSE,
+  number_best_models = 3,
+  pred_interval = FALSE,
+  metric = "mape",
   ...
 )
 }
@@ -36,6 +39,10 @@ fast, light, medium, and, complete.}
 \item{meta_data}{Logical. Whether to return the ranking of models in a list.}
 
 \item{tune_parallel}{Logical. Perform parallelization across different model selection (**experimental**).}
+
+\item{number_best_models}{Integer. Among the best models, how many to output (also controls the Ensemble forecast).}
+
+\item{pred_interval}{Logical. Control if prediction intervals are printed.}
 
 \item{...}{Other parameter from the sub-functions.}
 }

@@ -45,11 +45,8 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     }
   } else if (.fit_output[["model"]] == "glmnet") {
     x_data_int <- make_reg_matrix(.fit_output = .fit_output, x_data = x_data, horizon = horizon)
-
     if (is.null(x_data) == TRUE) {
-
       # Synthetic x_data
-
       predict.glmnet(object = .fit_output[["model_fit"]], newx = x_data_int) %>%
         as.vector() %>%
         enframe(name = "date", value = "y_var_fcst") %>%
@@ -219,7 +216,7 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       x_data %>%
         transmute(
           y_var_true = y_var,
-          y_var_fcst = predict(.fit_output$model_fit, future)$yhat
+          y_var_fcst = last(predict(.fit_output$model_fit, future)$yhat)
           , parameter = list(NULL)
         )
     } else {
