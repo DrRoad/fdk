@@ -16,6 +16,7 @@ autoforecast(
   tune_parallel = FALSE,
   number_best_models = 3,
   pred_interval = FALSE,
+  metric = "mape",
   ...
 )
 }

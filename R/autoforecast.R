@@ -84,11 +84,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     model <- c("glmnet","glm","prophet","dynamic_theta","arima","ets")
   }
   
-  # Specific models for FA problems
-  if(model == "vax_year_pred"){
-    model <- model_list <- c("glm","tslm","dynamic_theta","arima","ets")
-  }
-  
   # Internal lag calculation
   lag <- lag+1
   

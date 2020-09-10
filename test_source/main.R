@@ -1,4 +1,3 @@
-
 # Main package
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",

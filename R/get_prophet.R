@@ -44,8 +44,9 @@ get_prophet <- function(.data, y_var, horizon = 12, parameter = NULL){
                    daily.seasonality = daily.seasonality,
                    weekly.seasonality = weekly.seasonality,
                    yearly.seasonality = yearly.seasonality,
-                   seasonality.prior.scale = 5,
+                   seasonality.prior.scale = 1,
                    seasonality.mode = "additive",
+                   changepoint.prior.scale = 30,
                    n.changepoints = 1,
                    growth = "linear")
   # Future
