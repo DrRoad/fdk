@@ -47,6 +47,8 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
 #' This function applies different heuristics to add time series features to the original data.
 #' 
 #' @param .data data-frame or tibble
+#' @param lag_var String. Name of the regressor or dependent variable (y_var) to be lagged.
+#' @param n_lag Numeric. How many lags to create for each lag_var
 #'
 #' @return data-frame or tibble
 #' @export
@@ -55,17 +57,20 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
 #' \dontrun{
 #' feature_engineering_ts()
 #' }
-feature_engineering_ts <- function(.data){
+feature_engineering_ts <- function(.data, lag_var=NULL, n_lag=NULL){
   prescription <- attributes(.data)[["prescription"]]
   
-  # Internal
+  # Internal functions
+  
+  ## Wide regressors
+  
   wide_reg_int <- function(.data){
-    n_regressors <- n_distinct(.data[["reg_name"]])
-    if(n_regressors == 1){
+    n_regressors <- n_distinct(setdiff(.data[["reg_name"]], c("0", "NA", NA_character_)))
+    if(n_regressors == 0){
       .data_tmp <- .data %>% 
         select(-reg_value, -reg_name) %>% 
         get_design_matrix(to_dummy = FALSE)
-    } else if(n_regressors> 1){
+    } else if(n_regressors>=1){
       .data_tmp <- .data %>% 
         pivot_wider(names_from = "reg_name", values_from = "reg_value") %>% 
         select(-matches("0|NA$")) %>% 
@@ -77,7 +82,25 @@ feature_engineering_ts <- function(.data){
     attr(.data_tmp, "prescription") <- attributes(.data)[["prescription"]]
     return(.data_tmp)
   }
-  wide_reg_int(.data)
+  
+  ## Lags
+  
+  get_lags_int <- function(.data, lag_var, n_lag){
+    suppressMessages(
+      if(is.null(lag_var)| is.null(n_lag)){
+        .data
+      } else {
+        grid <- expand_grid(lag_var, n_lag = n_lag)
+        map2(.x = grid$lag_var, .y = grid$n_lag, ~dplyr::lag(.data[[.x]], n = .y)) %>% 
+          bind_cols() %>% 
+          setNames(nm = paste0(grid$lag_var,"_lag_", grid$n_lag)) %>% 
+          bind_cols(.data, .)
+      }
+    )
+  }
+  
+  wide_reg_int(.data) %>% 
+    get_lags_int(lag_var = lag_var, n_lag = n_lag)
 }
 
 
