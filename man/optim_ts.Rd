@@ -4,7 +4,15 @@
 \alias{optim_ts}
 \title{Hyperparameter optimization for a glmnet model}
 \usage{
-optim_ts(.data, test_size, lag, parameter, model, tune_parallel = FALSE)
+optim_ts(
+  .data,
+  test_size,
+  lag,
+  parameter,
+  model,
+  tune_parallel = FALSE,
+  metric = "mape"
+)
 }
 \arguments{
 \item{.data}{Data frame or tibble.}
@@ -21,6 +29,8 @@ The other 2 hyperparameters are time weights and trend discount.}
 \item{model}{String. Model to be optimized.}
 
 \item{tune_parallel}{Logical. Perform parallelization across different model selection (**experimental**).}
+
+\item{metric}{Metric for optimization}
 }
 \value{
 data-frame or tibble
