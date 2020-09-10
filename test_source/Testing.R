@@ -70,7 +70,7 @@ fit_1 <- data_all %>%
   filter(key == "hexyon_vol") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "tslm", parameter = parameter)
+  fit_ts(model = "prophet", parameter = parameter)
 
 # Fcst
 
@@ -88,7 +88,7 @@ data_all %>%
   filter(key == "hexyon_vol") %>% 
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "tslm")
+  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "prophet")
 
 # Optimization ------------------------------------------------------------
 

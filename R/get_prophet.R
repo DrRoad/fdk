@@ -40,13 +40,16 @@ get_prophet <- function(.data, y_var, horizon = 12, parameter = NULL){
   # Ts object
   xd <- .data %>% rename(y = y_var, ds = date_var)
   # Model fit
-  model_fit <- prophet(xd, growth ="linear",
+  model_fit <- prophet(xd, 
                    daily.seasonality = daily.seasonality,
                    weekly.seasonality = weekly.seasonality,
                    yearly.seasonality = yearly.seasonality,
-                   seasonality.prior.scale = 50)
+                   seasonality.prior.scale = 5,
+                   seasonality.mode = "additive",
+                   n.changepoints = 1,
+                   growth = "linear")
   # Future
-  predicted <- predict(model, xd)
+  predicted <- predict(model_fit, xd)
   # Timelapse
   .fit_output <- list(model = "prophet"
                       , model_fit = model_fit

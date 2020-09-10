@@ -35,7 +35,7 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
   } else if(model == "dynamic_theta"){
     get_dyn_theta(.data = .data, y_var = y_var, parameter = parameter)
   } else if(model == "prophet"){
-    get_dyn_theta(.data = .data, y_var = y_var, parameter = parameter)
+    suppressWarnings({get_prophet(.data = .data, y_var = y_var, parameter = parameter)})
   } else if(model == "tslm"){
     get_tslm(.data = .data, y_var = y_var, parameter = parameter)
   }
@@ -77,26 +77,27 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' }
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 3
-                         , pred_interval = FALSE, ...){
+                         , pred_interval = FALSE, metric = "mape", ...){
   
   # Default models
-  
   if(model == "default"){
-    model <- model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
+    model <- c("glmnet","glm","prophet","dynamic_theta","arima","ets")
+  }
+  
+  # Specific models for FA problems
+  if(model == "vax_year_pred"){
+    model <- model_list <- c("glm","tslm","dynamic_theta","arima","ets")
   }
   
   # Internal lag calculation
-  
   lag <- lag+1
   
   # Consinstency checks
-  
   if(length(model) > number_best_models){
     number_best_models <- length(model)
   }
   
   # Get default parameters
-  
   if(is.null(parameter)){
     grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
                                , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
@@ -120,7 +121,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   }
   
   # Feature engineering & data cleansing 
-  
   cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
   
   .data_tmp <- .data  %>% 
@@ -128,7 +128,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     clean_ts()
   
   # Check data quality
-  
   quantity_test_size <- sum(.data_tmp[["y_var"]][(nrow(.data_tmp)-test_size):(nrow(.data_tmp))])
 
   if(nrow(.data_tmp) < 12 | cumsum(.data_tmp$y_var) == 0 | quantity_test_size == 0){
@@ -138,9 +137,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
 
   # Internal functions ------------------------------------------------------
 
-  
   # Ensemble intervals
-  
   get_pred_interval_int <- function(.data_tmp, .forecast_output, z_score = 1.95){
     .data_ts_tmp <- ts(.data_tmp$y_var, start = c(1,1), freq = 12)
     .resid_ts_tmp <- stl(.data_ts_tmp, s.window = "periodic")$time.series[,3]
@@ -155,7 +152,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   }
   
   # Calculate ensemble
-  
   get_ensemble_int <- function(.forecast_tmp){
     ensemble_tmp <- .forecast_tmp %>% 
       dplyr::filter(type != "history") %>% # top n models cv
@@ -164,7 +160,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   }
   
   # Generalized function to get forecasts
-  
   get_forecast_int <- function(.data, model, horizon, parameter){
     .data %>% 
       fit_ts(model = model, parameter = parameter) %>% 
@@ -172,7 +167,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   }
   
   # Replace hyper-parameters on demand
-  
   optim_join_int <- function(.data, model, parameter, horizon, best_model){
     if(model %in% c("glmnet", "glm")){ # missing arima
       get_forecast_int(.data, model = model
@@ -186,12 +180,12 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   }
   
   if(optim_profile == "fast"){ # Fast profile ----------------------------------
+    
     model <- setdiff(model, c("tbats","neural_network"))
     
     cat(paste0("\nFast optimization for: ", length(model), " Models + Unweighted Ensemble Forecast"))
     
     ## Generates forecast given default (hyper)parameters.
-    
     forecast_tmp <- map(model, ~get_forecast_int(.data = .data_tmp
                                                , model = .x, horizon = horizon
                                                , parameter = parameter)) %>% 
@@ -204,7 +198,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       replace_na(replace = list(type = "history", model = "history"))
     
     ## Ensemble is a simple average of every model's forecast.
-    
     ensemble_tmp <- get_ensemble_int(.forecast_tmp = forecast_tmp)
     
     forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
@@ -217,12 +210,12 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
                                , parameter = parameter, model = model
-                               , tune_parallel = tune_parallel)
+                               , tune_parallel = tune_parallel
+                               , metric = metric)
     
     print(knitr::kable(best_model_int, "simple", 2))
     
     # get n best models
-    
     model <- best_model_int %>% 
       dplyr::filter(ranking <= number_best_models) %>% 
       .[["model"]]

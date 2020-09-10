@@ -185,6 +185,12 @@ accuracy_metric <- function(y_var_true, y_var_pred, metric = "mape"){
       mape_tmp <- abs(y_var_true - y_var_pred)/y_var_true
     }
     return(mape_tmp)
+  } else if(metric == "fa"){
+    if((is.na(y_var_true) == T | (round(y_var_true, 0) == 0) == TRUE)){
+      mape_tmp <- NA
+    } else {
+      mape_tmp <- (y_var_true - y_var_pred)/y_var_true
+    }
   }
 }
 

@@ -9,6 +9,7 @@
 #' The other 2 hyperparameters are time weights and trend discount.
 #' @param model String. Model to be optimized.
 #' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
+#' @param metric Metric for optimization
 #'
 #' @import glmnet
 #' @import forecast
@@ -26,7 +27,8 @@
 #' \dontrun{
 #' optim_ts()
 #' }
-optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FALSE){
+optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FALSE, metric = "mape"){
+  
   #y_var_true <- cv_mape <- ranking <- y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
   #globalVariables(c("trend_discount", "time_weight", "lambda", "lambda_cov", "model_i"))
   
@@ -56,12 +58,13 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
           get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
       bind_rows() %>% 
       summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                          , y_var_pred = sum(y_var_fcst))
+                                          , y_var_pred = sum(y_var_fcst)
+                                          , metric = metric)
                 , model = model
                 , ranking = NA_integer_
                 , parameter = list(best_parameter_int(.[["parameter"]]))
                 , .groups = "drop") %>% 
-      arrange(cv_mape) %>% 
+      arrange(abs(cv_mape)) %>% 
       select(ranking, model, cv_mape, parameter)
     
   }
@@ -86,13 +89,14 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
         bind_rows() %>% 
         group_by(trend_discount, time_weight, alpha) %>%
         summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                            , y_var_pred = sum(y_var_fcst))
+                                            , y_var_pred = sum(y_var_fcst)
+                                            , metric = metric)
                   , lambda_cov = sd(lambda)/mean(lambda, na.rm = TRUE)
                   , lambda = median(lambda, na.rm = TRUE)
                   , model = "glmnet"
                   , ranking = NA_integer_
                   , .groups = "drop") %>%
-        arrange(cv_mape, lambda_cov) %>%
+        arrange(abs(cv_mape), lambda_cov) %>%
         slice(1) %>%
         transmute(ranking, model, cv_mape, parameter = list(select(., trend_discount
                                                                    , time_weight
@@ -120,7 +124,8 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
             mutate_at(.vars = vars(matches("p$|d$|q$")), ~ifelse(is.na(.x), 0, .x)) %>% 
             summarise(ranking = NA, model = "arima"
                       , cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                                  , y_var_pred = sum(y_var_fcst))
+                                                  , y_var_pred = sum(y_var_fcst)
+                                                  , metric = metric)
                       , parameter = list(select(., 3:last_col()) %>% slice(n())))
         }
       )
@@ -146,11 +151,12 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
         bind_rows() %>%
         group_by(trend_discount, time_weight) %>% 
         summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                            , y_var_pred = sum(y_var_fcst))
+                                            , y_var_pred = sum(y_var_fcst)
+                                            , metric = metric)
                   , model = "glm"
                   , ranking = NA_integer_
                   , .groups = "drop") %>% 
-        arrange(cv_mape) %>%
+        arrange(abs(cv_mape)) %>%
         slice(1) %>% 
         transmute(ranking, model, cv_mape, parameter = list(select(., trend_discount
                                                                    , time_weight)))
@@ -171,12 +177,13 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
             bind_rows() %>% 
             summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                                , y_var_pred = sum(y_var_fcst))
+                                                , y_var_pred = sum(y_var_fcst)
+                                                , metric = metric)
                       , model = model
                       , ranking = NA_integer_
                       , parameter = list(NULL)
                       , .groups = "drop") %>% 
-            arrange(cv_mape) %>% 
+            arrange(abs(cv_mape)) %>% 
             select(ranking, model, cv_mape, parameter)
         }
       )
@@ -194,12 +201,13 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
             bind_rows() %>% 
             summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                                , y_var_pred = sum(y_var_fcst))
+                                                , y_var_pred = sum(y_var_fcst)
+                                                , metric = metric)
                       , model = model
                       , ranking = NA_integer_
                       , parameter = list(NULL)
                       , .groups = "drop") %>% 
-            arrange(cv_mape) %>% 
+            arrange(abs(cv_mape)) %>% 
             select(ranking, model, cv_mape, parameter)
         }
       )
@@ -217,12 +225,13 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
             bind_rows() %>% 
             summarise(cv_mape = accuracy_metric(y_var_true = sum(y_var_true)
-                                                , y_var_pred = sum(y_var_fcst))
+                                                , y_var_pred = sum(y_var_fcst)
+                                                , metric = metric)
                       , model = model
                       , ranking = NA_integer_
                       , parameter = list(NULL)
                       , .groups = "drop") %>% 
-            arrange(cv_mape) %>% 
+            arrange(abs(cv_mape)) %>% 
             select(ranking, model, cv_mape, parameter)
         }
       )
@@ -244,12 +253,12 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
     optim_out <- foreach(model_i = model, .combine = "rbind") %dopar% {
       optim_switcher(model_i)
       } %>% 
-      arrange(cv_mape) %>% 
+      arrange(abs(cv_mape)) %>% 
       mutate(ranking = 1:n(), .before = "model")
   } else if(tune_parallel == FALSE){ # Sequential
     optim_out <- map(model, .f = ~optim_switcher_safe(.x)) %>% 
       bind_rows() %>% 
-      arrange(cv_mape) %>% 
+      arrange(abs(cv_mape)) %>% 
       mutate(ranking = 1:n(), .before = "model")
   }
   
