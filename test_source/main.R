@@ -6,13 +6,15 @@ pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
 
 lapply(pkg, require, character.only = TRUE)
 
-# Parameter ---------------------------------------------------------------
+# Parameters -------------------------------------------------------------
 
-grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
-                           , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
-                           , alpha = seq(from = 0, to = 1, by = 0.10))
-grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
-                        , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
+grid_glmnet <- expand_grid(time_weight = seq(from = 0.92, to = 0.96, by = 0.02)
+                           , trend_discount = seq(from = 0.68, to = 0.72, by = 0.02)
+                           , alpha = seq(from = 0, to = 1, by = 0.1))
+grid_glm <- expand_grid(time_weight = seq(from = 0.96, to = 1, by = 0.02)
+                        , trend_discount = seq(from = 0.65, to = 0.75, by = 0.02))
+
+# Parameter list -------------------------------------------------------------
 
 parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha = 0, lambda = .1
                                 , grid_glmnet = grid_glmnet
@@ -34,12 +36,12 @@ data_init <- read_csv("test_source/demo_data.csv") %>%
   dplyr::filter(date < "2020-02-01")
 
 data_all <- data_init %>%
-  prescribe_ts(key = "key", y_var = "y_var", date_var = "date_var"
+  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
 # Multiple items / Parallel ----------------------------------------------------------
 
-model_list <- c("glm", "glmnet", "arima", "ets", "dynamic_theta", "seasonal_naive", "croston")
+model_list <- c("glm", "glmnet", "dynamic_theta", "prophet", "arima", "ets","seasonal_naive", "croston")
 
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
@@ -57,7 +59,7 @@ results <- foreach(key_i = unique(data_all$key), .combine = "rbind"
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
                , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
-               , ensemble = TRUE)
+               , number_best_models = 3, pred_interval = TRUE)
 }
 tictoc::toc()
 
