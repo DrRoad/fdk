@@ -10,7 +10,7 @@
 #'
 #' @import dplyr
 #' @import fastDummies
-#' @import glmnet
+#' @importFrom glmnet glmnet
 #' @author Obryan Poyser
 #' @return data-frame
 #' @export

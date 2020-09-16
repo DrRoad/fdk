@@ -59,12 +59,13 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' @param number_best_models Integer. Among the best models, how many to output (also controls the Ensemble forecast).
 #' @param pred_interval Logical. Control if prediction intervals are printed.
 #' 
+#' @importFrom stlplus stlplus
+#' @importFrom purrr map
 #' @import fastDummies
 #' @import foreach
-#' @importFrom purrr map
 #' @import glmnet
 #' @import dplyr
-#' @import stlplus
+#' @import stats
 #' @import forecast
 #' @import imputeTS
 #' 
@@ -80,42 +81,53 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
                          , pred_interval = FALSE, metric = "mape", ...){
   
   # Default models
+  
   if(model == "default"){
     model <- c("glmnet","glm","prophet","dynamic_theta","arima","ets")
   }
   
   # Internal lag calculation
+  
   lag <- lag+1
   
   # Consinstency checks
+  
   if(length(model) > number_best_models){
     number_best_models <- length(model)
   }
   
   # Get default parameters
+  
   if(is.null(parameter)){
-    grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
-                               , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
-                               , alpha = seq(from = 0, to = 1, by = 0.10))
-    grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
-                            , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
-    # parameter list
+    
+    # Parameters -------------------------------------------------------------
+    
+    grid_glmnet <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.1)
+                               , trend_discount = seq(from = 0.90, to = 1, by = 0.1)
+                               , alpha = seq(from = 0, to = 1, by = 0.1))
+    grid_glm <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.1)
+                            , trend_discount = seq(from = 0.70, to = 1, by = 0.1))
+    
+    # Parameter list -------------------------------------------------------------
+    
     parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha = 0, lambda = .1
                                     , grid_glmnet = grid_glmnet
                                     , job = list(optim_lambda = TRUE, x_excluded = NULL
-                                                 , random_search_size = 0.05
+                                                 , random_search_size = 1
                                                  , n_best_model = 1))
                       , croston = list(alpha = 0.1)
                       , glm = list(time_weight = .99, trend_discount = 0.70
                                    , grid_glm = grid_glm
                                    , job = list(x_excluded = NULL
-                                                , random_search_size = 0.1
+                                                , random_search_size = 1
                                                 , n_best_model = 1))
                       , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
                       , ets = list(ets = "ZZZ"))
+    
   }
   
   # Feature engineering & data cleansing 
+  
   cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
   
   .data_tmp <- .data  %>% 
@@ -123,30 +135,30 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     clean_ts()
   
   # Check data quality
+  
   quantity_test_size <- sum(.data_tmp[["y_var"]][(nrow(.data_tmp)-test_size):(nrow(.data_tmp))])
 
   if(nrow(.data_tmp) < 12 | cumsum(.data_tmp$y_var) == 0 | quantity_test_size == 0){
     model <- "croston"
   }
   
-
   # Internal functions ------------------------------------------------------
 
   # Ensemble intervals
+  
   get_pred_interval_int <- function(.data_tmp, .forecast_output, z_score = 1.95){
     .data_ts_tmp <- ts(.data_tmp$y_var, start = c(1,1), freq = 12)
     .resid_ts_tmp <- stl(.data_ts_tmp, s.window = "periodic")$time.series[,3]
-  
     pred_int_tmp <- .forecast_output %>% 
       rowwise() %>% 
       mutate(lower_threshold = case_when(type == "forecast" ~ y_var - z_score * sd(.resid_ts_tmp))
              , upper_threshold = case_when(type == "forecast" ~ y_var + z_score * sd(.resid_ts_tmp))) %>% 
       ungroup()
-    
     return(pred_int_tmp)
   }
   
   # Calculate ensemble
+  
   get_ensemble_int <- function(.forecast_tmp){
     ensemble_tmp <- .forecast_tmp %>% 
       dplyr::filter(type != "history") %>% # top n models cv
@@ -154,7 +166,40 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       dplyr::summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
   }
   
+  # Weighted ensemble
+  
+  get_ensemble_int_weighted <- function(.forecast_tmp, .weights){
+    
+    # auxiliar
+    
+    .weights <- .weights %>% select(model,cv_metric) %>% 
+      mutate(model = recode(model,dynamic_theta = "theta"))
+    
+    # join
+    
+    .forecast_tmp_ratios <- left_join(.forecast_tmp,.weights) 
+    .forecast_tmp_ratios <- .forecast_tmp_ratios %>% 
+      dplyr::filter(type == "forecast")
+    
+    # calculate new forecast
+    
+    .forecast_tmp_weighted <- .forecast_tmp_ratios %>% 
+      dplyr::group_by(model) %>% 
+      dplyr::mutate(ind_metric = 1/abs(cv_metric)) %>% 
+      dplyr::ungroup() %>% 
+      dplyr::mutate(all_metric = sum(unique(ind_metric),na.rm = TRUE),
+             coeff = ind_metric/all_metric) 
+    
+    # output
+    
+    ensemble_tmp <- .forecast_tmp_weighted %>% 
+      dplyr::group_by(date_var) %>% 
+      dplyr::mutate(y_var = y_var*coeff) %>% 
+      dplyr::summarise(y_var = sum(y_var,na.rm = TRUE), model = "ensemble", type = "forecast")
+  }
+  
   # Generalized function to get forecasts
+  
   get_forecast_int <- function(.data, model, horizon, parameter){
     .data %>% 
       fit_ts(model = model, parameter = parameter) %>% 
@@ -162,6 +207,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   }
   
   # Replace hyper-parameters on demand
+  
   optim_join_int <- function(.data, model, parameter, horizon, best_model){
     if(model %in% c("glmnet", "glm")){ # missing arima
       get_forecast_int(.data, model = model
@@ -176,11 +222,12 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   if(optim_profile == "fast"){ # Fast profile ----------------------------------
     
-    model <- setdiff(model, c("tbats","neural_network"))
+    model <- setdiff(model, c("neural_network"))
     
     cat(paste0("\nFast optimization for: ", length(model), " Models + Unweighted Ensemble Forecast"))
     
-    ## Generates forecast given default (hyper)parameters.
+    # Generates forecast given default (hyper)parameters.
+    
     forecast_tmp <- map(model, ~get_forecast_int(.data = .data_tmp
                                                , model = .x, horizon = horizon
                                                , parameter = parameter)) %>% 
@@ -192,7 +239,8 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       dplyr::select(key, date_var, y_var, model, type) %>% 
       replace_na(replace = list(type = "history", model = "history"))
     
-    ## Ensemble is a simple average of every model's forecast.
+    # Ensemble is a simple average of every model's forecast
+    
     ensemble_tmp <- get_ensemble_int(.forecast_tmp = forecast_tmp)
     
     forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
@@ -200,8 +248,11 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
   } else if(optim_profile == "light"){ # Light profile -------------------------
     
+    cat(paste0("\nLight optimization for: ", length(model), " Models + Weighted Ensemble Forecast"))
+    
     # slow models
-    model <- setdiff(model, c("tbats","neural_network"))
+    
+    model <- setdiff(model, c("neural_network"))
     
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
                                , parameter = parameter, model = model
@@ -211,6 +262,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     print(knitr::kable(best_model_int, "simple", 2))
     
     # get n best models
+    
     model <- best_model_int %>% 
       dplyr::filter(ranking <= number_best_models) %>% 
       .[["model"]]
@@ -226,7 +278,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       dplyr::select(key, date_var, y_var, model, type) %>% 
       replace_na(replace = list(type = "history", model = "history")) 
     
-    ensemble_tmp <- get_ensemble_int(.forecast_tmp = forecast_tmp)
+    ensemble_tmp <- get_ensemble_int_weighted(.forecast_tmp = forecast_tmp, .weights = best_model_int[best_model_int$model%in%model,])
     
     forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
       fill(key, .direction = "down")
@@ -235,21 +287,25 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   if(pred_interval == TRUE){
     
-    forecast_output <- get_pred_interval_int(.data_tmp = .data_tmp
-                                             , .forecast_output = forecast_output)
-    
+    forecast_output <- get_pred_interval_int(.data_tmp = .data_tmp,.forecast_output = forecast_output)
     attr(forecast_output, "prescription") <- attributes(.data_tmp)[["prescription"]]
     attr(forecast_output, "output_type") <- "optim_output_pi"
     
   } else { # Main output 
+    
     attr(forecast_output, "prescription") <- attributes(.data_tmp)[["prescription"]]
     attr(forecast_output, "output_type") <- "optim_output"
+    
   }
   
   if(meta_data == TRUE & optim_profile == "light"){
+    
     return(list(forecast_output = forecast_output, ranking = best_model_int))
+    
   } else {
+    
     return(forecast_output)
+    
   }
 }
 
@@ -269,7 +325,12 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
 #' plot_ts()
 #' }
 plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
+  
+  # Prescription
+  
   prescription <- attributes(.optim_output)[["prescription"]]
+  
+  # Colors
   
   cols <- c("#000000", "#1B9E77", "#D95F02", "#7570B3", "#E7298A"
     , "#66A61E", "#E6AB02", "#A6761D", "#666666"
@@ -310,6 +371,7 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
       graph_theme_int()
     
   } else if(attributes(.optim_output)[["output_type"]] == "optim_output") { # Optim output
+    
     graph_tmp <- .optim_output %>% 
       ggplot() +
       geom_line(aes(date_var, y_var, col = model))+
@@ -321,16 +383,25 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
       scale_y_continuous(n.breaks = 10, minor_breaks = NULL)+
       scale_x_date(expand = c(0,0),date_breaks = "3 month", minor_breaks = NULL) +
       graph_theme_int()
+    
   } else { # Error of input
     stop("Error, the input data is not class optim_output")
   }
+  
   if(multiple_keys == TRUE){ # Multiple keys
+    
     graph_tmp <- graph_tmp +
       facet_wrap( ~ key, scales = "free")
+    
   }
   if(interactive == TRUE){ # Interactive
+    
     ggplotly(graph_tmp)
+    
   } else {
+    
     graph_tmp
+    
   }
+  
 }

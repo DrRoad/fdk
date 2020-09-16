@@ -39,8 +39,8 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
   
   attr(.design_matrix, "prescription") <- attributes(.data)[["prescription"]]
   return(.design_matrix)
+  
 }
-
 
 #' Automatic Time Series Feature Engineering
 #' 
@@ -58,24 +58,25 @@ get_design_matrix <- function(.data, date_var=NULL, freq=NULL, parameter = NULL,
 #' feature_engineering_ts()
 #' }
 feature_engineering_ts <- function(.data, lag_var=NULL, n_lag=NULL){
+  
   prescription <- attributes(.data)[["prescription"]]
   
   # Internal functions
   
-  ## Wide regressors
+  # Wide regressors
   
   wide_reg_int <- function(.data){
     n_regressors <- n_distinct(setdiff(.data[["reg_name"]], c("0", "NA", NA_character_)))
     if(n_regressors == 0){
       .data_tmp <- .data %>% 
-        select(-reg_value, -reg_name) %>% 
+        dplyr::select(-reg_value, -reg_name) %>% 
         get_design_matrix(to_dummy = FALSE)
     } else if(n_regressors>=1){
       .data_tmp <- .data %>% 
         pivot_wider(names_from = "reg_name", values_from = "reg_value") %>% 
-        select(-matches("0|NA$")) %>% 
+        dplyr::select(-matches("0|NA$")) %>% 
         janitor::clean_names() %>% 
-        mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
+        dplyr::mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
       attr(.data_tmp, "prescription") <- prescription
       .data_tmp <- get_design_matrix(.data_tmp, to_dummy = FALSE)
     }
@@ -83,7 +84,7 @@ feature_engineering_ts <- function(.data, lag_var=NULL, n_lag=NULL){
     return(.data_tmp)
   }
   
-  ## Lags
+  # Lags
   
   get_lags_int <- function(.data, lag_var, n_lag){
     suppressMessages(
@@ -101,17 +102,5 @@ feature_engineering_ts <- function(.data, lag_var=NULL, n_lag=NULL){
   
   wide_reg_int(.data) %>% 
     get_lags_int(lag_var = lag_var, n_lag = n_lag)
+  
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
