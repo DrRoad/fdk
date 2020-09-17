@@ -161,15 +161,6 @@ light_optim_forecast %>%
   plot_ts(interactive = T)
 
 
-
-clipr::write_clip(light_optim_forecast=
-
-
-
-
-
-
-
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
 ntasks <- length(unique(data_all$key)[1:2])
@@ -195,3 +186,24 @@ stopCluster(cluster)
 
 results %>% 
   plot_ts(multiple_keys = T, interactive = T)
+
+
+
+
+# Hexyon ------------------------------------------------------------------
+
+h1 <- read_csv("test_source/hexyon_all.csv")
+
+h1 %>% 
+  do({
+    tmp <- tibble(.) %>% 
+      filter(key == "hexyon_vol") %>% 
+      select(-reg_name, -reg_value)
+    ms <- tibble(.) %>% 
+      filter(key == "hexyon_ms") %>% 
+      select(date_var, reg_name = key, reg_value = y_var)
+    left_join(
+      tmp, ms, by = "date_var"
+    )
+  }) %>% 
+  saveRDS(file = "hexyon_regressor.rds")
