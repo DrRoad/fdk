@@ -1,0 +1,53 @@
+---
+title: "Auxiliar functions"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Auxiliar functions}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, include = FALSE}
+library("tidyverse")
+library("ggplot2")
+library("autoforecast")
+library(ggrepel)
+```
+
+# Regression models' helpers
+
+## Get Time Weights
+
+Regression estimations can be adjusted by increasing the importance of the observations. Particularly, in time series data it could happen that recent data is considered a better signal to predict future values.  
+
+```{r}
+ap <- AirPassengers %>% 
+  as_tsibble() %>% 
+  as_tibble() %>% 
+  mutate(reg_name = "0", reg_value = 0, key = "airpassengers", index = as.Date(index)) %>% 
+  prescribe_ts(key = "key", y_var = "value", date_var = "index", reg_name = "reg_name", reg_value = "reg_value", freq = 12)
+```
+
+```{r}
+ap %>% 
+  feature_engineering_ts() %>% 
+  autoforecast::fit_ts()
+```
+
+
+
+```{r, fig.align='center', fig.width=6, warning=FALSE, echo=FALSE}
+c(0, .3, 0.91, 0.95, .99, .999, .9999, .99999, 1) %>% 
+  enframe() %>% 
+  mutate(time_weight = as.character(value)
+         , tw = map(value, ~get_time_weights(1:100, time_weight = .x) %>% 
+                      enframe)) %>%
+  select(time_weight, tw) %>% 
+  unnest(tw) %>% 
+  mutate(time_weight_label = ifelse(name == 75, time_weight, NA)) %>% 
+  ggplot(aes(name, value, col = time_weight))+
+  theme(legend.position = "none")+
+  geom_line()+
+  labs(x = "Time series index", y = "Observation weight")+
+  geom_text_repel(aes(label = time_weight_label))
+```

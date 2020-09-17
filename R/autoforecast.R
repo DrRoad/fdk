@@ -78,7 +78,7 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
 #' }
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 3
-                         , pred_interval = FALSE, metric = "mape", ...){
+                         , pred_interval = FALSE, metric = "mape", method = "winsorize", ...){
   
   # Default models
   
@@ -132,7 +132,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   .data_tmp <- .data  %>% 
     feature_engineering_ts() %>% 
-    clean_ts()
+    clean_ts(method = method)
   
   # Check data quality
   
