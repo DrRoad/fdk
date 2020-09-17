@@ -15,7 +15,6 @@
 #' get_arima()
 #' }
 get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
-  
   if(is.null(attributes(.data)[["prescription"]]) == FALSE) {
     prescription <- attributes(.data)[["prescription"]]
     y_var <- prescription$y_var
@@ -23,9 +22,7 @@ get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
     freq <- prescription$freq
     na_exclude <- unique(c(prescription$key, y_var, date_var))
   }
-  
   y_var_int <- ts(.data[[y_var]], frequency = freq) # maybe not optimal
-  
   if(is.null(parameter)==TRUE){
     message("ARIMA optimization...")
     model_fit <- auto.arima(y_var_int, stepwise = TRUE, seasonal = is_seasonal)
@@ -35,7 +32,6 @@ get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
   } else {
     model_fit <- Arima(y_var_int, order = as.numeric(parameter[["arima"]][c("p", "d", "q")]))
   }
-  
   .fit_output <- list(model = "arima"
                  , model_fit = model_fit
                  , fit_summary = list(
@@ -48,8 +44,3 @@ get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
   class(.fit_output) <- ".fit_output"
   return(.fit_output)
 }
-
-
-
-
-  
