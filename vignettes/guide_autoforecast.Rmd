@@ -1,0 +1,98 @@
+```{r warning=FALSE, message=FALSE}
+library(autoforecast)
+library(tsibble)
+library(tidyverse)
+```
+
+
+# Introduction
+
+AutoForecast is a set of modules written in R to produce automated Machine Learning (ML) pipelines focused on Time Series (TS) data. This tool has been designed following two main rules. First, the use *tidyverse* R lingua, which facilitates code's reading, writing, and standardization. Second, it implements the task's encapsulation into functions to solve small specific problems, that together conform a given module in ML workflows.
+
+# Quickstart
+
+## Installation
+
+AutoForecast is available as Gitlab's code repository, and it can be accessed for Sanofi employees using the company's network. There are ways to install it:
+
+- Downloading the zip or tar file, then install using RStudio^[Assumes the user has RStudio IDE] -> Packages -> Install -> Install from package archive (make sure install dependencies is checked)-> Find the package zip or tar in your local machine.
+- `devtools::install_github()`
+
+## Use case
+
+### Initial configuration
+
+AutoForecast interface has been inspired by the inheritance mechanism of Object-Oriented Programming (OOP) of retaining attributes across objects and applied this concept Functional Programming (FP) modularization. 
+
+The most important attribute to configure in time series data is time index frequency, that is, which is the distance from one data point from the other ^[Fixed distance between observations are assumed]. There is a standard way of characterizing frequency ^[for now, only monthly frequency, nor high frequency has not been implemented yet.]:
+
+1. Annual: 1
+2. Quarterly: 4
+3. Monthly: 12 (default)
+4. Weekly: 52
+5. Daily: 365
+
+
+Besides frequency, the user has to define the variable to be forecasted (also called the response), the column that represents dates, and regressors, dependent variables, or causal factor that controls for special events that presumably impact the to be forecasted variable.
+
+AutoForecast first and *unavoidable* step is to identify response `y_var`, date `date_var`, and frequency `freq`, variables, or column names. Optionally, if they are regressors, they will be identified as one column with regressor names `reg_name` and its value `reg_value`, whereas the `key` uniquely identifies the data (the closest comparison is the SKU).
+
+First, let's create a demo data from the known AirPassengers dataset. And some extra dummy columns generated: causal_fact and causal_fact_value.
+
+```{r}
+ap_init <- AirPassengers %>% 
+  as_tsibble() %>%
+  mutate(index = as.Date(index), causal_fact = "NA", causal_fact_value = 0, key = "ap") %>% 
+  as_tibble()
+
+head(ap_init)
+```
+
+```{r}
+ap <- prescribe_ts(.data = ap_init, key = "key", y_var = "value", date_var = "index"
+             , reg_name = "causal_fact", reg_value = "causal_fact_value", freq = 12)
+head(ap)
+```
+
+The dataset ap resembles ap_init, but within some configuration has been added that will be passed to the following modules in the time series pipeline.
+
+```{r}
+attributes(ap) %>% 
+  str()
+```
+
+The metadata showed above express some basic information about the data to be forecasted such as the maximum date (1960-12-01), or logical variable showing if the data has more than one key.
+
+
+### autoforecast
+
+
+
+### Feature engineering
+
+Feature engineering the is process of create data descriptors that helps to understand better the phenomena to be forecasted.
+
+AutoForecast has an automated feature engineering module for time series called `feature_engineering_ts()`.
+
+```{r}
+ap %>% 
+  feature_engineering_ts() %>% 
+  head()
+```
+
+TS basic features are trend and seasonal components. They are defined as a linear increasing vector of integers, whereas the seasonal aims to extract the regular element from the `date_var`.
+
+### Cleansing
+
+```{r}
+ap %>% 
+  feature_engineering_ts() %>% 
+  clean_ts(method = c("kalman", "winsorize", "median")) %>% 
+  ggplot()+
+  geom_line(aes(date_var, y_var_winsorize), col ="red")+
+  geom_line(aes(date_var, y_var))
+```
+
+
+
+
