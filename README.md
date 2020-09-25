@@ -19,10 +19,10 @@ Autoforecast is also accompanied by a front-end and cloud solution to improve us
 The installation can be performed directly from GitLab. 
 You can install it using the following code and using your personal GitLab account. 
 
-```{r}
+```r
 library(devtools)
 Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS=TRUE)
 pkg <- "https://emea-aws-gitlab.sanofi.com:3001/statistical_forecasting/packages/autoforecast.git"
 cred <- git2r::cred_user_pass(rstudioapi::askForPassword("Username"), rstudioapi::askForPassword("Password"))
 devtools::install_git(pkg, credentials = cred)
-````
+```
