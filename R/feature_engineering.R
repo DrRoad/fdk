@@ -66,15 +66,17 @@ feature_engineering_ts <- function(.data, lag_var=NULL, n_lag=NULL){
   # Wide regressors
   
   wide_reg_int <- function(.data){
+    
     n_regressors <- n_distinct(setdiff(.data[["reg_name"]], c("0", "NA", NA_character_)))
+    
     if(n_regressors == 0){
       .data_tmp <- .data %>% 
         dplyr::select(-reg_value, -reg_name) %>% 
         get_design_matrix(to_dummy = FALSE)
     } else if(n_regressors>=1){
       .data_tmp <- .data %>% 
-        pivot_wider(names_from = "reg_name", values_from = "reg_value") %>% 
-        dplyr::select(-matches("0|NA$")) %>% 
+        pivot_wider(names_from = "reg_name", values_from = "reg_value") %>%
+        dplyr::select(-matches("^0|^NA")) %>% 
         janitor::clean_names() %>% 
         dplyr::mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
       attr(.data_tmp, "prescription") <- prescription
