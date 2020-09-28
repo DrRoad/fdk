@@ -264,7 +264,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
   
   # Sequential
   
-  attr(optim_out, "output_type") <- "optim_out
+  attr(optim_out, "output_type") <- "optim_out"
   return(optim_out)
   
 }

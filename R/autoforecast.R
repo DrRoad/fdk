@@ -130,16 +130,22 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
   
-  .data_tmp <- .data  %>% 
-    feature_engineering_ts() %>% 
-    clean_ts(method = method)
-  
   # Check data quality
   
+  .data_tmp <- .data 
   quantity_test_size <- sum(.data_tmp[["y_var"]][(nrow(.data_tmp)-test_size):(nrow(.data_tmp))])
 
   if(nrow(.data_tmp) < 12 | cumsum(.data_tmp$y_var) == 0 | quantity_test_size == 0){
+    # If not enough data, do feature engineering & select a croston
+    .data_tmp <- .data_tmp %>% 
+      feature_engineering_ts()
     model <- "croston"
+    pred_interval <- FALSE
+  }else{
+    # Else, do feature engineering & cleansing
+    .data_tmp <- .data_tmp  %>% 
+      feature_engineering_ts() %>% 
+      clean_ts(method = method)
   }
   
   # Internal functions ------------------------------------------------------
