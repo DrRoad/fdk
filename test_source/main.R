@@ -45,7 +45,7 @@ model_list <- c("glm", "glmnet", "dynamic_theta", "prophet", "arima", "ets","sea
 
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
-ntasks <- length(unique(data_all$key)[1:5])
+ntasks <- length(unique(data_all$key))
 progress <- function(n) {
   cat(sprintf(" %d Keys(s) / %.2f%% percent remaining\n",ntasks-n,(ntasks-n)*100/ntasks))
 }
