@@ -4,10 +4,14 @@
 \alias{feature_engineering_ts}
 \title{Automatic Time Series Feature Engineering}
 \usage{
-feature_engineering_ts(.data)
+feature_engineering_ts(.data, lag_var = NULL, n_lag = NULL)
 }
 \arguments{
 \item{.data}{data-frame or tibble}
+
+\item{lag_var}{String. Name of the regressor or dependent variable (y_var) to be lagged.}
+
+\item{n_lag}{Numeric. How many lags to create for each lag_var}
 }
 \value{
 data-frame or tibble

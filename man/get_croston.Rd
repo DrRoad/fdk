@@ -4,7 +4,7 @@
 \alias{get_croston}
 \title{Fit Croston model}
 \usage{
-get_croston(.data, y_var, horizon = 10, parameter = NULL)
+get_croston(.data, y_var, horizon = 12, parameter = NULL)
 }
 \arguments{
 \item{.data}{Data frame or tibble with a response variable.}

@@ -1,18 +1,18 @@
 # Main package
 
-pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
+pkg <- c("autoforecast","glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
          "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
-         "prophet", "forecTheta", "autoforecast")
+         "prophet", "forecTheta")
 
 lapply(pkg, require, character.only = TRUE)
 
 # Parameters -------------------------------------------------------------
 
-grid_glmnet <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
-                           , trend_discount = seq(from = 0.55, to = 0.65, by = 0.025)
-                           , alpha = seq(from = 0, to = 1, by = 0.1))
-grid_glm <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
-                        , trend_discount = seq(from = 0.55, to = 0.65, by = 0.025))
+grid_glmnet <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.02)
+                           , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1)
+                           , alpha = seq(from = 0, to = 1, by = 0.25))
+grid_glm <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.02)
+                        , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1))
 
 # Parameter list -------------------------------------------------------------
 
@@ -32,16 +32,44 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 
 # Data import
 
-data_init <- read_csv("test_source/canada_test.csv") %>% 
+data_init <- read_csv("test_source/canada_test.csv")[,-1] %>% 
   dplyr::filter(date <= "2020-02-01")
 
 data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
+# # Testing!!!
+# 
+# # data
+# 
+# .data <- data_test <- data_all %>% filter(key %in% unique(data_all$key)[119])
+# 
+# # params
+# 
+# model_list <- "glm"
+# optim_profile <- "light"
+# test_size <- 6
+# lag <- 3
+# method <- "winsorize"
+# tune_parallel <- TRUE
+# number_best_models <- 1
+# pred_interval <- TRUE
+# metric <- "mape"
+# 
+# # run
+# 
+# aux <- autoforecast(.data = data_test, horizon = 24
+#              , model = model_list
+#              , parameter = parameter, optim_profile = "light", test_size = 6
+#              , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
+#              , number_best_models = 1, pred_interval = TRUE)
+# 
+# aux %>% plot_ts()
+
 # Multiple items / Parallel ----------------------------------------------------------
 
-model_list <- c("seasonal_naive", "croston", "glm", "glmnet", "dynamic_theta", "prophet", "arima", "ets")
+model_list <- c("glm", "glmnet", "prophet", "dyn_theta", "croston", "arima", "ets")
 
 cluster = makeCluster(6, type = "SOCK")
 registerDoSNOW(cluster)
@@ -59,7 +87,8 @@ results <- foreach(key_i = unique(data_all$key), .errorhandling='stop', .combine
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
                , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
-               , number_best_models = 1, pred_interval = TRUE)
+               , number_best_models = 1, pred_interval = TRUE
+               , metric = "mape")
 }
 tictoc::toc()
 
@@ -69,13 +98,9 @@ write.csv(results,"test_source/results.csv")
 
 # Plot
 
-# plot_res <- results %>% filter(key == unique(data_all$key)[19] & !model == "ensemble") %>%
-#   plot_ts(interactive = F)
-# 
-# plot_res
+plot_res <- results %>% filter(key == unique(data_all$key)[44] & !model == "ensemble") %>%
+  plot_ts(interactive = F)
 
-# Strange elastic net:
-
-# 13,14,19
+plot_res
 
 #---
