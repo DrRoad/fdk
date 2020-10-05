@@ -73,17 +73,38 @@ feature_engineering_ts <- function(.data, lag_var=NULL, n_lag=NULL){
       .data_tmp <- .data %>% 
         dplyr::select(-reg_value, -reg_name) %>% 
         get_design_matrix(to_dummy = FALSE)
+      
+      # inheritance
+      attr(.data_tmp, "prescription") <- attributes(.data)[["prescription"]]
+      
+      return(.data_tmp)
+      
     } else if(n_regressors>=1){
       .data_tmp <- .data %>% 
         pivot_wider(names_from = "reg_name", values_from = "reg_value") %>%
         dplyr::select(-matches("^0|^NA")) %>% 
         janitor::clean_names() %>% 
         dplyr::mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
-      attr(.data_tmp, "prescription") <- prescription
+      
+      # regressor names
+      
+      reg_names <- setdiff(names(.data_tmp),c("key", "date_var", "y_var"))
+      
+      # inheritance
+      
+      attr(.data_tmp, "prescription") <- attributes(.data)[["prescription"]]
+      
+      # pass regressor names
+      
+      attr(.data_tmp, "prescription")[["has_regressors"]] <- length(reg_names)>0
+      attr(.data_tmp, "prescription")[["reg_names"]] <- reg_names
+      
+      # export design matrix
+      
       .data_tmp <- get_design_matrix(.data_tmp, to_dummy = FALSE)
+      
+      return(.data_tmp)
     }
-    attr(.data_tmp, "prescription") <- attributes(.data)[["prescription"]]
-    return(.data_tmp)
   }
   
   # Lags
@@ -101,6 +122,8 @@ feature_engineering_ts <- function(.data, lag_var=NULL, n_lag=NULL){
       }
     )
   }
+  
+  # Export
   
   wide_reg_int(.data) %>% 
     get_lags_int(lag_var = lag_var, n_lag = n_lag)

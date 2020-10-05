@@ -1,3 +1,10 @@
+---
+title: "AutoForecast intro"
+author: "Ignasi Pascual & Obryan Poyser"
+output: html_document
+---
+
+
 ```{r warning=FALSE, message=FALSE}
 library(autoforecast)
 library(tsibble)
