@@ -17,6 +17,11 @@ date_seq <- tail(data_init$date_var,6)
 
 grid_number <- 30
 
+# param_grid = {  
+#   'changepoint_prior_scale': [0.001, 0.01, 0.1, 0.5],
+#   'seasonality_prior_scale': [0.01, 0.1, 1.0, 10.0],
+# }
+
 rand_search_grid =  data.frame( 
   changepoint_prior_scale = sort(runif(grid_number, 0.1, 60)),
   seasonality_prior_scale = sort(sample(runif(grid_number, 0.1, 20))),

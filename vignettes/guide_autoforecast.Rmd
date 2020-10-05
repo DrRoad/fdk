@@ -6,11 +6,11 @@ output: html_document
 
 
 ```{r warning=FALSE, message=FALSE}
-library(autoforecast)
-library(tsibble)
-library(tidyverse)
+library("autoforecast")
+library("ggrepel")
+library("tsibble")
+library("dplyr")
 ```
-
 
 # Introduction
 
@@ -20,9 +20,10 @@ AutoForecast is a set of modules written in R to produce automated Machine Learn
 
 ## Installation
 
-AutoForecast is available as Gitlab's code repository, and it can be accessed for Sanofi employees using the company's network. There are ways to install it:
+AutoForecast is available as Gitlab's code repository, and it can be accessed by Sanofi employees using the company's network. There are ways to install it:
 
 - Downloading the zip or tar file, then install using RStudio^[Assumes the user has RStudio IDE] -> Packages -> Install -> Install from package archive (make sure install dependencies is checked)-> Find the package zip or tar in your local machine.
+
 - `devtools::install_github()`
 
 ## Use case
@@ -38,7 +39,6 @@ The most important attribute to configure in time series data is time index freq
 3. Monthly: 12 (default)
 4. Weekly: 52
 5. Daily: 365
-
 
 Besides frequency, the user has to define the variable to be forecasted (also called the response), the column that represents dates, and regressors, dependent variables, or causal factor that controls for special events that presumably impact the to be forecasted variable.
 
@@ -73,8 +73,6 @@ The metadata showed above express some basic information about the data to be fo
 
 ### autoforecast
 
-
-
 ### Feature engineering
 
 Feature engineering the is process of create data descriptors that helps to understand better the phenomena to be forecasted.
@@ -99,7 +97,4 @@ ap %>%
   geom_line(aes(date_var, y_var_winsorize), col ="red")+
   geom_line(aes(date_var, y_var))
 ```
-
-
-
 

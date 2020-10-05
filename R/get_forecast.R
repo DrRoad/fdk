@@ -100,10 +100,9 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     if (tune == TRUE) {
       x_data %>%
         transmute(
-          y_var_true = y_var
-          , y_var_fcst = as.numeric(.fit_output$model_fit[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]] # as subset = seasonal_naive
-          #, y_var_fcst = as.numeric(croston(.fit_output$y_var_int)[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]]
-          , parameter = list(NULL)
+          y_var_true = y_var,
+          y_var_fcst = as.numeric(.fit_output$model_fit[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]], 
+          parameter = list(NULL)
         )
     } else {
       tibble(
@@ -118,8 +117,8 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
         x_data %>%
           transmute(
             y_var_true = y_var,
-            y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-            , parameter = str_remove_all(.fit_output[["model_fit"]][["method"]], "ETS|NNAR|,|\\)|\\(")
+            y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]])),
+            parameter = str_remove_all(.fit_output[["model_fit"]][["method"]], "ETS|NNAR|,|\\)|\\(")
           )
       } else {
         tibble(
@@ -135,8 +134,8 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       x_data %>%
         transmute(
           y_var_true = y_var,
-          y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = str_remove_all(.fit_output[["model_fit"]][["method"]], "ETS|NNAR|,|\\)|\\(")
+          y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]])),
+          parameter = str_remove_all(.fit_output[["model_fit"]][["method"]], "ETS|NNAR|,|\\)|\\(")
         )
     } else {
       tibble(
@@ -150,8 +149,8 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       x_data %>%
         transmute(
           y_var_true = y_var,
-          y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = list(.fit_output[["model_fit"]][["parameters"]][["vect"]])
+          y_var_fcst = last(as.numeric(predict(.fit_output[["model_fit"]], attributes(x_data)[["prescription"]][["lag"]])[["mean"]])),
+          parameter = list(.fit_output[["model_fit"]][["parameters"]][["vect"]])
         )
     } else {
       tibble(
@@ -164,10 +163,9 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
     if (tune == TRUE) {
       x_data %>%
         transmute(
-          y_var_true = y_var
-          , y_var_fcst = as.numeric(.fit_output$model_fit[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]] # as subset
-          #, y_var_fcst = last(as.numeric(snaive(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = list(.fit_output[["model_fit"]][["parameters"]][["vect"]])
+          y_var_true = y_var,
+          y_var_fcst = as.numeric(.fit_output$model_fit[["mean"]])[attributes(x_data)[["prescription"]][["lag"]]], 
+          parameter = list(.fit_output[["model_fit"]][["parameters"]][["vect"]])
         )
     } else {
       tibble(
@@ -176,28 +174,45 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
         model = .fit_output[["model"]]
       )
     }
-  } else if(.fit_output[["model"]] == "theta"){
+  } else if(.fit_output[["model"]] == "dyn_theta"){
     if (tune == TRUE) {
-      x_data %>%
-        transmute(
-          y_var_true = y_var,
-          y_var_fcst = last(as.numeric(dotm(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = list(NULL)
-        )
+      if(nrow(x_data) > 12){
+        x_data %>%
+          transmute(
+            y_var_true = y_var,
+            y_var_fcst = last(as.numeric(dotm(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]])), 
+            parameter = list(NULL)
+          )
+      }else if(nrow(x_data) <= 12){
+        x_data %>%
+          transmute(
+            y_var_true = y_var,
+            y_var_fcst = last(as.numeric(dotm(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]], s = FALSE)[["mean"]])), 
+            parameter = list(NULL)
+          )
+      }
     } else {
-      tibble(
-        date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
-        y_var_fcst = as.numeric(dotm(.fit_output$y_var_int, horizon)[["mean"]]),
-        model = .fit_output[["model"]]
-      )
+      if(length(.fit_output$y_var_int) > 12){
+        tibble(
+          date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
+          y_var_fcst = as.numeric(dotm(.fit_output$y_var_int, horizon)[["mean"]]),
+          model = .fit_output[["model"]]
+        )
+      }else if(length(.fit_output$y_var_int) <= 12){
+        tibble(
+          date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
+          y_var_fcst = as.numeric(dotm(.fit_output$y_var_int, horizon, s = FALSE)[["mean"]]),
+          model = .fit_output[["model"]] 
+        )
+      }
     }
   } else if(.fit_output[["model"]] == "tslm"){
     if (tune == TRUE) {
       x_data %>%
         transmute(
           y_var_true = y_var,
-          y_var_fcst = last(as.numeric(forecast(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]]))
-          , parameter = list(NULL)
+          y_var_fcst = last(as.numeric(forecast(.fit_output$y_var_int, attributes(x_data)[["prescription"]][["lag"]])[["mean"]])),
+          parameter = list(NULL)
         )
     } else {
       tibble(
@@ -216,8 +231,8 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       x_data %>%
         transmute(
           y_var_true = y_var,
-          y_var_fcst = last(predict(.fit_output$model_fit, future)$yhat)
-          , parameter = list(NULL)
+          y_var_fcst = last(predict(.fit_output$model_fit, future)$yhat),
+          parameter = list(NULL)
         )
     } else {
       # Main df

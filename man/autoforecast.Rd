@@ -17,6 +17,8 @@ autoforecast(
   number_best_models = 3,
   pred_interval = FALSE,
   metric = "mape",
+  method = "winsorize",
+  freq = 12,
   ...
 )
 }

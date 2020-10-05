@@ -6,7 +6,7 @@
 \usage{
 prescribe_ts(
   .data,
-  key,
+  key = NULL,
   y_var,
   date_var,
   reg_name = NULL,
