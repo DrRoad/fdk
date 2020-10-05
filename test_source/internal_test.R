@@ -52,8 +52,8 @@ parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha =
 
 data_init <- read_csv("test_source/demo_data.csv") %>% 
   dplyr::filter(date < "2020-02-01"
-                , forecast_item != "FI: 34142") %>% 
-  mutate(reg_name = ifelse(reg_name == "0", NA_character_, reg_name))
+                , forecast_item != "FI: 34142") #%>% 
+  #mutate(reg_name = ifelse(reg_name == "0", NA_character_, reg_name))
 
 
 data_all <- data_init %>%
