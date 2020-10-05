@@ -28,9 +28,13 @@ get_dyn_theta <- function(.data, y_var, horizon = 12, parameter = NULL){
   # Ts Object
   y_var_int <- ts(.data[[y_var]], frequency = freq)
   # Model fit
+  if(length(y_var_int) > 12){
   model_fit <- dotm(y_var_int, h = horizon)
+  }else{ # Can't compute seasonality
+  model_fit <- dotm(y_var_int, h = horizon, s=FALSE) 
+  }
   # Timelapse
-  .fit_output <- list(model = "theta"
+  .fit_output <- list(model = "dyn_theta"
                       , model_fit = model_fit
                       , y_var_int = y_var_int
                       , y_var_fcst = as.numeric(model_fit$mean)
