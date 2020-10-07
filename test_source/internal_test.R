@@ -52,8 +52,8 @@ parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha =
 
 data_init <- read_csv("test_source/demo_data.csv") %>% 
   dplyr::filter(date < "2020-02-01"
-                , forecast_item != "FI: 34142") %>% 
-  mutate(reg_name = ifelse(reg_name == "0", NA_character_, reg_name))
+                , forecast_item != "FI: 34142") #%>% 
+  #mutate(reg_name = ifelse(reg_name == "0", NA_character_, reg_name))
 
 
 data_all <- data_init %>%
@@ -61,7 +61,7 @@ data_all <- data_init %>%
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
 .data <- data_all %>% 
-  filter(key == "DK: 578281")
+  filter(key == "FI: 592905")
 
 
 ## Dupixent
@@ -77,7 +77,7 @@ us0 <- read_rds("test_source/us_dupixent.rds") %>%
 ### Default parameters
 
 fit_1 <- data_all %>% 
-  filter(key == "DK: 578281") %>%
+  filter(key == "FI: 592905") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
   fit_ts(model = "ets", parameter = parameter) %>% 
