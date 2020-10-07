@@ -118,7 +118,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
     na_marker_int <- rowSums(.data[setdiff(names(.data), na_exclude)])!=0
     
     if(length(method) > 1) { # many methods create a tibble with method colnames
-      message("Multiple cleansing methods applied...")
+      cat("Multiple cleansing methods applied...\n")
       tmp <- .data %>%
         mutate(
           na_marker_int = na_marker_int,
@@ -160,7 +160,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
       tmp <- .data %>%
         mutate(y_var_clean = y_var)
     } else if(method != "winsorize") {
-      message(paste0("Method ", method, " has been applied to clean the time series."))
+      cat(paste0("Method ", method, " has been applied to clean the time series.\n"))
       tmp <- .data %>%
         mutate(
           na_marker_int = na_marker_int,
@@ -174,7 +174,7 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
       stop("ERROR")
     }
   } else {
-    message(paste0("You've selected method: {", method, "}. There are no regressors, a simple winsorize has been applied instead."))
+    cat(paste0("You've selected method: {", method, "}. There are no regressors, a simple winsorize has been applied instead.\n"))
     tmp <- .data %>%
       mutate(y_var_clean = imputation_switcher(y_var = .data[[y_var]]
                                               , method = "winsorize"
@@ -221,26 +221,15 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
 #' clean_ts()
 #' }
 clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_exclude = NULL, replace_y_var = TRUE){
-  if(is.null(attributes(.data)[["prescription"]])==FALSE){
-    prescription <- attributes(.data)[["prescription"]]
-    na_exclude <- unique(c(prescription$key
-                           , prescription$y_var
-                           , prescription$date_var
-                           , c("trend", "seasonal_var")
-                           , na_exclude))
-    
-    y_var <- prescription$y_var
-    date_var <- prescription$date_var
-    freq <- prescription$freq
-    key <- prescription$key
-  }
+  
+  prescription <- attributes(.data)[["prescription"]]
   
   .data %>%
-    dplyr::filter(cumsum(.data[["y_var"]])>0) %>% # Leading zeros
-    impute_ts(y_var = y_var
+    dplyr::filter(cumsum(replace_na(y_var, 0))>0) %>% 
+    impute_ts(y_var = "y_var"
               , method = method
               , na_exclude = na_exclude
-              , freq = freq
+              , freq = prescription[["freq"]]
               , replace_y_var = replace_y_var) %>%
     mutate(trend = 1:n()
            #y_var = tscut(time_series = y_var, freq = freq) # May generate a problem
