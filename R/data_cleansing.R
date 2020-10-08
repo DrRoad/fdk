@@ -9,7 +9,7 @@
 #' @param na_marker logical or binary indicator that defines which observation should be take out of the
 #' loess decomposition.
 #' @param freq Numeric. Time series frequency, 12 by default.
-#' @param include Logical. Whether to print all time series components.
+#' @param print_all Logical. Whether to print all time series components.
 #'
 #' @author Obryan Poyser
 #' @return numeric cleansed series
@@ -22,44 +22,56 @@
 #'
 #' @examples
 #' \dontrun{
-#' na_winsorize(AirPassengers)
+#' winsorize_ts(AirPassengers)
 #' }
-na_winsorize <- function(y_var, na_marker=NULL, freq = 12, include = FALSE){
+winsorize_ts <- function(.data, freq, print_all = FALSE, threshold = 0.05, impute = FALSE){
   
-  y_var_denoise <- NULL
-  
-  if(is.null(na_marker)==FALSE){
-    y_var_na <- y_var
-    y_var_na[na_marker==1] <- NA
-  } else {
-    y_var_na <- y_var
+  winsorize_ts_int <- function(.data, freq, print_all = FALSE, threshold = 0.05, impute = FALSE){
+    y_var <- .data[["y_var"]]
+    
+    y_var_decomp <- as_tibble(stlplus(y_var, n.p = freq
+                                      , s.window = "periodic")[["data"]][,c(1:4)]) %>% 
+      mutate(original = as.numeric(y_var)
+             , y_var_denoise = seasonal + trend) %>% 
+      rename(trend_smooth = trend)
+    
+    tmp <- y_var_decomp %>% 
+      mutate(remainder_winso = case_when(
+        remainder < quantile(remainder, probs = threshold, na.rm = T) ~ quantile(remainder, probs = threshold, na.rm = T)
+        , remainder > quantile(remainder, probs = (1 - threshold), na.rm = T) ~ quantile(remainder, probs = (1 - threshold), na.rm = T)
+        , TRUE ~ remainder)
+        , thres_low = y_var_denoise + quantile(remainder, probs = threshold, na.rm = T)
+        , thres_up = y_var_denoise + quantile(remainder, probs = (1 - threshold), na.rm = T)
+        , y_var_clean = case_when(
+          original > thres_up ~ thres_up
+          , original < thres_low ~ thres_low
+          , TRUE ~ original))
+    
+    if(impute == TRUE){
+      tmp <- tmp %>% 
+        mutate(y_var_clean = case_when(
+          y_var_denoise > median(y_var_denoise) & is.na(raw) == T ~ thres_up
+          , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
+          , TRUE ~ original)
+        )
+    }
+    
+    if(print_all == FALSE){
+      tmp %>% 
+        dplyr::select(y_var_clean)
+    } else {
+      tmp
+    }
   }
   
-  y_var_decomp <- as_tibble(stlplus(y_var_na, n.p = freq
-                                     , s.window = "periodic", )[["data"]][,c(1:4)]) %>% 
-    mutate(original = as.numeric(y_var)
-           , y_var_denoise = seasonal + trend)
-  
-  tmp_out <- y_var_decomp %>% 
-    mutate(remainder_winso = case_when(
-             remainder < quantile(remainder, probs = 0.05, na.rm = T) ~ quantile(remainder, probs = 0.05, na.rm = T)
-             , remainder > quantile(remainder, probs = 0.95, na.rm = T) ~ quantile(remainder, probs = 0.95, na.rm = T)
-             , TRUE ~ remainder)
-           , thres_low = y_var_denoise + quantile(remainder, probs = 0.05, na.rm = T)
-           , thres_up = y_var_denoise + quantile(remainder, probs = 0.95, na.rm = T)
-           , y_var_clean = case_when(
-             original > thres_up ~ thres_up
-             , original < thres_low ~ thres_low
-             , y_var_denoise > median(y_var_denoise) & is.na(raw) == T ~ thres_up
-             , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
-             , TRUE ~ original))
-  
-  if(include == FALSE){
-    tmp_out %>% 
-      .[["y_var_clean"]] %>% 
-      round(1)
+  if(print_all == TRUE){
+    .data %>% 
+      bind_cols(winsorize_ts_int(.data = .data, freq = 12, print_all = print_all, impute = impute))
   } else {
-    tmp_out
+    .data %>% 
+      bind_cols(winsorize_ts_int(.data = .data, freq = 12, print_all = FALSE, impute = impute)) %>% 
+      mutate(y_var = y_var_clean) %>% 
+      dplyr::select(-y_var_clean)
   }
 }
 
@@ -91,12 +103,14 @@ na_winsorize <- function(y_var, na_marker=NULL, freq = 12, include = FALSE){
 #' \dontrun{
 #' impute_ts()
 #' }
-impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq = 12, replace_y_var = TRUE, ...) {
+impute_ts <- function(.data, method = "kalman", na_exclude = NULL, freq = NULL, replace_y_var = TRUE,...) {
   
-  imputation_switcher <- function(y_var, method, freq = freq, ...) {
+  prescription <- attributes(.data)[["prescription"]]
+  
+  imputation_switcher <- function(y_var, method, freq, ...) {
     y_var <- ts(y_var, frequency = freq, start = c(1, 1))
     if (method == "kalman") {
-      as.numeric(na_seadec(x = y_var, algorithm = "kalman", ...))
+      round(as.numeric(na_seadec(x = y_var, algorithm = "kalman", ...)), 2)
     } else if (method == "winsorize") {
       na_winsorize(y_var = y_var, ...)
     } else if (method == "mean") {
@@ -107,89 +121,40 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
       as.numeric(na_locf(x = y_var, option = "locf", na_remaining = "rev", ...))
     } else if (method == "interpolation") {
       as.numeric(na_interpolation(x = y_var, option = "linear", ...))
-    }
-  }
-  
-  if(is.numeric(y_var)==TRUE){
-    return(imputation_switcher(y_var, method = "winsorize", freq = freq))
-  }
-  
-  if(is.null(na_exclude) == FALSE) {
-    na_marker_int <- rowSums(.data[setdiff(names(.data), na_exclude)])!=0
-    
-    if(length(method) > 1) { # many methods create a tibble with method colnames
-      cat("Multiple cleansing methods applied...\n")
-      tmp <- .data %>%
-        mutate(
-          na_marker_int = na_marker_int,
-          y_var_na = ifelse(na_marker_int == 1, NA, .data[[y_var]])
-        )
-      
-      return(
-        suppressMessages(
-          tmp %>%
-            bind_cols(
-              map(setdiff(method, "winsorize")
-                  , .f = ~ imputation_switcher(
-                    y_var = tmp[["y_var_na"]]
-                    , method = .x
-                    , freq = freq
-                  )) %>%
-                setNames(nm = paste0("y_var_", setdiff(method, "winsorize")))
-              , imputation_switcher(y_var = (tmp[["y_var"]])
-                                    , method = "winsorize"
-                                    , freq = freq
-                                    , na_marker = na_marker_int) %>% 
-                tibble(y_var_winsorize = .)
-            ) %>%
-            select(-y_var_na, -na_marker_int)
-        )
-      )
-    } else if(method == "winsorize"){ # Not working correctly
-      #message("Method: winsorize has been applied to clean the time series.")
-      tmp <- .data %>%
-        mutate(y_var_clean = imputation_switcher(
-          y_var = .data[["y_var"]],
-          method = "winsorize",
-          freq = freq,
-          #na_marker = na_marker_int
-          )
-        )
-    } else if(method == "none") {
-      #message("none")
-      tmp <- .data %>%
-        mutate(y_var_clean = y_var)
-    } else if(method != "winsorize") {
-      cat(paste0("Method ", method, " has been applied to clean the time series.\n"))
-      tmp <- .data %>%
-        mutate(
-          na_marker_int = na_marker_int,
-          y_var_clean = ifelse(na_marker_int == 1, NA, .data[["y_var"]]) %>%
-            imputation_switcher(y_var = .
-                                , method = method
-                                , freq = freq)
-        ) %>%
-        select(-na_marker_int)
     } else {
-      stop("ERROR")
+      stop("Imputation method not recognized")
     }
-  } else {
-    cat(paste0("You've selected method: {", method, "}. There are no regressors, a simple winsorize has been applied instead.\n"))
-    tmp <- .data %>%
-      mutate(y_var_clean = imputation_switcher(y_var = .data[[y_var]]
-                                              , method = "winsorize"
-                                              , freq = freq)
-      )
-    }
-  
-  if (replace_y_var == TRUE) {
-    tmp %>%
-      mutate(!!quo({{y_var}}) := y_var_clean) %>% # masking names
-      select(-y_var_clean)
-  } else {
-    tmp %>%
-      relocate(y_var_clean, .after = "y_var")
   }
+  
+  suppressMessages({
+      if(all(method == "none") == FALSE){
+        default_cols <- c("key", "y_var", "date_var", "trend", "seasonal_var")
+        na_marker_int <- rowSums(.data[setdiff(names(.data), c(default_cols, na_exclude))])!=0
+        
+        tmp <- .data %>%
+          mutate(
+            na_marker_int = na_marker_int,
+            y_var_na = ifelse(na_marker_int == 1, NA_real_, y_var)) %>% 
+          {tmp2 <<- .} %>% 
+          bind_cols(
+            map_dfc(method, .f = ~imputation_switcher(tmp2[["y_var_na"]]
+                                                      , method = .x
+                                                      , freq = prescription[["freq"]])) %>% 
+              setNames(nm = paste0("y_var_", method))) %>% 
+          dplyr::select(-na_marker_int, -y_var_na) %>% 
+          relocate(matches("y_var_"), .after ="y_var")
+        
+        if(replace_y_var == T & length(method)==1){
+          tmp <- tmp %>% 
+            mutate(y_var = !!sym(paste0("y_var_", method))) %>% 
+            dplyr::select(-paste0("y_var_", method))
+        }
+      } else if(method =="none"){
+        tmp <- .data
+      }
+  })
+  
+  return(tmp)
 }
 
 # Cleansing ---------------------------------------------------------------
@@ -220,21 +185,31 @@ impute_ts <- function(.data, y_var, method="winsorize", na_exclude = NULL, freq 
 #' \dontrun{
 #' clean_ts()
 #' }
-clean_ts <- function(.data, y_var, date_var, method="winsorize", freq = 12, na_exclude = NULL, replace_y_var = TRUE){
+clean_ts <- function(.data, method = "kalman", na_exclude = NULL, replace_y_var = TRUE
+                     , print_all=FALSE, threshold = 0.05, impute = FALSE, winsorize = TRUE){
   
   prescription <- attributes(.data)[["prescription"]]
   
-  .data %>%
+  tmp <- .data %>%
     dplyr::filter(cumsum(replace_na(y_var, 0))>0) %>% 
-    impute_ts(y_var = "y_var"
-              , method = method
+    impute_ts(method = method
               , na_exclude = na_exclude
               , freq = prescription[["freq"]]
-              , replace_y_var = replace_y_var) %>%
-    mutate(trend = 1:n()
-           #y_var = tscut(time_series = y_var, freq = freq) # May generate a problem
-           #        , 
-           )
+              , replace_y_var = replace_y_var)
+  
+  if(winsorize == TRUE){
+    tmp <- tmp %>% 
+      winsorize_ts(freq = prescription[["freq"]]
+                   , print_all = print_all
+                   , threshold = threshold
+                   , impute = impute) %>% 
+      mutate(trend = 1:n()
+             #y_var = tscut(time_series = y_var, freq = freq) # May generate a problem
+             #        , 
+      )
+  }
+  
+  return(tmp)
 }
 
 

@@ -76,9 +76,9 @@ data_all <- data_init %>%
   filter(key == "FI: 592905") %>% 
   slice(-c(2:5), -n()) %>% 
   validate_ts(na_value = NA_real_) %>% 
-  feature_engineering_ts() %>% 
-  clean_ts(method = "none") %>% 
-  fit_ts(model = "glmnet", parameter = parameter) %>% 
+  feature_engineering_ts(lag_var = "y_var") %>% 
+  clean_ts(method = "kalman", winsorize = TRUE) %>% 
+  fit_ts(model = "glm", parameter = parameter) %>% 
   get_forecast(horizon = 20)
 
 ## Dupixent
@@ -97,7 +97,7 @@ fit_1 <- data_all %>%
   filter(key == "FI: 592905") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter) %>% 
+  fit_ts(model = "glm", parameter = parameter) %>% 
   get_forecast(horizon = 10)
 
 #### Fit output
