@@ -236,6 +236,29 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
             select(ranking, model, cv_metric, parameter)
         }
       )
+    } else if(model == "svm") {
+      
+      cat(paste0("\nDYNAMIC THETA: Tuning...\n"))
+      
+      suppressMessages(
+        {
+          splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
+            enframe(name = "iter", value = "splits")
+          map(.x = splits_tmp$splits
+              , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
+                get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
+            bind_rows() %>% 
+            summarise(cv_metric = accuracy_metric(y_var_true = sum(y_var_true)
+                                                  , y_var_pred = sum(y_var_fcst)
+                                                  , metric = metric)
+                      , model = model
+                      , ranking = NA_integer_
+                      , parameter = list(NULL)
+                      , .groups = "drop") %>% 
+            arrange(abs(cv_metric)) %>% 
+            select(ranking, model, cv_metric, parameter)
+        }
+      )
     } else if((model %in% c("croston", "tbats", "seasonal_naive", "ets")) == TRUE){ # Forecast models
       
       cat(paste0("\n", toupper(model), ": Hyperparameter tuning...\n"))

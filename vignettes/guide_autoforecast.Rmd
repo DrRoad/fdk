@@ -43,7 +43,7 @@ First, let's create a demo data from the known AirPassengers dataset. And some e
 ```{r}
 ap_init <- AirPassengers %>% 
   as_tsibble() %>%
-  mutate(index = as.Date(index), causal_fact = "NA", causal_fact_value = 0, key = "ap") %>% 
+  mutate(index = as.Date(index), causal_fact = 0, causal_fact_value = 0, key = "ap") %>% 
   as_tibble()
 
 head(ap_init)

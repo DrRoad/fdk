@@ -18,10 +18,10 @@
 get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE) {
   if(is.null(attributes(.fit_output)[["prescription"]]) == FALSE) {
     prescription <- attributes(.fit_output)[["prescription"]]
-    #y_var <- prescription$y_var
-    #date_var <- prescription$date_var
-    #freq <- prescription$freq
-    #na_exclude <- unique(c(prescription$key, y_var, date_var))
+    # y_var <- prescription$y_var
+    # date_var <- prescription$date_var
+    # freq <- prescription$freq
+    # na_exclude <- unique(c(prescription$key, y_var, date_var))
     if (prescription$freq == 12) {
       freq_string <- "month"
     }
@@ -69,7 +69,6 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
           alpha = .fit_output$parameter$alpha,
           lambda = .fit_output$parameter$lambda
         )
-
       return(x_data_tmp)
     }
   } else if (.fit_output[["model"]]== "glm") {
@@ -243,6 +242,29 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       tibble(
         date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
         y_var_fcst = tail(predict(.fit_output$model_fit, future)$yhat,horizon),
+        model = .fit_output[["model"]]
+      )
+    }
+  } else if(.fit_output[["model"]] == "svm"){
+    if (tune == TRUE) {
+      # Main df
+      new.data <- data.frame(trend = x_data$trend, 
+                             seasonal_var = x_data$seasonal_var)
+      # Output
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = last(predict(.fit_output$model_fit, new.data)),
+          parameter = list(NULL)
+        )
+    } else {
+      # Main df
+      new.data <- data.frame(trend = x_data$trend, 
+                             seasonal_var = x_data$seasonal_var)
+      # Output
+      tibble(
+        date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
+        y_var_fcst = last(predict(.fit_output$model_fit, new.data,horizon),),
         model = .fit_output[["model"]]
       )
     }

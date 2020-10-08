@@ -38,7 +38,9 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
     suppressWarnings({get_prophet(.data = .data, y_var = y_var, parameter = parameter)})
   } else if(model == "tslm"){
     get_tslm(.data = .data, y_var = y_var, parameter = parameter)
-  }
+  } else if(model == "svm"){
+    get_svm(.data = .data, y_var = y_var, parameter = parameter)
+}
 }
 
 #' Autoforecast
