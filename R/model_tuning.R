@@ -1,4 +1,4 @@
-#' Hyperparameter optimization for a glmnet model
+#' Hyperparameter optimization
 #'
 #' @param .data Data frame or tibble.
 #' @param test_size Numeric. How many periods will be use to asses the forecast accuracy.
@@ -70,7 +70,6 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
   }
 
   optim_switcher <- function(model){
-    
     if(model == "glmnet"){
       random_grid <- sample(x = 1:nrow(parameter$glmnet$grid)
                             , size = round(length(1:nrow(parameter$glmnet$grid))*parameter$glmnet$job$random_search_size)
@@ -105,7 +104,6 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                                                                    , lambda)))
       
     } else if(model == "arima") {
-      
       cat(paste0("\nARIMA: Hyperparameter tuning...\n"))
       
       suppressMessages(
@@ -165,7 +163,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
       }
       )
       
-    } else if(model == "dyn_theta") {
+    } else if(model == "dynamic_theta") {
       
       cat(paste0("\nDYNAMIC THETA: Tuning...\n"))
       
@@ -173,6 +171,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
         {
           splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
             enframe(name = "iter", value = "splits")
+          
           map(.x = splits_tmp$splits
               , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
                 get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 

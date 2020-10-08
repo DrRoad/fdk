@@ -40,31 +40,31 @@ data_all <- data_init %>%
 
 data_test <- data_all %>% filter(key == unique(data_all$key)[1])
 
-# Testing!!!
-
-# data
-
-# params
-
-model_list <- "glm"
-optim_profile <- "light"
-test_size <- 6
-lag <- 3
-method <- "winsorize"
-tune_parallel <- TRUE
-number_best_models <- 5
-pred_interval <- TRUE
-metric <- "mape"
-
-# run
-
-aux <- autoforecast(.data = data_test, horizon = 24
-             , model = model_list
-             , parameter = parameter, optim_profile = "light", test_size = 6
-             , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
-             , number_best_models = 5, pred_interval = TRUE)
-
-aux %>% plot_ts()
+# # Final Testing!!!
+# 
+# # data
+# 
+# # params
+# 
+# model_list <- "glm"
+# optim_profile <- "light"
+# test_size <- 6
+# lag <- 3
+# method <- "winsorize"
+# tune_parallel <- TRUE
+# number_best_models <- 5
+# pred_interval <- TRUE
+# metric <- "mape"
+# 
+# # run
+# 
+# aux <- autoforecast(.data = data_test, horizon = 24
+#              , model = model_list
+#              , parameter = parameter, optim_profile = "light", test_size = 6
+#              , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
+#              , number_best_models = 5, pred_interval = TRUE)
+# 
+# aux %>% plot_ts()
 
 # Multiple items / Parallel ----------------------------------------------------------
 

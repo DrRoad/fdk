@@ -1,4 +1,3 @@
-
 # Testing
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
@@ -9,18 +8,22 @@ invisible(lapply(pkg, require, character.only = TRUE))
 
 # Source ------------------------------------------------------------------
 
-source("R/cleansing.R")
 source("R/auxiliar.R")
+source("R/cleansing.R")
 source("R/feature_engineering.R")
-source("R/optim_ts.R")
+source("R/model_training.R")
+source("R/model_tuning.R")
 source("R/get_forecast.R")
 source("R/autoforecast.R")
+
+# models
+
+source("R/get_croston.R")
 source("R/get_seasonal_naive.R")
-source("R/get_ets.R")
 source("R/get_arima.R")
+source("R/get_ets.R")
 source("R/get_glm.R")
 source("R/get_glmnet.R")
-source("R/get_croston.R")
 source("R/get_neural_network.R")
 source("R/get_tbats.R")
 source("R/get_dyn_theta.R")
@@ -54,17 +57,18 @@ parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha =
 
 data_init <- read_csv("test_source/demo_data.csv") %>% 
   dplyr::filter(date < "2020-02-01"
-                , forecast_item != "FI: 34142") #%>% 
-  #mutate(reg_name = ifelse(reg_name == "0", NA_character_, reg_name))
+                , forecast_item != "FI: 34142") 
 
+# Prescribe
 
 data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
+# Filter
+
 .data <- data_all %>% 
   filter(key == "FI: 592905")
-
 
 ## Dupixent
 
