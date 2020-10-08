@@ -8,6 +8,8 @@ invisible(lapply(pkg, require, character.only = TRUE))
 
 # Source ------------------------------------------------------------------
 
+## models
+
 source("R/get_seasonal_naive.R")
 source("R/get_forecast.R")
 source("R/get_ets.R")
@@ -17,14 +19,20 @@ source("R/get_glmnet.R")
 source("R/get_croston.R")
 source("R/get_neural_network.R")
 source("R/get_tbats.R")
-source("R/cleansing.R")
-source("R/auxiliar.R")
-source("R/autoforecast.R")
-source("R/feature_engineering.R")
-source("R/optim_ts.R")
 source("R/get_dyn_theta.R")
 source("R/get_tslm.R")
 source("R/get_prophet.R")
+
+## modules
+
+source("R/data_preparation.R")
+source("R/data_validation.R")
+source("R/data_cleansing.R")
+source("R/feature_engineering.R")
+source("R/auxiliar.R")
+source("R/autoforecast.R")
+source("R/model_training.R")
+source("R/model_tuning.R")
 
 # Parameter ---------------------------------------------------------------
 
@@ -56,13 +64,22 @@ data_init <- read_csv("test_source/demo_data.csv") %>%
   #mutate(reg_name = ifelse(reg_name == "0", NA_character_, reg_name))
 
 
+# Data preparation
+
 data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
-.data <- data_all %>% 
-  filter(key == "FI: 592905")
+# Data Validation
 
+.data <- data_all %>% 
+  filter(key == "FI: 592905") %>% 
+  slice(-c(2:5), -n()) %>% 
+  validate_ts(na_value = NA_real_) %>% 
+  feature_engineering_ts(lag_var = "y_var") %>% 
+  clean_ts(method = "kalman", winsorize = TRUE) %>% 
+  fit_ts(model = "glm", parameter = parameter) %>% 
+  get_forecast(horizon = 20)
 
 ## Dupixent
 
@@ -80,7 +97,7 @@ fit_1 <- data_all %>%
   filter(key == "FI: 592905") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "ets", parameter = parameter) %>% 
+  fit_ts(model = "glm", parameter = parameter) %>% 
   get_forecast(horizon = 10)
 
 #### Fit output
