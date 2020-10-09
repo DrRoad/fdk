@@ -42,7 +42,7 @@ data_all <- data_init %>%
 
 # data
 
-data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[4])
+data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[5])
 
 # params
 
@@ -62,7 +62,7 @@ metric <- "mape"
 aux <- autoforecast(.data = data_test, horizon = horizon
              , model = model_list
              , parameter = parameter, optim_profile = "light", test_size = 6
-             , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
+             , lag = 3, meta_data = FALSE, method = "mean", tune_parallel = TRUE
              , number_best_models = 5, pred_interval = TRUE)
 
 aux %>% plot_ts()
@@ -88,7 +88,7 @@ results <- foreach(key_i = unique(data_all$key), .errorhandling='stop', .combine
   autoforecast(.data = data_i, horizon = 24
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
+               , lag = 3, meta_data = FALSE, method = "mean", tune_parallel = TRUE
                , number_best_models = 1, pred_interval = TRUE
                , metric = "mape")
 }
@@ -100,7 +100,7 @@ write.csv(results,"test_source/results.csv")
 
 # Plot
 
-plot_res <- results %>% filter(key == unique(data_all$key)[44] & !model == "ensemble") %>%
+plot_res <- results %>% filter(key == unique(data_all$key)[10] & !model == "ensemble") %>%
   plot_ts(interactive = F)
 
 plot_res

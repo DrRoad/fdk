@@ -21,7 +21,7 @@
 #' \dontrun{
 #' winsorize_ts(AirPassengers)
 #' }
-winsorize_ts <- function(.data, freq, print_all = FALSE, threshold = 0.05, impute = FALSE){
+winsorize_ts <- function(.data, freq = 12, print_all = FALSE, threshold = 0.05, impute = FALSE){
   
   winsorize_ts_int <- function(.data, freq, print_all = FALSE, threshold = 0.05, impute = FALSE){
     y_var <- .data[["y_var"]]
@@ -109,7 +109,7 @@ impute_ts <- function(.data, method = "kalman", na_exclude = NULL, freq = NULL, 
     if (method == "kalman") {
       round(as.numeric(na_seadec(x = y_var, algorithm = "kalman", ...)), 2)
     } else if (method == "winsorize") {
-      na_winsorize(y_var = y_var, ...)
+      winsorize_ts(.data = y_var, ...)
     } else if (method == "mean") {
       as.numeric(na_mean(x = y_var, option = "mean", ...))
     } else if (method == "median") {
