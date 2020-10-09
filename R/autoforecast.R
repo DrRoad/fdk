@@ -268,7 +268,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   if(pred_interval == TRUE){ # + Final checks
     
-    forecast_output <- get_pred_interval_int(.data_tmp = .data_tmp,.forecast_output = forecast_output)
+    forecast_output <- get_pred_interval_int(.data_tmp = .data_tmp, .forecast_output = forecast_output)
     forecast_output <- forecast_output %>% 
       mutate(y_var = ifelse(y_var < 0, 0, y_var),
              lower_threshold = ifelse(lower_threshold < 0, 0, lower_threshold),
@@ -327,8 +327,8 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
   
   graph_theme_int <- function(){
     theme_bw() %+replace%
-      theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
-            plot.subtitle = element_text(size = 13, hjust = 0.5, face = "bold"),
+      theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold", vjust = 2),
+            plot.subtitle = element_text(size = 13, hjust = 0.5, face = "bold", vjust = 1.5),
             axis.text.x = element_text(size = 11, angle = 90, hjust = 1),
             axis.title = element_text(size = 13, hjust = 0.5, face = "bold"),
             legend.position = "right",
@@ -344,12 +344,12 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
              , upper_threshold = median(upper_threshold)) %>% 
       ungroup() %>% 
       ggplot() +
-      geom_line(aes(date_var, y_var, col = model))+
+      geom_line(aes(date_var, y_var, col = model), size = 1.01)+
       scale_colour_manual(values = cols)+
       geom_ribbon(aes(date_var
                       , ymin = lower_threshold
                       , ymax = upper_threshold), alpha = .2)+
-      labs(x="Time",y = "Quantity (95% prediction interval)", title = "Forecast"
+      labs(x="Time",y = "Quantity (95% prediction interval)", title = "Generated Forecast"
            , subtitle = paste0("Selected Key:"," ", unique(.optim_output$key))
            , col = "Model")+
       geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed") +
@@ -361,9 +361,9 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
     
     graph_tmp <- .optim_output %>% 
       ggplot() +
-      geom_line(aes(date_var, y_var, col = model))+
+      geom_line(aes(date_var, y_var, col = model), size = 1.01)+
       scale_colour_manual(values = cols)+
-      labs(x="Time",y = "Quantity", title = "Forecast"
+      labs(x="Time",y = "Quantity", title = "Generated Forecast"
            , subtitle = paste0("Selected Key:"," ", unique(.optim_output$key))
            , col = "Model")+
       geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed") +

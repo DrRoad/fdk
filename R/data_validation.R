@@ -1,8 +1,12 @@
-# Data validation
-
-# to be documented
-
-fill_ts <- function(.data){
+#' Fill time series data
+#'
+#' @param .data 
+#'
+#' @return tibble
+#' @export 
+#'
+#' @examples
+fill_ts <- function(.data, na_value = 0){
   
   prescription <- attributes(.data)[["prescription"]]
   
@@ -25,37 +29,70 @@ fill_ts <- function(.data){
   if(max(.data[["date_var"]]) < prescription$max_date){
     cat("Input data has a max time index lower than global, padding...\n")
     tmp <- .data %>% 
-      bind_rows(tibble(date_var = prescription$max_date))
+      bind_rows(tibble(date_var = prescription$max_date)) %>% 
+      mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
+      as_tsibble(index = date_var) 
   } else {
-    tmp <- .data
+    tmp <- .data %>% 
+      mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
+      as_tsibble(index = date_var) 
   }
-  
-  tmp <- tmp %>% 
-    mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
-    as_tsibble(index = date_var)
   
   if(pull(has_gaps(tmp))==TRUE){
     cat("Input data has time index gaps, padding...\n")
     tmp <- tmp %>%
-      fill_gaps(reg_name = "0", reg_value = 0, y_var = 0) %>% 
+      fill_gaps(reg_name = "0", reg_value = 0, y_var = na_value) %>% 
       as_tibble() %>%
       mutate(date_var = as.Date(date_var)) %>% 
       fill(key, .direction = "down") %>% 
-      replace_na(replace = list(y_var=0, reg_name = "0", reg_value = 0))
+      replace_na(replace = list(y_var = na_value, reg_name = "0", reg_value = 0)) %>% 
+      as_tibble() %>% 
+      mutate(date_var = as.Date(date_var))
+  } else {
+    tmp <- tmp %>% 
+      as_tibble() %>% 
+      mutate(date_var = as.Date(date_var))
   }
   
   attr(tmp, "prescription") <- prescription
   return(tmp)
 }
 
-ts_descriptors <- function(.data){
-  
+
+#' Time series descriptors
+#'
+#' @param .data Input tibble
+#'
+#' @return tibble
+#' @export
+#'
+#' @examples
+describe_ts <- function(.data){
   prescription <- attributes(.data)[["prescription"]]
+  
   prescription[["intermittency"]] <- round(sum(.data[["y_var"]]==0)/length(.data[["y_var"]]), 2)
   prescription[["tail_zero"]] <- sum(cumsum(rev(.data$y_var))==0)
-  attr(.data, "prescription") <- prescription
-  return(.data)
   
+  attr(.data, "prescription") <- prescription
+  
+  return(.data)
+}
+
+
+#' Validate Time Series Data
+#' 
+#' This functions fill gaps in time series and provide revelant statistics
+#'
+#' @param .data Tibble
+#'
+#' @return Tibble
+#' @export
+#'
+#' @examples
+validate_ts <- function(.data, na_value = 0){
+  .data %>% 
+    fill_ts(na_value = na_value) %>% 
+    describe_ts()
 }
 
 #---
