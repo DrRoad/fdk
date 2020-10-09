@@ -37,7 +37,7 @@
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 3
                          , pred_interval = FALSE, metric = "mape", method = "winsorize"
-                         , freq = 12, ...){
+                         , frequency = 12, ...){
   
   # Internal lag calculation
   
@@ -96,14 +96,14 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
                  date_var = "date_var",
                  reg_name = "reg_name", 
                  reg_value = "reg_value",
-                 freq = freq)
+                 freq = frequency)
   
-  # Stats
+  # Check Stats
   
   minimum_size <- nrow(.data_tmp)-test_size
   intermittence <- sum(.data_tmp$y_var==0)/nrow(.data_tmp)
   
-  # Main check
+  # Main check forecasting rules
   
   if(minimum_size < 12 | intermittence > 0.3){
     .data_tmp <- .data_tmp %>% 

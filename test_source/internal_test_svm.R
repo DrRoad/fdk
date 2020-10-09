@@ -1,8 +1,8 @@
 # Testing
 
-pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
-         , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW"
-         , "forecTheta", "prophet", "readxl")
+pkg <- c("glmnet", "lubridate", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly",
+         "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW",
+         "forecTheta", "prophet", "e1071", "readxl")
 
 invisible(lapply(pkg, require, character.only = TRUE))
 
@@ -10,6 +10,7 @@ invisible(lapply(pkg, require, character.only = TRUE))
 
 source("R/auxiliar.R")
 source("R/cleansing.R")
+source("R/data_preparation.R")
 source("R/feature_engineering.R")
 source("R/model_training.R")
 source("R/model_tuning.R")
@@ -56,155 +57,75 @@ parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha =
 # Data import
 
 data_init <- read_csv("test_source/demo_data.csv") %>% 
-  dplyr::filter(date < "2020-02-01"
-                , forecast_item != "FI: 34142") 
+  dplyr::filter(date < "2020-02-01", forecast_item != "FI: 34142") 
 
 # Prescribe
 
-data_all <- data_init %>%
+.data <- data_init %>% 
+  filter(forecast_item == "SE: 492598") %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
-               , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
-
-# Filter
-
-.data <- data_all %>% 
-  filter(key == "FI: 592905")
-
-## Dupixent
-
-us0 <- read_rds("test_source/us_dupixent.rds") %>% 
-  mutate(reg_name = case_when(
-    year_month == "2019-12-01" & key == "US: 710613" ~ "christmas"
-    , TRUE ~ reg_name)
-    , reg_value = ifelse(year_month == "2019-12-01" & key == "US: 710613", 1, reg_value))
+               , freq = 12, reg_name = "reg_name", reg_value = "reg_value") %>% 
+  feature_engineering_ts() %>% 
+  clean_ts(method = "winsorize")
 
 # Single item forecast / modularity ---------------------------------------
 
-### Default parameters
+## Default parameters
 
-fit_1 <- data_all %>% 
-  filter(key == "FI: 592905") %>%
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
+fit_1 <- .data %>% # options: winsorize (default), nearest, mean, median. 
   fit_ts(model = "svm", parameter = parameter) %>% 
-  get_forecast(horizon = 10)
-
-
-#### Forecast
-
-fit_1 %>% 
-  get_forecast(horizon = 36) # horizon creates a synthetic data, for counterfactual use argument "x_data".
-
-### Hyperparameter tuning
-
-data_all %>% 
-  filter(key == "DK: 578281") %>% 
-  feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
-  clean_ts(method = "kalman") %>% # options: winsorize (default), nearest, mean, median. 
-  optim_ts(test_size = 6, lag = 3, parameter = parameter, model = "glmnet")
-
-
-## Optimization ------------------------------------------------------------
-
-model_list  <- c("glm", "svm","ets")
-
-dupi <- read_excel("test_source/dupixent_us.xlsx") %>% 
-  mutate(date = as.Date(date))
-
-us_all <- dupi %>% 
-  filter(date < "2020-01-01") %>% 
-  prescribe_ts(key = "key", y_var = "volume", date_var = "date"
-               , reg_name = "reg_name", reg_value = "reg_value", freq = 12)
-
-.data <- us_all %>% 
-  dplyr::filter(key == "US: 710613") %>% 
-  feature_engineering_ts() %>% 
-  clean_ts(method = "kalman") %>% 
-  optim_ts(test_size = 3, lag = 1, parameter = parameter, model = "glmnet")
-fit_ts(model = "glmnet", parameter = parameter) %>% 
   get_forecast(horizon = 12)
-ggplot(aes(date_var, y_var))+
-  geom_line()
 
-## Fast
+## Hyperparameter tuning
 
-fast_optim_forecast <- autoforecast(.data = .data
-                                    , horizon = 6
-                                    , model = model_list
+optim_1 <- .data %>% 
+  optim_ts(test_size = 6, lag = 3, 
+           parameter = parameter, 
+           model = "svm")
+
+# Optimization ------------------------------------------------------------
+
+data_test <- data_init %>% 
+  filter(forecast_item == "SE: 492598") %>% 
+  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
+               , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
+
+## Test profiles ------------------------------------------------------------
+
+model <- "svm"
+
+fast_optim_forecast <- autoforecast(.data = data_test
+                                    , horizon = 36
+                                    , model = model
                                     , parameter = parameter
                                     , optim_profile = "fast"
-                                    , method = "kalman"
+                                    , method = "winsorize"
                                     , number_best_models = 3
                                     , pred_interval = FALSE)
-fast_optim_forecast %>% 
-  plot_ts(interactive = T)
 
-fast_optim_forecast %>% 
-  clipr::write_clip()
+light_optim_forecast <- autoforecast(.data = data_test
+                                    , horizon = 36
+                                    , model = model
+                                    , parameter = parameter
+                                    , optim_profile = "light"
+                                    , method = "winsorize"
+                                    , number_best_models = 3
+                                    , pred_interval = FALSE)
 
-## Light
-
-set.seed(1)
-my_cores <- detectCores()
-registerDoParallel(cores = (my_cores - 2))
-
-light_optim_forecast <- autoforecast(.data = .data
-                                     , horizon = 6
-                                     , model = model_list
-                                     , parameter = parameter
-                                     , optim_profile = "light"
-                                     , test_size = 6
-                                     , lag = 1
-                                     , meta_data = FALSE
-                                     , tune_parallel = FALSE
-                                     , pred_interval = FALSE
-                                     , number_best_models = 3
-                                     , method = "winsorize")
+### Fast ------------------------------------------------------------
 
 light_optim_forecast %>% 
   plot_ts(interactive = T)
 
-# cluster = makeCluster(4, type = "SOCK")
-# registerDoSNOW(cluster)
-# ntasks <- length(unique(data_all$key)[1:2])
-# progress <- function(n) {
-#   cat(sprintf(" %d Keys(s) / %.2f%% percent remaining\n",ntasks-n,(ntasks-n)*100/ntasks))
-# }
-# opts <- list(progress=progress)
-# 
-# results <- foreach(key_i = unique(us$key)
-#                    , .combine = "rbind"
-#                    , .options.snow=opts, .packages = pkg) %dopar% {
-#   data_i <- us[us$key == key_i,]
-#   autoforecast(.data = data_i, horizon = 100
-#                , model = model_list
-#                , parameter = parameter, optim_profile = "light", test_size = 6
-#                , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE)
-# }
-# 
-# stopCluster(cluster)
+# fast_optim_forecast %>% 
+#   clipr::write_clip()
 
-# Plotting
+### Light ------------------------------------------------------------
 
-results %>% 
-  plot_ts(multiple_keys = T, interactive = T)
+light_optim_forecast %>% 
+  plot_ts(interactive = T)
 
-# Hexyon ------------------------------------------------------------------
-
-# h1 <- read_csv("test_source/hexyon_all.csv")
-# 
-# h1 %>% 
-#   do({
-#     tmp <- tibble(.) %>% 
-#       filter(key == "hexyon_vol") %>% 
-#       select(-reg_name, -reg_value)
-#     ms <- tibble(.) %>% 
-#       filter(key == "hexyon_ms") %>% 
-#       select(date_var, reg_name = key, reg_value = y_var)
-#     left_join(
-#       tmp, ms, by = "date_var"
-#     )
-#   }) %>% 
-#   saveRDS(file = "hexyon_regressor.rds")
+# light_optim_forecast %>% 
+#   clipr::write_clip()
 
 #---

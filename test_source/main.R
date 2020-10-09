@@ -38,37 +38,40 @@ data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
-data_test <- data_all %>% filter(key == unique(data_all$key)[1])
+# Final Testing!!!
 
-# # Final Testing!!!
-# 
-# # data
-# 
-# # params
-# 
-# model_list <- "glm"
-# optim_profile <- "light"
-# test_size <- 6
-# lag <- 3
-# method <- "winsorize"
-# tune_parallel <- TRUE
-# number_best_models <- 5
-# pred_interval <- TRUE
-# metric <- "mape"
-# 
-# # run
-# 
-# aux <- autoforecast(.data = data_test, horizon = 24
-#              , model = model_list
-#              , parameter = parameter, optim_profile = "light", test_size = 6
-#              , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
-#              , number_best_models = 5, pred_interval = TRUE)
-# 
-# aux %>% plot_ts()
+# data
+
+data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[4])
+
+# params
+
+model_list <- "svm"
+optim_profile <- "light"
+test_size <- 6
+lag <- 3
+method <- "winsorize"
+tune_parallel <- TRUE
+number_best_models <- 5
+horizon <- 24
+pred_interval <- TRUE
+metric <- "mape"
+
+# run
+
+aux <- autoforecast(.data = data_test, horizon = horizon
+             , model = model_list
+             , parameter = parameter, optim_profile = "light", test_size = 6
+             , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
+             , number_best_models = 5, pred_interval = TRUE)
+
+aux %>% plot_ts()
 
 # Multiple items / Parallel ----------------------------------------------------------
 
-model_list <- c("glm", "glmnet", "prophet", "dyn_theta", "croston", "arima", "ets")
+# model_list <- c("glm", "glmnet", "prophet", "dyn_theta", "croston", "arima", "ets")
+
+model_list <- c("croston","arima","svm")
 
 cluster = makeCluster(6, type = "SOCK")
 registerDoSNOW(cluster)

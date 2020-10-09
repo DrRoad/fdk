@@ -39,7 +39,7 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
   } else if(model == "tslm"){
     get_tslm(.data = .data, y_var = y_var, parameter = parameter)
   } else if(model == "svm"){
-    get_tslm(.data = .data, y_var = y_var, parameter = parameter)
+    get_svm(.data = .data, y_var = y_var, parameter = parameter)
   }
 }
 

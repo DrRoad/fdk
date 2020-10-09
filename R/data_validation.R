@@ -1,5 +1,4 @@
-
-# fill_ts
+# Data validation
 
 # to be documented
 
@@ -25,7 +24,6 @@ fill_ts <- function(.data){
   
   if(max(.data[["date_var"]]) < prescription$max_date){
     cat("Input data has a max time index lower than global, padding...\n")
-    
     tmp <- .data %>% 
       bind_rows(tibble(date_var = prescription$max_date))
   } else {
@@ -50,14 +48,14 @@ fill_ts <- function(.data){
   return(tmp)
 }
 
-
 ts_descriptors <- function(.data){
+  
   prescription <- attributes(.data)[["prescription"]]
-
   prescription[["intermittency"]] <- round(sum(.data[["y_var"]]==0)/length(.data[["y_var"]]), 2)
   prescription[["tail_zero"]] <- sum(cumsum(rev(.data$y_var))==0)
-  
   attr(.data, "prescription") <- prescription
-  
   return(.data)
+  
 }
+
+#---

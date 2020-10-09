@@ -29,9 +29,8 @@
 #' }
 optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FALSE, metric = "mape"){
   
-  #y_var_true <- cv_metric <- ranking <- y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
-  #globalVariables(c("trend_discount", "time_weight", "lambda", "lambda_cov", "model_i"))
-  
+  # y_var_true <- cv_metric <- ranking <- y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
+  # globalVariables(c("trend_discount", "time_weight", "lambda", "lambda_cov", "model_i"))
   # Find the best parameter among the vector
   ## For strings takes the mode, for numeric average.
   
@@ -237,22 +236,22 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
       )
     } else if(model == "svm") {
       
-      cat(paste0("\nDYNAMIC THETA: Tuning...\n"))
+      cat(paste0("\nSVM: Tuning...\n"))
       
       suppressMessages(
         {
           splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
             enframe(name = "iter", value = "splits")
-          map(.x = splits_tmp$splits
-              , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% 
-                get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% 
+          map(.x = splits_tmp$splits # .x = splits_tmp$splits[[1]] 
+              , .f = ~ fit_ts(.data = .x[["train"]], model = model) %>% # .fit_output <- fit_ts(.data = .x[["train"]], model = model)
+                get_forecast(x_data = .x[["test"]], tune = TRUE)) %>% # get_forecast(.fit_output = .fit_output, x_data = .x[["test"]], tune = TRUE)
             bind_rows() %>% 
             summarise(cv_metric = accuracy_metric(y_var_true = sum(y_var_true)
                                                   , y_var_pred = sum(y_var_fcst)
                                                   , metric = metric)
                       , model = model
                       , ranking = NA_integer_
-                      , parameter = list(NULL)
+                      , parameter = list(last(parameter))
                       , .groups = "drop") %>% 
             arrange(abs(cv_metric)) %>% 
             select(ranking, model, cv_metric, parameter)
