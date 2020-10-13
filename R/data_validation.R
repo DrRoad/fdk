@@ -5,7 +5,6 @@
 #' @return tibble
 #' @export 
 #'
-#' @examples
 fill_ts <- function(.data, na_value = 0){
   prescription <- attributes(.data)[["prescription"]]
   date_transf <- function(date_var, freq){
@@ -59,7 +58,6 @@ fill_ts <- function(.data, na_value = 0){
 #' @return tibble
 #' @export
 #'
-#' @examples
 describe_ts <- function(.data){
   prescription <- attributes(.data)[["prescription"]]
   prescription[["size"]] <- nrow(.data)
@@ -78,7 +76,6 @@ describe_ts <- function(.data){
 #' @return Tibble
 #' @export
 #'
-#' @examples
 validate_ts <- function(.data, na_value = 0){
   .data %>% 
     fill_ts(na_value = na_value) %>% 

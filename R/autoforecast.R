@@ -83,7 +83,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   # Validation attributes
   
-  .main_attributes <- attributes(.data_tmp_cleansed)
+  .main_attributes <- attributes(.data_tmp)
 
   # Main check forecasting rules
   

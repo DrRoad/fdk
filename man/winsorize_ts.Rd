@@ -4,7 +4,13 @@
 \alias{winsorize_ts}
 \title{Winsorize imputation}
 \usage{
-winsorize_ts(.data, freq, print_all = FALSE, threshold = 0.05, impute = FALSE)
+winsorize_ts(
+  .data,
+  freq = 12,
+  print_all = FALSE,
+  threshold = 0.05,
+  impute = FALSE
+)
 }
 \arguments{
 \item{freq}{Numeric. Time series frequency, 12 by default.}
