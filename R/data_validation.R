@@ -7,12 +7,9 @@
 #'
 #' @examples
 fill_ts <- function(.data, na_value = 0){
-  
   prescription <- attributes(.data)[["prescription"]]
-  
   date_transf <- function(date_var, freq){
     freq <- as.numeric(freq)
-    
     if(freq == 1){
       lubridate::year(date_var)
     } else if(freq == 12){
@@ -25,19 +22,17 @@ fill_ts <- function(.data, na_value = 0){
       ymd(date_var)
     }
   }
-  
   if(max(.data[["date_var"]]) < prescription$max_date){
     cat("Input data has a max time index lower than global, padding...\n")
     tmp <- .data %>% 
-      bind_rows(tibble(date_var = prescription$max_date)) %>% 
-      mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
-      as_tsibble(index = date_var) 
+      dplyr::bind_rows(tibble(date_var = prescription$max_date)) %>% 
+      dplyr::mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
+      tsibble::as_tsibble(index = date_var) 
   } else {
     tmp <- .data %>% 
-      mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
-      as_tsibble(index = date_var) 
+      dplyr::mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
+      tsibble::as_tsibble(index = date_var) 
   }
-  
   if(pull(has_gaps(tmp))==TRUE){
     cat("Input data has time index gaps, padding...\n")
     tmp <- tmp %>%
@@ -53,11 +48,9 @@ fill_ts <- function(.data, na_value = 0){
       as_tibble() %>% 
       mutate(date_var = as.Date(date_var))
   }
-  
   attr(tmp, "prescription") <- prescription
   return(tmp)
 }
-
 
 #' Time series descriptors
 #'
@@ -69,15 +62,12 @@ fill_ts <- function(.data, na_value = 0){
 #' @examples
 describe_ts <- function(.data){
   prescription <- attributes(.data)[["prescription"]]
-  
+  prescription[["size"]] <- nrow(.data)
   prescription[["intermittency"]] <- round(sum(.data[["y_var"]]==0)/length(.data[["y_var"]]), 2)
   prescription[["tail_zero"]] <- sum(cumsum(rev(.data$y_var))==0)
-  
   attr(.data, "prescription") <- prescription
-  
   return(.data)
 }
-
 
 #' Validate Time Series Data
 #' 

@@ -66,7 +66,7 @@ data_init <- read_csv("test_source/demo_data.csv") %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value") %>% 
   feature_engineering_ts() %>% 
-  clean_ts(method = "winsorize")
+  clean_ts(method = "kalman")
 
 # Single item forecast / modularity ---------------------------------------
 
@@ -99,7 +99,7 @@ fast_optim_forecast <- autoforecast(.data = data_test
                                     , model = model
                                     , parameter = parameter
                                     , optim_profile = "fast"
-                                    , method = "winsorize"
+                                    , method = "kalman"
                                     , number_best_models = 3
                                     , pred_interval = FALSE)
 
@@ -108,7 +108,7 @@ light_optim_forecast <- autoforecast(.data = data_test
                                     , model = model
                                     , parameter = parameter
                                     , optim_profile = "light"
-                                    , method = "winsorize"
+                                    , method = "kalman"
                                     , number_best_models = 3
                                     , pred_interval = FALSE)
 

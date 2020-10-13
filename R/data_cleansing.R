@@ -108,8 +108,6 @@ impute_ts <- function(.data, method = "kalman", na_exclude = NULL, freq = NULL, 
     y_var <- ts(y_var, frequency = freq, start = c(1, 1))
     if (method == "kalman") {
       round(as.numeric(na_seadec(x = y_var, algorithm = "kalman", ...)), 2)
-    } else if (method == "winsorize") {
-      winsorize_ts(.data = y_var, ...)
     } else if (method == "mean") {
       as.numeric(na_mean(x = y_var, option = "mean", ...))
     } else if (method == "median") {

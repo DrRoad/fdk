@@ -75,43 +75,25 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   # Feature engineering & data cleansing 
   
-  cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
+  cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n")
   
-  # Provide data & Check data quality
+  # Main validation
   
-  .data_tmp_cleansed <- .data %>%
-    mutate(y_var = ifelse(y_var < 0, 0, y_var)) %>%  # Check if negative values
-    dplyr::mutate(date_var = yearmonth(date_var)) %>% # Get dates for filling
-    tsibble::as_tsibble() %>% 
-    tsibble::fill_gaps(y_var = 0,
-                       reg_name = 0,
-                       reg_value = 0) %>% 
-    tidyr::fill(key, .direction = "down") %>% 
-    tsibble::as_tibble() %>% 
-    mutate(date_var = ymd(as.Date(date_var)))
+  .data_tmp <- .data %>% validate_ts()
   
-  .data_tmp <- .data_tmp_cleansed %>%
-    prescribe_ts(key = "key", 
-                 y_var = "y_var", 
-                 date_var = "date_var",
-                 reg_name = "reg_name", 
-                 reg_value = "reg_value",
-                 freq = frequency)
+  # Validation attributes
   
-  # Check Stats
-  
-  minimum_size <- nrow(.data_tmp)-test_size
-  intermittence <- sum(.data_tmp$y_var==0)/nrow(.data_tmp)
-  
+  .main_attributes <- attributes(.data_tmp_cleansed)
+
   # Main check forecasting rules
   
-  if(minimum_size < 12 | intermittence > 0.3){
+  if(.main_attributes$prescription$size < 12 | .main_attributes$prescription$intermittency > 0.3){
     .data_tmp <- .data_tmp %>% 
       feature_engineering_ts()
     optim_profile <- "fast"
     model <- "croston"
   }else{ # Check if data in test or 0 consistency
-    quantity_test_size <- sum(.data_tmp[["y_var"]][(nrow(.data_tmp)-test_size):(nrow(.data_tmp))])
+    quantity_test_size <- sum(.data_tmp[["y_var"]][(.main_attributes$prescription$size-test_size):(.main_attributes$prescription$size)])
     if(sum(.data_tmp$y_var) == 0 | quantity_test_size == 0){ # If not enough data, do feature engineering & select a croston
       .data_tmp <- .data_tmp %>% 
         feature_engineering_ts()
