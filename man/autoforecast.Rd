@@ -18,7 +18,7 @@ autoforecast(
   pred_interval = FALSE,
   metric = "mape",
   method = "winsorize",
-  freq = 12,
+  frequency = 12,
   ...
 )
 }

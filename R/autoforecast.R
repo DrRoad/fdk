@@ -37,7 +37,7 @@
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 3
                          , pred_interval = FALSE, metric = "mape", method = "winsorize"
-                         , freq = 12, ...){
+                         , frequency = 12, ...){
   
   # Internal lag calculation
   
@@ -75,43 +75,25 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   # Feature engineering & data cleansing 
   
-  cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n");
+  cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n")
   
-  # Provide data & Check data quality
+  # Main validation
   
-  .data_tmp_cleansed <- .data %>%
-    mutate(y_var = ifelse(y_var < 0, 0, y_var)) %>%  # Check if negative values
-    dplyr::mutate(date_var = yearmonth(date_var)) %>% # Get dates for filling
-    tsibble::as_tsibble() %>% 
-    tsibble::fill_gaps(y_var = 0,
-                       reg_name = 0,
-                       reg_value = 0) %>% 
-    tidyr::fill(key, .direction = "down") %>% 
-    tsibble::as_tibble() %>% 
-    mutate(date_var = ymd(as.Date(date_var)))
+  .data_tmp <- .data %>% validate_ts()
   
-  .data_tmp <- .data_tmp_cleansed %>%
-    prescribe_ts(key = "key", 
-                 y_var = "y_var", 
-                 date_var = "date_var",
-                 reg_name = "reg_name", 
-                 reg_value = "reg_value",
-                 freq = freq)
+  # Validation attributes
   
-  # Stats
+  .main_attributes <- attributes(.data_tmp)
+
+  # Main check forecasting rules
   
-  minimum_size <- nrow(.data_tmp)-test_size
-  intermittence <- sum(.data_tmp$y_var==0)/nrow(.data_tmp)
-  
-  # Main check
-  
-  if(minimum_size < 12 | intermittence > 0.3){
+  if(.main_attributes$prescription$size < 12 | .main_attributes$prescription$intermittency > 0.3){
     .data_tmp <- .data_tmp %>% 
       feature_engineering_ts()
     optim_profile <- "fast"
     model <- "croston"
   }else{ # Check if data in test or 0 consistency
-    quantity_test_size <- sum(.data_tmp[["y_var"]][(nrow(.data_tmp)-test_size):(nrow(.data_tmp))])
+    quantity_test_size <- sum(.data_tmp[["y_var"]][(.main_attributes$prescription$size-test_size):(.main_attributes$prescription$size)])
     if(sum(.data_tmp$y_var) == 0 | quantity_test_size == 0){ # If not enough data, do feature engineering & select a croston
       .data_tmp <- .data_tmp %>% 
         feature_engineering_ts()
@@ -268,7 +250,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   if(pred_interval == TRUE){ # + Final checks
     
-    forecast_output <- get_pred_interval_int(.data_tmp = .data_tmp,.forecast_output = forecast_output)
+    forecast_output <- get_pred_interval_int(.data_tmp = .data_tmp, .forecast_output = forecast_output)
     forecast_output <- forecast_output %>% 
       mutate(y_var = ifelse(y_var < 0, 0, y_var),
              lower_threshold = ifelse(lower_threshold < 0, 0, lower_threshold),
@@ -327,8 +309,8 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
   
   graph_theme_int <- function(){
     theme_bw() %+replace%
-      theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold"),
-            plot.subtitle = element_text(size = 13, hjust = 0.5, face = "bold"),
+      theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold", vjust = 2),
+            plot.subtitle = element_text(size = 13, hjust = 0.5, face = "bold", vjust = 1.5),
             axis.text.x = element_text(size = 11, angle = 90, hjust = 1),
             axis.title = element_text(size = 13, hjust = 0.5, face = "bold"),
             legend.position = "right",
@@ -344,12 +326,12 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
              , upper_threshold = median(upper_threshold)) %>% 
       ungroup() %>% 
       ggplot() +
-      geom_line(aes(date_var, y_var, col = model))+
+      geom_line(aes(date_var, y_var, col = model), size = 1.01)+
       scale_colour_manual(values = cols)+
       geom_ribbon(aes(date_var
                       , ymin = lower_threshold
                       , ymax = upper_threshold), alpha = .2)+
-      labs(x="Time",y = "Quantity (95% prediction interval)", title = "Forecast"
+      labs(x="Time",y = "Quantity (95% prediction interval)", title = "Generated Forecast"
            , subtitle = paste0("Selected Key:"," ", unique(.optim_output$key))
            , col = "Model")+
       geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed") +
@@ -361,9 +343,9 @@ plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
     
     graph_tmp <- .optim_output %>% 
       ggplot() +
-      geom_line(aes(date_var, y_var, col = model))+
+      geom_line(aes(date_var, y_var, col = model), size = 1.01)+
       scale_colour_manual(values = cols)+
-      labs(x="Time",y = "Quantity", title = "Forecast"
+      labs(x="Time",y = "Quantity", title = "Generated Forecast"
            , subtitle = paste0("Selected Key:"," ", unique(.optim_output$key))
            , col = "Model")+
       geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed") +

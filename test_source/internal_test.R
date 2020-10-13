@@ -1,17 +1,27 @@
-# Package -----------------------------------------------------------------
+
+# Testing
 
 pkg <- c("glmnet", "forecast", "stlplus", "fastDummies", "imputeTS", "plotly"
          , "tidyverse", "doParallel", "foreach", "parallel", "tsibble", "doSNOW"
-         , "forecTheta", "prophet")
+         , "forecTheta", "prophet", "readxl")
 
 invisible(lapply(pkg, require, character.only = TRUE))
 
 # Source ------------------------------------------------------------------
 
+<<<<<<< HEAD
+source("R/cleansing.R")
+source("R/auxiliar.R")
+source("R/feature_engineering.R")
+source("R/optim_ts.R")
+=======
 ## models
 
 source("R/get_seasonal_naive.R")
+>>>>>>> 7c4be15abae82f18a048feeeee8364031d53539d
 source("R/get_forecast.R")
+source("R/autoforecast.R")
+source("R/get_seasonal_naive.R")
 source("R/get_ets.R")
 source("R/get_arima.R")
 source("R/get_glm.R")
@@ -22,6 +32,7 @@ source("R/get_tbats.R")
 source("R/get_dyn_theta.R")
 source("R/get_tslm.R")
 source("R/get_prophet.R")
+source("R/get_svm.R")
 
 ## modules
 
@@ -97,15 +108,16 @@ fit_1 <- data_all %>%
   filter(key == "FI: 592905") %>%
   feature_engineering_ts() %>% # automatically creates features of: trend and seasonal_var factor given inherited prescription.
   clean_ts(method = "winsorize") %>% # options: winsorize (default), nearest, mean, median. 
+<<<<<<< HEAD
+  fit_ts(model = "svm", parameter = parameter) %>% 
+=======
   fit_ts(model = "glm", parameter = parameter) %>% 
+>>>>>>> 7c4be15abae82f18a048feeeee8364031d53539d
   get_forecast(horizon = 10)
 
-#### Fit output
-  #summary(fit_1)
-  attributes(data_all) %>% 
-    str()
-  
+
 #### Forecast
+
 fit_1 %>% 
   get_forecast(horizon = 36) # horizon creates a synthetic data, for counterfactual use argument "x_data".
 
@@ -120,9 +132,7 @@ data_all %>%
 
 ## Optimization ------------------------------------------------------------
 
-model_list  <- c("glm", "glmnet", "neural_network", "arima", "ets", "seasonal_naive", "croston","tbats","dynamic_theta","tslm")
-model_list  <- c("glm", "glmnet")
-
+model_list  <- c("glm", "svm","ets")
 
 dupi <- read_excel("test_source/dupixent_us.xlsx") %>% 
   mutate(date = as.Date(date))
@@ -135,14 +145,14 @@ us_all <- dupi %>%
 .data <- us_all %>% 
   dplyr::filter(key == "US: 710613") %>% 
   feature_engineering_ts() %>% 
-  clean_ts(method = "kalman")
-
-  
+  clean_ts(method = "kalman") %>% 
   optim_ts(test_size = 3, lag = 1, parameter = parameter, model = "glmnet")
-  fit_ts(model = "glmnet", parameter = parameter) %>% 
+fit_ts(model = "glmnet", parameter = parameter) %>% 
   get_forecast(horizon = 12)
-  ggplot(aes(date_var, y_var))+
+ggplot(aes(date_var, y_var))+
   geom_line()
+
+## Fast
 
 fast_optim_forecast <- autoforecast(.data = .data
                                     , horizon = 6
@@ -159,9 +169,6 @@ fast_optim_forecast %>%
   clipr::write_clip()
 
 ## Light
-
-
-
 
 set.seed(1)
 my_cores <- detectCores()
@@ -183,50 +190,47 @@ light_optim_forecast <- autoforecast(.data = .data
 light_optim_forecast %>% 
   plot_ts(interactive = T)
 
-
-cluster = makeCluster(4, type = "SOCK")
-registerDoSNOW(cluster)
-ntasks <- length(unique(data_all$key)[1:2])
-progress <- function(n) {
-  cat(sprintf(" %d Keys(s) / %.2f%% percent remaining\n",ntasks-n,(ntasks-n)*100/ntasks))
-}
-opts <- list(progress=progress)
-
-results <- foreach(key_i = unique(us$key)
-                   , .combine = "rbind"
-                   , .options.snow=opts, .packages = pkg) %dopar% {
-  data_i <- us[us$key == key_i,]
-  autoforecast(.data = data_i, horizon = 100
-               , model = model_list
-               , parameter = parameter, optim_profile = "light", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE)
-}
-
-stopCluster(cluster)
-
+# cluster = makeCluster(4, type = "SOCK")
+# registerDoSNOW(cluster)
+# ntasks <- length(unique(data_all$key)[1:2])
+# progress <- function(n) {
+#   cat(sprintf(" %d Keys(s) / %.2f%% percent remaining\n",ntasks-n,(ntasks-n)*100/ntasks))
+# }
+# opts <- list(progress=progress)
+# 
+# results <- foreach(key_i = unique(us$key)
+#                    , .combine = "rbind"
+#                    , .options.snow=opts, .packages = pkg) %dopar% {
+#   data_i <- us[us$key == key_i,]
+#   autoforecast(.data = data_i, horizon = 100
+#                , model = model_list
+#                , parameter = parameter, optim_profile = "light", test_size = 6
+#                , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE)
+# }
+# 
+# stopCluster(cluster)
 
 # Plotting
 
 results %>% 
   plot_ts(multiple_keys = T, interactive = T)
 
-
-
-
 # Hexyon ------------------------------------------------------------------
 
-h1 <- read_csv("test_source/hexyon_all.csv")
+# h1 <- read_csv("test_source/hexyon_all.csv")
+# 
+# h1 %>% 
+#   do({
+#     tmp <- tibble(.) %>% 
+#       filter(key == "hexyon_vol") %>% 
+#       select(-reg_name, -reg_value)
+#     ms <- tibble(.) %>% 
+#       filter(key == "hexyon_ms") %>% 
+#       select(date_var, reg_name = key, reg_value = y_var)
+#     left_join(
+#       tmp, ms, by = "date_var"
+#     )
+#   }) %>% 
+#   saveRDS(file = "hexyon_regressor.rds")
 
-h1 %>% 
-  do({
-    tmp <- tibble(.) %>% 
-      filter(key == "hexyon_vol") %>% 
-      select(-reg_name, -reg_value)
-    ms <- tibble(.) %>% 
-      filter(key == "hexyon_ms") %>% 
-      select(date_var, reg_name = key, reg_value = y_var)
-    left_join(
-      tmp, ms, by = "date_var"
-    )
-  }) %>% 
-  saveRDS(file = "hexyon_regressor.rds")
+#---

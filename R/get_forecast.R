@@ -18,17 +18,17 @@
 get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE) {
   if(is.null(attributes(.fit_output)[["prescription"]]) == FALSE) {
     prescription <- attributes(.fit_output)[["prescription"]]
-    #y_var <- prescription$y_var
-    #date_var <- prescription$date_var
-    #freq <- prescription$freq
-    #na_exclude <- unique(c(prescription$key, y_var, date_var))
+    # y_var <- prescription$y_var
+    # date_var <- prescription$date_var
+    # freq <- prescription$freq
+    # na_exclude <- unique(c(prescription$key, y_var, date_var))
     if (prescription$freq == 12) {
-      freq_string <- "month"
+      freq_string <- "months"
     }
   }
   if (.fit_output[["model"]] == "arima") {
     if (tune == TRUE) {
-      #message("here")
+      # message("here")
       x_data %>%
         transmute(
           y_var_true = y_var
@@ -36,7 +36,7 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
           , as_tibble(.fit_output[["parameter"]])
         )
     } else {
-      #message("here 1")
+      # message("here 1")
       tibble(
         date = seq.Date(from = (prescription$max_date + months(1)), length.out = horizon, by = "months"),
         y_var_fcst = as.numeric(forecast(.fit_output[["model_fit"]], horizon)[["mean"]]),
@@ -69,7 +69,6 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
           alpha = .fit_output$parameter$alpha,
           lambda = .fit_output$parameter$lambda
         )
-
       return(x_data_tmp)
     }
   } else if (.fit_output[["model"]]== "glm") {
@@ -243,6 +242,47 @@ get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALS
       tibble(
         date = seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = "months"),
         y_var_fcst = tail(predict(.fit_output$model_fit, future)$yhat,horizon),
+        model = .fit_output[["model"]]
+      )
+    }
+  } else if(.fit_output[["model"]] == "svm"){
+    if (tune == TRUE) { # tuning mode
+      # Main df
+      last_trend <- length(.fit_output$y_var_pred) # latest trend from fit
+      trend_stamp <- c((last_trend + 1):last_trend + 13) # get 12 months
+      # Dampening
+      trend.dampening <- (0.99)^(0:(length(trend_stamp)-1))
+      dampened_trend <- trend_stamp*trend.dampening
+      dates_stamp <- seq.Date(from = (max(x_data$date_var))-months(3), length.out = 12, by = freq_string) # get 12 months
+      new_data <- data.frame(trend = dampened_trend, seasonal_var = months(dates_stamp)) # new data
+      # Params
+      svm_param <- paste0("Cost:",round(.fit_output$model_fit$cost,2),"; ",
+                          "Gamma:",round(.fit_output$model_fit$gamma,2),"; ",
+                          "Epsilon:",round(.fit_output$model_fit$epsilon,2))
+      # Output
+      x_data %>%
+        transmute(
+          y_var_true = y_var,
+          y_var_fcst = predict(.fit_output$model_fit, new_data)[attributes(x_data)[["prescription"]][["lag"]]], # Get lag 4
+          parameter = svm_param
+        )
+    } else { # forecast mode
+      # Main df
+      last_trend <- length(.fit_output$y_var_pred) # latest trend from fit
+      trend_stamp <- c((last_trend + 1):(last_trend + horizon))# trend for fcst
+      # Dampening
+      trend.dampening <- (0.99)^(0:(length(trend_stamp)-1))
+      dampened_trend <- trend_stamp*trend.dampening
+      dates_stamp <- seq.Date(from = (prescription[["max_date"]] + months(1)), length.out = horizon, by = freq_string)
+      new_data <- data.frame(trend = dampened_trend, seasonal_var = months(dates_stamp))
+      # Params
+      svm_param <- paste0("Cost:",round(.fit_output$model_fit$cost,2),"; ",
+                          "Gamma:",round(.fit_output$model_fit$gamma,2),"; ",
+                          "Epsilon:",round(.fit_output$model_fit$epsilon,2))
+      # Output
+      tibble(
+        date = dates_stamp,
+        y_var_fcst = tail(predict(.fit_output$model_fit, new_data), horizon),
         model = .fit_output[["model"]]
       )
     }

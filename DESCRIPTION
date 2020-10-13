@@ -18,7 +18,8 @@ Depends:
 Imports:
     DescTools, changepoint, doSNOW, dvmisc, fastDummies, foreach, forecTheta, forecast, 
     ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, prophet, purrr, readr, readxl, rlang, plotly,
-    magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tidyverse, tsfeatures, tsibble, dplyr
+    magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tidyverse, tsfeatures, tsibble, 
+    dplyr, e1071
 Suggests: 
     knitr,
     rmarkdown

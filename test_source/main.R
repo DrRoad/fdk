@@ -32,44 +32,44 @@ parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha =
 
 # Data import
 
-data_init <- read_csv("test_source/canada_test.csv")[,-1] %>% 
-  dplyr::filter(date <= "2020-02-01")
+data_init <- read_csv("test_source/demo_data.csv")
 
 data_all <- data_init %>%
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
-# # Testing!!!
+# # Final Testing!!!
 # 
 # # data
 # 
-# .data <- data_test <- data_all %>% filter(key %in% unique(data_all$key)[119])
+# data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[5])
 # 
 # # params
 # 
-# model_list <- "glm"
+# model_list <- "svm"
 # optim_profile <- "light"
 # test_size <- 6
 # lag <- 3
 # method <- "winsorize"
 # tune_parallel <- TRUE
-# number_best_models <- 1
+# number_best_models <- 5
+# horizon <- 24
 # pred_interval <- TRUE
 # metric <- "mape"
 # 
 # # run
 # 
-# aux <- autoforecast(.data = data_test, horizon = 24
+# aux <- autoforecast(.data = data_test, horizon = horizon
 #              , model = model_list
 #              , parameter = parameter, optim_profile = "light", test_size = 6
-#              , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
-#              , number_best_models = 1, pred_interval = TRUE)
+#              , lag = 3, meta_data = FALSE, method = "mean", tune_parallel = TRUE
+#              , number_best_models = 5, pred_interval = TRUE)
 # 
 # aux %>% plot_ts()
 
 # Multiple items / Parallel ----------------------------------------------------------
 
-model_list <- c("glm", "glmnet", "prophet", "dyn_theta", "croston", "arima", "ets")
+model_list <- c("glm", "glmnet", "svm", "prophet", "dyn_theta", "croston", "arima", "ets")
 
 cluster = makeCluster(6, type = "SOCK")
 registerDoSNOW(cluster)
@@ -86,7 +86,7 @@ results <- foreach(key_i = unique(data_all$key), .errorhandling='stop', .combine
   autoforecast(.data = data_i, horizon = 24
                , model = model_list
                , parameter = parameter, optim_profile = "light", test_size = 6
-               , lag = 3, meta_data = FALSE, method = "winsorize", tune_parallel = TRUE
+               , lag = 3, meta_data = FALSE, method = "kalman", tune_parallel = TRUE
                , number_best_models = 1, pred_interval = TRUE
                , metric = "mape")
 }
@@ -98,9 +98,9 @@ write.csv(results,"test_source/results.csv")
 
 # Plot
 
-plot_res <- results %>% filter(key == unique(data_all$key)[44] & !model == "ensemble") %>%
-  plot_ts(interactive = F)
-
-plot_res
+# plot_res <- results %>% filter(key == unique(data_all$key)[1] & !model == "ensemble") %>%
+#   plot_ts(interactive = F)
+# 
+# plot_res
 
 #---
