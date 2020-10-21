@@ -87,7 +87,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
 
   # Main check forecasting rules
   
-  if(.main_attributes$prescription$size < 12 | .main_attributes$prescription$intermittency > 0.3){
+  if(.main_attributes$prescription$size < 12 | .main_attributes$prescription$intermittency > 0.35){
     .data_tmp <- .data_tmp %>% 
       feature_engineering_ts()
     optim_profile <- "fast"
@@ -168,7 +168,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   # Generalized function to get forecasts
   
   get_forecast_int <- function(.data, model, horizon, parameter){
-    .data %>% 
+    .data_tmp %>% 
       fit_ts(model = model, parameter = parameter) %>% 
       get_forecast(horizon = horizon)
   }

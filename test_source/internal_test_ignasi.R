@@ -9,7 +9,8 @@ invisible(lapply(pkg, require, character.only = TRUE))
 # Source ------------------------------------------------------------------
 
 source("R/auxiliar.R")
-source("R/cleansing.R")
+source("R/data_validation.R")
+source("R/data_cleansing.R")
 source("R/data_preparation.R")
 source("R/feature_engineering.R")
 source("R/model_training.R")
@@ -56,13 +57,12 @@ parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha =
 
 # Data import
 
-data_init <- read_csv("test_source/demo_data.csv") %>% 
-  dplyr::filter(date < "2020-02-01", forecast_item != "FI: 34142") 
+data_init <- read_csv("test_source/demo_data_pac.csv") %>% 
+  dplyr::filter(forecast_item == unique(forecast_item)[272])
 
 # Prescribe
 
-.data <- data_init %>% 
-  filter(forecast_item == "SE: 492598") %>% 
+.data_test <- data_init %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value") %>% 
   feature_engineering_ts() %>% 
@@ -72,29 +72,28 @@ data_init <- read_csv("test_source/demo_data.csv") %>%
 
 ## Default parameters
 
-fit_1 <- .data %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "svm", parameter = parameter) %>% 
+fit_1 <- .data_test %>% # options: winsorize (default), nearest, mean, median. 
+  fit_ts(model = "glm", parameter = parameter) %>% 
   get_forecast(horizon = 12)
 
 ## Hyperparameter tuning
 
-optim_1 <- .data %>% 
+optim_1 <- .data_test %>% 
   optim_ts(test_size = 6, lag = 3, 
            parameter = parameter, 
-           model = "svm")
+           model = "glm")
 
-# Optimization ------------------------------------------------------------
+# Optimization test ------------------------------------------------------------
 
-data_test <- data_init %>% 
-  filter(forecast_item == "SE: 492598") %>% 
+.data <- data_init %>% 
   prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
                , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
 ## Test profiles ------------------------------------------------------------
 
-model <- "svm"
+model <- c("glm", "glmnet", "svm", "prophet", "dyn_theta", "croston", "arima", "ets")
 
-fast_optim_forecast <- autoforecast(.data = data_test
+fast_optim_forecast <- autoforecast(.data = .data
                                     , horizon = 36
                                     , model = model
                                     , parameter = parameter
@@ -103,29 +102,26 @@ fast_optim_forecast <- autoforecast(.data = data_test
                                     , number_best_models = 3
                                     , pred_interval = FALSE)
 
-light_optim_forecast <- autoforecast(.data = data_test
+light_optim_forecast <- autoforecast(.data = .data
                                     , horizon = 36
                                     , model = model
                                     , parameter = parameter
                                     , optim_profile = "light"
                                     , method = "kalman"
                                     , number_best_models = 3
-                                    , pred_interval = FALSE)
+                                    , pred_interval = FALSE
+                                    , test_size = 3)
 
 ### Fast ------------------------------------------------------------
 
-light_optim_forecast %>% 
+fast_optim_forecast %>% 
+  filter(model != "ensemble") %>% 
   plot_ts(interactive = T)
-
-# fast_optim_forecast %>% 
-#   clipr::write_clip()
 
 ### Light ------------------------------------------------------------
 
 light_optim_forecast %>% 
+  filter(model != "ensemble") %>% 
   plot_ts(interactive = T)
-
-# light_optim_forecast %>% 
-#   clipr::write_clip()
 
 #---
