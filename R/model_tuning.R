@@ -162,7 +162,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
       }
       )
       
-    } else if(model == "dynamic_theta") {
+    } else if(model == "dyn_theta") {
       
       cat(paste0("\nDYNAMIC THETA: Tuning...\n"))
       

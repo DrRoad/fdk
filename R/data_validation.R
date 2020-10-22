@@ -26,7 +26,9 @@ fill_ts <- function(.data, na_value = 0){
     tmp <- .data %>% 
       dplyr::bind_rows(tibble(date_var = prescription$max_date)) %>% 
       dplyr::mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
-      tsibble::as_tsibble(index = date_var) 
+      tsibble::as_tsibble(index = date_var) %>% 
+      tidyr::fill(key, .direction = "down") %>% 
+      tidyr::replace_na(list("y_var" = 0, "reg_name" = 0, "reg_value" = 0))
   } else {
     tmp <- .data %>% 
       dplyr::mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
@@ -79,7 +81,7 @@ describe_ts <- function(.data){
 validate_ts <- function(.data, na_value = 0){
   .data %>% 
     fill_ts(na_value = na_value) %>% 
-    describe_ts()
+    describe_ts() 
 }
 
 #---
