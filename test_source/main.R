@@ -71,7 +71,7 @@ aux %>% plot_ts()
 
 model_list <- c("glm", "glmnet", "svm", "dyn_theta", "croston", "arima", "ets")
 
-cluster = makeCluster(6, type = "SOCK")
+cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
 ntasks <- length(unique(data_all$key))
 progress <- function(n) {
@@ -98,9 +98,9 @@ write.csv(results,"test_source/results.csv")
 
 # Plot
 
-# plot_res <- results %>% filter(key == unique(data_all$key)[1] & !model == "ensemble") %>%
-#   plot_ts(interactive = F)
-# 
-# plot_res
+plot_res <- results %>% filter(key == unique(data_all$key)[616] & !model == "ensemble") %>%
+  plot_ts(interactive = F)
+
+plot_res
 
 #---
