@@ -32,7 +32,7 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
     get_tbats(.data = .data, y_var = y_var, parameter = parameter)
   } else if(model == "croston"){
     get_croston(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "dynamic_theta"){
+  } else if(model == "dyn_theta"){
     get_dyn_theta(.data = .data, y_var = y_var, parameter = parameter)
   } else if(model == "prophet"){
     suppressWarnings({get_prophet(.data = .data, y_var = y_var, parameter = parameter)})
