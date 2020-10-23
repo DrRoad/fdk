@@ -39,6 +39,10 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
                          , pred_interval = FALSE, metric = "mape", method = "winsorize"
                          , frequency = 12, ...){
   
+  # Set seed
+  
+  set.seed(123)
+  
   # Internal lag calculation
   
   lag <- lag+1
