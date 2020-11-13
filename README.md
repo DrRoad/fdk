@@ -22,7 +22,7 @@ You can install it using the following code and using your personal GitLab accou
 ```r
 library(devtools)
 Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS=TRUE)
-pkg <- "https://emea-aws-gitlab.sanofi.com:3001/statistical_forecasting/packages/autoforecast.git"
+pkg <- "https://emea-aws-gitlab.sanofi.com:3001/sc_analytics_coe/statistical-forecasting/packages/autoforecast.git"
 cred <- git2r::cred_user_pass(rstudioapi::askForPassword("Username"), rstudioapi::askForPassword("Password"))
 devtools::install_git(pkg, credentials = cred)
 ```
