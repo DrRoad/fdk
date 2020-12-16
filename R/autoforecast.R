@@ -35,7 +35,7 @@
 #' autoforecast()
 #' }
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
-                         , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 3
+                         , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 1
                          , pred_interval = FALSE, metric = "mape", method = "kalman"
                          , frequency = 12, ...){
   
@@ -53,15 +53,15 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     # Parameters -------------------------------------------------------------
     
-    grid_glmnet <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
+    grid_glmnet <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.025)
                                , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1)
                                , alpha = seq(from = 0, to = 1, by = 0.25))
-    grid_glm <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
+    grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.025)
                             , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1))
     
     # Parameter list -------------------------------------------------------------
     
-    parameter <- list(glmnet = list(time_weight = .94, trend_discount = .70, alpha = 0, lambda = .1
+    parameter <- list(glmnet = list(time_weight = .95, trend_discount = .70, alpha = 0, lambda = .1
                                     , grid_glmnet = grid_glmnet
                                     , job = list(optim_lambda = TRUE, x_excluded = NULL
                                                  , random_search_size = 0.25
@@ -77,10 +77,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
   }
   
-  # Feature engineering & data cleansing 
-  
-  cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n")
-  
   # Main validation
   
   .data_tmp <- .data %>% validate_ts()
@@ -92,6 +88,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   # Main check forecasting rules
   
   if(.main_attributes$prescription$size < 12 | .main_attributes$prescription$intermittency > 0.35){
+    # Feature engineering and fast mode
     .data_tmp <- .data_tmp %>% 
       feature_engineering_ts()
     optim_profile <- "fast"
@@ -107,6 +104,8 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       .data_tmp <- .data_tmp  %>% 
         feature_engineering_ts() %>% 
         clean_ts(method = method)
+      # Print
+      cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n")
     }
   }
   
@@ -133,7 +132,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   get_ensemble_int <- function(.forecast_tmp){
     ensemble_tmp <- .forecast_tmp %>% 
-      dplyr::filter(type != "history") %>% # top n models cv
+      dplyr::filter(type != "history") %>% # Top n models cv
       dplyr::group_by(date_var) %>% 
       dplyr::summarise(y_var = mean(y_var), model = "ensemble", type = "forecast", .groups = "drop")
   }
@@ -152,7 +151,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     .forecast_tmp_ratios <- .forecast_tmp_ratios %>% 
       dplyr::filter(type == "forecast")
     
-    # calculate new forecast
+    # Calculate new forecast
     
     .forecast_tmp_weighted <- .forecast_tmp_ratios %>% 
       dplyr::group_by(model) %>% 
@@ -161,7 +160,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       dplyr::mutate(all_metric = sum(unique(ind_metric),na.rm = TRUE),
              coeff = ind_metric/all_metric) 
     
-    # output
+    # Output
     
     ensemble_tmp <- .forecast_tmp_weighted %>% 
       dplyr::group_by(date_var) %>% 
@@ -219,8 +218,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     cat(paste0("\nLight optimization for: ", length(model), " Models + Weighted Ensemble Forecast"))
     
-    # slow models
-    
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
                                , parameter = parameter, model = model
                                , tune_parallel = tune_parallel
@@ -228,11 +225,13 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     print(knitr::kable(best_model_int, "simple", 4))
     
-    # get n best models
+    # Get "n" best models
     
     model <- best_model_int %>% 
       dplyr::filter(ranking <= number_best_models) %>% 
       .[["model"]]
+    
+    # Forecasting
     
     forecast_tmp <- map(model
                         , ~ optim_join_int(.data_tmp, model = .x, parameter = parameter
@@ -250,7 +249,98 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
       fill(key, .direction = "down")
     
+  } else if (optim_profile == "complete"){ # Complete profile -------------------------
+    
+    # Set parameters to "full power"
+    
+    parameter$glm$job$random_search_size <- 1
+    parameter$glmnet$job$random_search_size <- 1
+    parameter$glmnet$job$optim_lambda <- TRUE
+    
+    cat(paste0("\nComplete optimization for: ", length(model), " Models + Weighted Ensemble Forecast"))
+    
+    best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
+                               , parameter = parameter, model = model
+                               , tune_parallel = tune_parallel
+                               , metric = metric)
+    
+    print(knitr::kable(best_model_int, "simple", 4))
+    
+    # Get "n" best models
+    
+    model <- best_model_int %>% 
+      dplyr::filter(ranking <= number_best_models) %>% 
+      .[["model"]]
+    
+    # Train - valid strategy
+    
+    .data_tmp_train <- .data_tmp[1:(nrow(.data_tmp)-6),]
+    .data_tmp_valid <- .data_tmp[(nrow(.data_tmp)-6):nrow(.data_tmp),]
+    
+    # Forecasting
+    
+    forecast_tmp_0 <- map(model
+                        , ~ optim_join_int(.data_tmp_train, model = .x, parameter = parameter
+                                           , horizon = test_size, best_model = best_model_int)) %>% 
+      dplyr::bind_rows() %>% 
+      dplyr::mutate(y_var_fcst = ifelse(y_var_fcst<0, 0, y_var_fcst)) %>% 
+      dplyr::rename(date_var = date, y_var = y_var_fcst) %>% 
+      dplyr::mutate(type = "forecast") %>% 
+      dplyr::bind_rows(.data_tmp, .) %>% 
+      dplyr::select(key, date_var, y_var, model, type) %>% 
+      tidyr::replace_na(replace = list(type = "history", model = "history")) %>% 
+      dplyr::filter(type == "forecast")
+    
+    # Find best test models and forecast again
+    
+    final_evaluation <- forecast_tmp_0 %>% 
+      dplyr::group_by(model) %>% 
+      dplyr::summarise(sum_predicted = sum(y_var)) %>% 
+      dplyr::mutate(final_mape = abs(sum_predicted-sum(.data_tmp_valid$y_var))/sum(.data_tmp_valid$y_var)) %>% 
+      dplyr::arrange(final_mape) %>% 
+      dplyr::mutate(ranking = c(1:length(model))) %>% 
+      dplyr::select(ranking, model, final_mape)
+    
+    # Wrangling 
+    
+    best_model_int_0 <- best_model_int %>% 
+      dplyr::select(model, parameter)
+    
+    # Get "n" best models
+    
+    best_model_int_final <- final_evaluation %>% 
+      dplyr::filter(ranking <= number_best_models) %>% 
+      dplyr::left_join(best_model_int_0, by = "model")
+    
+    model <- best_model_int_final %>% 
+      dplyr::filter(ranking <= number_best_models) %>% 
+      .[["model"]]
+    
+    print(knitr::kable(final_evaluation, "simple", 4))
+    
+    # Final forecasting
+    
+    forecast_tmp <- map(model
+                        , ~ optim_join_int(.data_tmp, model = .x, parameter = parameter
+                                           , horizon = horizon, best_model = best_model_int_final)) %>% 
+      dplyr::bind_rows() %>% 
+      dplyr::mutate(y_var_fcst = ifelse(y_var_fcst<0, 0, y_var_fcst)) %>% 
+      dplyr::rename(date_var = date, y_var = y_var_fcst) %>% 
+      dplyr::mutate(type = "forecast") %>% 
+      dplyr::bind_rows(.data_tmp, .) %>% 
+      dplyr::select(key, date_var, y_var, model, type) %>% 
+      tidyr::replace_na(replace = list(type = "history", model = "history")) 
+    
+    # Ensemble & output
+    
+    ensemble_tmp <- get_ensemble_int_weighted(.forecast_tmp = forecast_tmp, .weights = best_model_int[best_model_int$model%in%model,])
+    
+    forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
+      fill(key, .direction = "down")
+    
   }
+  
+  # Pred intervals & output
   
   if(pred_interval == TRUE){ # + Final checks
     
@@ -271,6 +361,8 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
   }
   
+  # Light output
+  
   if(meta_data == TRUE & optim_profile == "light"){
     
     return(list(forecast_output = forecast_output, ranking = best_model_int))
@@ -280,101 +372,14 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     return(forecast_output)
     
   }
-}
-
-#' Plot time series forecast
-#'
-#' @param .data data-frame of class optim_output
-#' @param interactive Logical. Whether or not to return interative plotly graph
-#' @param multiple_keys Logical. The data has or not multiple keys to plot as grid.
-#'
-#' @import ggplot2
-#' @importFrom plotly ggplotly
-#' @return graph
-#' @export
-#'
-#' @examples
-#' \dontrun{
-#' plot_ts()
-#' }
-plot_ts <- function(.optim_output, interactive = FALSE, multiple_keys = FALSE){
   
-  # Prescription
-  
-  prescription <- attributes(.optim_output)[["prescription"]]
-  
-  # Colors
-  
-  cols <- c("#000000", "#1B9E77", "#D95F02", "#7570B3", "#E7298A"
-    , "#66A61E", "#E6AB02", "#A6761D", "#666666"
-    , "#fa26a0", "#fa1616", "#007892")[1:length(unique(.optim_output$model))]
-
-  names(cols) <- unique(.optim_output$model)
-  
-  graph_theme_int <- function(){
-    theme_bw() %+replace%
-      theme(plot.title = element_text(size = 16, hjust = 0.5, face = "bold", vjust = 2),
-            plot.subtitle = element_text(size = 13, hjust = 0.5, face = "bold", vjust = 1.5),
-            axis.text.x = element_text(size = 11, angle = 90, hjust = 1),
-            axis.title = element_text(size = 13, hjust = 0.5, face = "bold"),
-            legend.position = "right",
-            legend.title = element_text(size = 15),
-            legend.text = element_text(size = 13))
-  }
-  
-  if(attributes(.optim_output)[["output_type"]] == "optim_output_pi"){ # Option with pred intervals
+  if(meta_data == TRUE & optim_profile == "complete"){
     
-    graph_tmp <- .optim_output %>% 
-      group_by(date_var) %>% 
-      mutate(lower_threshold = median(lower_threshold)
-             , upper_threshold = median(upper_threshold)) %>% 
-      ungroup() %>% 
-      ggplot() +
-      geom_line(aes(date_var, y_var, col = model), size = 1.01)+
-      scale_colour_manual(values = cols)+
-      geom_ribbon(aes(date_var
-                      , ymin = lower_threshold
-                      , ymax = upper_threshold), alpha = .2)+
-      labs(x="Time",y = "Quantity (95% prediction interval)", title = "Generated Forecast"
-           , subtitle = paste0("Selected Key:"," ", unique(.optim_output$key))
-           , col = "Model")+
-      geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed") +
-      scale_y_continuous(n.breaks = 10, minor_breaks = NULL)+
-      scale_x_date(expand = c(0,0),date_breaks = "2 month", minor_breaks = NULL) +
-      graph_theme_int()
-    
-  } else if(attributes(.optim_output)[["output_type"]] == "optim_output") { # Optim output
-    
-    graph_tmp <- .optim_output %>% 
-      ggplot() +
-      geom_line(aes(date_var, y_var, col = model), size = 1.01)+
-      scale_colour_manual(values = cols)+
-      labs(x="Time",y = "Quantity", title = "Generated Forecast"
-           , subtitle = paste0("Selected Key:"," ", unique(.optim_output$key))
-           , col = "Model")+
-      geom_vline(xintercept = as.Date(prescription$max_date), linetype ="dashed") +
-      scale_y_continuous(n.breaks = 10, minor_breaks = NULL)+
-      scale_x_date(expand = c(0,0),date_breaks = "3 month", minor_breaks = NULL) +
-      graph_theme_int()
-    
-  } else { # Error of input
-    stop("Error, the input data is not class optim_output")
-  }
-  
-  if(multiple_keys == TRUE){ # Multiple keys
-    
-    graph_tmp <- graph_tmp +
-      facet_wrap( ~ key, scales = "free")
-    
-  }
-  
-  if(interactive == TRUE){ # Interactive
-    
-    ggplotly(graph_tmp)
+    return(list(forecast_output = forecast_output, ranking = best_model_int_final))
     
   } else {
     
-    graph_tmp
+    return(forecast_output)
     
   }
   

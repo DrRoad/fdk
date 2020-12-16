@@ -17,6 +17,7 @@ source("R/model_training.R")
 source("R/model_tuning.R")
 source("R/get_forecast.R")
 source("R/autoforecast.R")
+source("R/plot_ts.R")
 
 # models
 
@@ -33,29 +34,7 @@ source("R/get_tslm.R")
 source("R/get_prophet.R")
 source("R/get_svm.R")
 
-# Parameter ---------------------------------------------------------------
-
-grid_glmnet <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
-                           , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1)
-                           , alpha = seq(from = 0, to = 1, by = 0.25))
-grid_glm <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
-                        , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1))
-
-parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha = .7, lambda = 320
-                                , grid_glmnet = grid_glmnet
-                                , job = list(optim_lambda = FALSE, x_excluded = NULL
-                                             , random_search_size = 0.1
-                                             , n_best_model = 1))
-                  , croston = list(alpha = 0.1)
-                  , glm = list(time_weight = 1.0, trend_discount = .91
-                               , grid_glm = grid_glm
-                               , job = list(x_excluded = NULL
-                                            , random_search_size = 0.3
-                                            , n_best_model = 1))
-                  , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
-                  , ets = list(ets = "ZZZ"))
-
-# Data import
+# Data import -------------------------------------------------------------
 
 .data_test <- AirPassengers %>%
   as_tsibble() %>%
@@ -63,60 +42,73 @@ parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha =
   mutate(reg_name = "0", reg_value = 0, key = "airpassengers", index = as.Date(index)) %>%
   prescribe_ts(key = "key", y_var = "value", date_var = "index", reg_name = "reg_name", reg_value = "reg_value", freq = 12)
 
-# Prescribe
+# Prescribe -------------------------------------------------------------
 
-.data_test_0 <- data_init %>% 
+.data_test_0 <- .data_test %>% 
   feature_engineering_ts() %>% 
   clean_ts(method = "kalman")
 
 # Single item forecast / modularity ---------------------------------------
 
-## Default parameters
-
 fit_1 <- .data_test_0 %>% # options: winsorize (default), nearest, mean, median. 
-  fit_ts(model = "glm", parameter = parameter) %>% 
+  fit_ts(model = "glm", parameter = NULL) %>% 
   get_forecast(horizon = 12)
 
-## Hyperparameter tuning
+# Hyperparameter tuning ---------------------------------------
 
 optim_1 <- .data_test_0 %>% 
   optim_ts(test_size = 6, lag = 3, 
-           parameter = parameter, 
+           parameter = NULL, 
            model = "glm")
 
-## Test profiles ------------------------------------------------------------
+# Test profiles ------------------------------------------------------------
 
-model <- c("glm", "glmnet", "svm", "prophet", "dyn_theta", "croston", "arima", "ets")
+model <- c("glm", "glmnet", "svm", "arima", "ets", "croston")
 
 fast_optim_forecast <- autoforecast(.data = .data_test
                                     , horizon = 36
                                     , model = model
-                                    , parameter = parameter
+                                    , parameter = NULL
                                     , optim_profile = "fast"
                                     , method = "kalman"
-                                    , number_best_models = 3
                                     , pred_interval = TRUE)
 
 light_optim_forecast <- autoforecast(.data = .data_test
+                                        , horizon = 36
+                                        , model = model
+                                        , parameter = NULL
+                                        , optim_profile = "light"
+                                        , method = "kalman"
+                                        , number_best_models = 1
+                                        , pred_interval = TRUE
+                                        , test_size = 3)
+
+complete_optim_forecast <- autoforecast(.data = .data_test
                                     , horizon = 36
                                     , model = model
-                                    , parameter = parameter
-                                    , optim_profile = "light"
+                                    , parameter = NULL
+                                    , optim_profile = "complete"
                                     , method = "kalman"
-                                    , number_best_models = 3
+                                    , number_best_models = 1
                                     , pred_interval = TRUE
                                     , test_size = 3)
 
-### Fast ------------------------------------------------------------
+# Fast ------------------------------------------------------------
 
 fast_optim_forecast %>% 
   filter(model != "ensemble") %>% 
-  plot_ts(interactive = T)
+  plot_ts(interactive = F)
 
-### Light ------------------------------------------------------------
+# Light ------------------------------------------------------------
 
 light_optim_forecast %>% 
   filter(model != "ensemble") %>% 
-  plot_ts(interactive = T)
+  plot_ts(interactive = F)
+
+# Complete ------------------------------------------------------------
+
+complete_optim_forecast %>% 
+  filter(model != "ensemble") %>% 
+  plot_ts(interactive = F)
 
 #---
