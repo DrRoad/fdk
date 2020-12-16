@@ -11,10 +11,10 @@
 #' @param optim_profile String. Defines how strict show the model look for the best parameter. Options are:
 #' fast, light, medium, and, complete.
 #' @param meta_data Logical. Whether to return the ranking of models in a list.
-#' @param ... Other parameter from the sub-functions.
 #' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
 #' @param number_best_models Integer. Among the best models, how many to output (also controls the Ensemble forecast).
 #' @param pred_interval Logical. Control if prediction intervals are printed.
+#' @param ... Other parameter from the sub-functions.
 #' 
 #' @importFrom lubridate ymd
 #' @importFrom stlplus stlplus
@@ -36,7 +36,7 @@
 #' }
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 3
-                         , pred_interval = FALSE, metric = "mape", method = "winsorize"
+                         , pred_interval = FALSE, metric = "mape", method = "kalman"
                          , frequency = 12, ...){
   
   # Set seed

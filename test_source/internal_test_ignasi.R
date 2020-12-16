@@ -35,11 +35,11 @@ source("R/get_svm.R")
 
 # Parameter ---------------------------------------------------------------
 
-grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
-                           , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
-                           , alpha = seq(from = 0, to = 1, by = 0.10))
-grid_glm <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
-                        , trend_discount = seq(from = 0.9, to = 1, by = 0.02))
+grid_glmnet <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
+                           , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1)
+                           , alpha = seq(from = 0, to = 1, by = 0.25))
+grid_glm <- expand_grid(time_weight = seq(from = 0.90, to = 1, by = 0.01)
+                        , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1))
 
 parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha = .7, lambda = 320
                                 , grid_glmnet = grid_glmnet
@@ -57,14 +57,15 @@ parameter <- list(glmnet = list(time_weight = 1.0, trend_discount = .91, alpha =
 
 # Data import
 
-data_init <- read_csv("test_source/demo_data_pac.csv") %>% 
-  dplyr::filter(forecast_item == unique(forecast_item)[272])
+.data_test <- AirPassengers %>%
+  as_tsibble() %>%
+  as_tibble() %>%
+  mutate(reg_name = "0", reg_value = 0, key = "airpassengers", index = as.Date(index)) %>%
+  prescribe_ts(key = "key", y_var = "value", date_var = "index", reg_name = "reg_name", reg_value = "reg_value", freq = 12)
 
 # Prescribe
 
-.data_test <- data_init %>% 
-  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
-               , freq = 12, reg_name = "reg_name", reg_value = "reg_value") %>% 
+.data_test_0 <- data_init %>% 
   feature_engineering_ts() %>% 
   clean_ts(method = "kalman")
 
@@ -72,44 +73,38 @@ data_init <- read_csv("test_source/demo_data_pac.csv") %>%
 
 ## Default parameters
 
-fit_1 <- .data_test %>% # options: winsorize (default), nearest, mean, median. 
+fit_1 <- .data_test_0 %>% # options: winsorize (default), nearest, mean, median. 
   fit_ts(model = "glm", parameter = parameter) %>% 
   get_forecast(horizon = 12)
 
 ## Hyperparameter tuning
 
-optim_1 <- .data_test %>% 
+optim_1 <- .data_test_0 %>% 
   optim_ts(test_size = 6, lag = 3, 
            parameter = parameter, 
            model = "glm")
-
-# Optimization test ------------------------------------------------------------
-
-.data <- data_init %>% 
-  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
-               , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
 
 ## Test profiles ------------------------------------------------------------
 
 model <- c("glm", "glmnet", "svm", "prophet", "dyn_theta", "croston", "arima", "ets")
 
-fast_optim_forecast <- autoforecast(.data = .data
+fast_optim_forecast <- autoforecast(.data = .data_test
                                     , horizon = 36
                                     , model = model
                                     , parameter = parameter
                                     , optim_profile = "fast"
                                     , method = "kalman"
                                     , number_best_models = 3
-                                    , pred_interval = FALSE)
+                                    , pred_interval = TRUE)
 
-light_optim_forecast <- autoforecast(.data = .data
+light_optim_forecast <- autoforecast(.data = .data_test
                                     , horizon = 36
                                     , model = model
                                     , parameter = parameter
                                     , optim_profile = "light"
                                     , method = "kalman"
                                     , number_best_models = 3
-                                    , pred_interval = FALSE
+                                    , pred_interval = TRUE
                                     , test_size = 3)
 
 ### Fast ------------------------------------------------------------
