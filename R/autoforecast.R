@@ -36,16 +36,34 @@
 #' }
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
                          , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 1
-                         , pred_interval = FALSE, metric = "mape", method = "kalman"
-                         , frequency = 12, ...){
+                         , pred_interval = TRUE, metric = "mape", method = "kalman"
+                         , frequency = 12, ensemble = FALSE, ...){
+  
+  # Checks -> If there is only one model for output, don't do ensemble
+  
+  if(length(model) == 1 | number_best_models == 1){
+    ensemble <- FALSE
+  } 
+  
+  # Only producte pred interval for best model
+  
+  if(number_best_models > 1){
+    pred_interval <- FALSE
+  } 
+  
+  # Config for fast mode
+  
+  if(optim_profile == "fast" && length(model) > 1){
+    pred_interval <- FALSE
+  } 
+  
+  # Internal lag calculation
+  
+  lag <- lag + 1
   
   # Set seed
   
   set.seed(123)
-  
-  # Internal lag calculation
-  
-  lag <- lag+1
   
   # Get default parameters
   
@@ -63,14 +81,14 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     parameter <- list(glmnet = list(time_weight = .95, trend_discount = .70, alpha = 0, lambda = .1
                                     , grid_glmnet = grid_glmnet
-                                    , job = list(optim_lambda = TRUE, x_excluded = NULL
-                                                 , random_search_size = 0.25
+                                    , job = list(optim_lambda = FALSE, x_excluded = NULL
+                                                 , random_search_size = 0.3
                                                  , n_best_model = 1))
                       , croston = list(alpha = 0.1)
                       , glm = list(time_weight = .99, trend_discount = 0.70
                                    , grid_glm = grid_glm
                                    , job = list(x_excluded = NULL
-                                                , random_search_size = 0.25
+                                                , random_search_size = 0.3
                                                 , n_best_model = 1))
                       , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
                       , ets = list(ets = "ZZZ"))
@@ -192,8 +210,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   if(optim_profile == "fast"){ # Fast profile ----------------------------------
     
-    cat(paste0("\nFast optimization for: ", length(model), " Models + Unweighted Ensemble Forecast"))
-    
     # Generates forecast given default (hyper)parameters.
     
     forecast_tmp <- map(model, ~get_forecast_int(.data = .data_tmp
@@ -209,14 +225,25 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     # Ensemble is a simple average of every model's forecast
     
-    ensemble_tmp <- get_ensemble_int(.forecast_tmp = forecast_tmp)
-    
-    forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
-      fill(key, .direction = "down")
+    if(ensemble == TRUE){
+      
+      cat(paste0("\nFast optimization for: ", length(model), " Models + Unweighted Ensemble Forecast"))
+      
+      ensemble_tmp <- get_ensemble_int(.forecast_tmp = forecast_tmp)
+      
+      forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
+        fill(key, .direction = "down")
+      
+    } else{
+      
+      cat(paste0("\nFast optimization for ", length(model)),"models")
+      
+      forecast_output <- forecast_tmp %>%
+        fill(key, .direction = "down")
+      
+    }
     
   } else if(optim_profile == "light"){ # Light profile -------------------------
-    
-    cat(paste0("\nLight optimization for: ", length(model), " Models + Weighted Ensemble Forecast"))
     
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
                                , parameter = parameter, model = model
@@ -244,20 +271,35 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       dplyr::select(key, date_var, y_var, model, type) %>% 
       tidyr::replace_na(replace = list(type = "history", model = "history")) 
     
-    ensemble_tmp <- get_ensemble_int_weighted(.forecast_tmp = forecast_tmp, .weights = best_model_int[best_model_int$model%in%model,])
-    
-    forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
-      fill(key, .direction = "down")
+    if(ensemble == TRUE){
+      
+      cat(paste0("\nLight optimization for ", length(model), " models + Unweighted Ensemble Forecast"))
+      
+      ensemble_tmp <- get_ensemble_int_weighted(.forecast_tmp = forecast_tmp, .weights = best_model_int[best_model_int$model%in%model,])
+      
+      forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
+        fill(key, .direction = "down")
+      
+    } else{
+      
+      cat(paste0("\nLight optimization for ", length(model)),"models")
+      
+      forecast_output <- forecast_tmp %>%
+        fill(key, .direction = "down")
+      
+    }
     
   } else if (optim_profile == "complete"){ # Complete profile -------------------------
+    
+    # Don't optimize heavy models
+    
+    model <- model[!model %in% c("svm")]
     
     # Set parameters to "full power"
     
     parameter$glm$job$random_search_size <- 1
-    parameter$glmnet$job$random_search_size <- 1
+    parameter$glmnet$job$random_search_size <- 0.6
     parameter$glmnet$job$optim_lambda <- TRUE
-    
-    cat(paste0("\nComplete optimization for: ", length(model), " Models + Weighted Ensemble Forecast"))
     
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
                                , parameter = parameter, model = model
@@ -269,13 +311,12 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     # Get "n" best models
     
     model <- best_model_int %>% 
-      dplyr::filter(ranking <= number_best_models) %>% 
       .[["model"]]
     
     # Train - valid strategy
     
     .data_tmp_train <- .data_tmp[1:(nrow(.data_tmp)-6),]
-    .data_tmp_valid <- .data_tmp[(nrow(.data_tmp)-6):nrow(.data_tmp),]
+    .data_tmp_valid <- .data_tmp[(nrow(.data_tmp)-test_size+1):nrow(.data_tmp),]
     
     # Forecasting
     
@@ -289,7 +330,8 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       dplyr::bind_rows(.data_tmp, .) %>% 
       dplyr::select(key, date_var, y_var, model, type) %>% 
       tidyr::replace_na(replace = list(type = "history", model = "history")) %>% 
-      dplyr::filter(type == "forecast")
+      dplyr::filter(type == "forecast") %>% 
+      dplyr::mutate(key == unique(.data_tmp_train$key)[1])
     
     # Find best test models and forecast again
     
@@ -333,10 +375,25 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     # Ensemble & output
     
-    ensemble_tmp <- get_ensemble_int_weighted(.forecast_tmp = forecast_tmp, .weights = best_model_int[best_model_int$model%in%model,])
-    
-    forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
-      fill(key, .direction = "down")
+    if(ensemble == TRUE){
+      
+      cat(paste0("\n Complete optimization for ", length(model), " models + Unweighted Ensemble Forecast"))
+      
+      best_model_int_sup <- best_model_int_final %>% rename("cv_metric" = "final_mape")
+      
+      ensemble_tmp <- get_ensemble_int_weighted(.forecast_tmp = forecast_tmp, .weights = best_model_int_sup[best_model_int_sup$model%in%model,])
+      
+      forecast_output <- bind_rows(forecast_tmp, ensemble_tmp) %>%
+        fill(key, .direction = "down")
+      
+    } else{
+      
+      cat(paste0("\nComplete optimization for ", length(model)),"models")
+      
+      forecast_output <- forecast_tmp %>%
+        fill(key, .direction = "down")
+      
+    }
     
   }
   

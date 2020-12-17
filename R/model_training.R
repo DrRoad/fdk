@@ -26,13 +26,13 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
     parameter <- list(glmnet = list(time_weight = .95, trend_discount = .70, alpha = 0, lambda = .1
                                     , grid_glmnet = grid_glmnet
                                     , job = list(optim_lambda = TRUE, x_excluded = NULL
-                                                 , random_search_size = 0.25
+                                                 , random_search_size = 0.3
                                                  , n_best_model = 1))
                       , croston = list(alpha = 0.1)
                       , glm = list(time_weight = .99, trend_discount = 0.70
                                    , grid_glm = grid_glm
                                    , job = list(x_excluded = NULL
-                                                , random_search_size = 0.25
+                                                , random_search_size = 0.3
                                                 , n_best_model = 1))
                       , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
                       , ets = list(ets = "ZZZ"))

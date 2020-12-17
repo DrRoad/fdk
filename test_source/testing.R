@@ -63,15 +63,16 @@ optim_1 <- .data_test_0 %>%
 
 # Test profiles ------------------------------------------------------------
 
-model <- c("glm", "glmnet", "svm", "arima", "ets", "croston")
+model <- c("glm", "glmnet", "arima", "ets", "croston")
+
+model <- c("arima","ets")
 
 fast_optim_forecast <- autoforecast(.data = .data_test
                                     , horizon = 36
                                     , model = model
                                     , parameter = NULL
                                     , optim_profile = "fast"
-                                    , method = "kalman"
-                                    , pred_interval = TRUE)
+                                    , method = "kalman")
 
 light_optim_forecast <- autoforecast(.data = .data_test
                                         , horizon = 36
@@ -80,8 +81,7 @@ light_optim_forecast <- autoforecast(.data = .data_test
                                         , optim_profile = "light"
                                         , method = "kalman"
                                         , number_best_models = 1
-                                        , pred_interval = TRUE
-                                        , test_size = 3)
+                                        , test_size = 6)
 
 complete_optim_forecast <- autoforecast(.data = .data_test
                                     , horizon = 36
@@ -90,25 +90,21 @@ complete_optim_forecast <- autoforecast(.data = .data_test
                                     , optim_profile = "complete"
                                     , method = "kalman"
                                     , number_best_models = 1
-                                    , pred_interval = TRUE
-                                    , test_size = 3)
+                                    , test_size = 6)
 
 # Fast ------------------------------------------------------------
 
-fast_optim_forecast %>% 
-  filter(model != "ensemble") %>% 
+fast_optim_forecast %>%
   plot_ts(interactive = F)
 
 # Light ------------------------------------------------------------
 
-light_optim_forecast %>% 
-  filter(model != "ensemble") %>% 
+light_optim_forecast %>%
   plot_ts(interactive = F)
 
 # Complete ------------------------------------------------------------
 
-complete_optim_forecast %>% 
-  filter(model != "ensemble") %>% 
+complete_optim_forecast %>%
   plot_ts(interactive = F)
 
 #---
