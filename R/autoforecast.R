@@ -315,7 +315,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     # Train - valid strategy
     
-    .data_tmp_train <- .data_tmp[1:(nrow(.data_tmp)-6),]
+    .data_tmp_train <- .data_tmp[1:(nrow(.data_tmp)-test_size),]
     .data_tmp_valid <- .data_tmp[(nrow(.data_tmp)-test_size+1):nrow(.data_tmp),]
     
     # Forecasting

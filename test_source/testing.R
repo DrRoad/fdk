@@ -65,8 +65,6 @@ optim_1 <- .data_test_0 %>%
 
 model <- c("glm", "glmnet", "arima", "ets", "croston")
 
-model <- c("arima","ets")
-
 fast_optim_forecast <- autoforecast(.data = .data_test
                                     , horizon = 36
                                     , model = model
