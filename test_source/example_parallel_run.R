@@ -23,21 +23,21 @@ data_all <- data_init %>%
 
 # Single test ----------------------------------------------------------
 
-# data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[22])
-# 
-# # run
-# 
-# model_list <- c("glm", "arima", "prophet", "dyn_theta", "ets", "croston")
-# 
-# 
-# aux <- autoforecast(.data = data_test
-#   , model = model_list
-#   , parameter = NULL, optim_profile = "complete", test_size = 6
-#   , lag = 3, meta_data = FALSE, method = "kalman", tune_parallel = TRUE
-#   , number_best_models = 1, pred_interval = TRUE
-# )
-# 
-# aux %>% plot_ts()
+data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[533])
+
+# run
+
+model_list <- c("glm", "arima", "prophet", "dyn_theta", "ets", "croston")
+
+
+aux <- autoforecast(.data = data_test
+  , model = model_list
+  , parameter = NULL, optim_profile = "complete", test_size = 6
+  , lag = 3, meta_data = FALSE, method = "kalman", tune_parallel = TRUE
+  , number_best_models = 1, pred_interval = TRUE
+)
+
+aux %>% plot_ts()
 
 # Multiple items / Parallel ----------------------------------------------------------
 

@@ -127,7 +127,10 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     }else{ # Else, do feature engineering & cleansing with selected inputs
       .data_tmp <- .data_tmp  %>% 
         feature_engineering_ts() %>% 
-        clean_ts(method = method)
+        clean_ts(method = method) %>% 
+        dplyr::mutate(
+          y_var = ifelse(y_var < 0, 0, y_var)
+        )
       # Print
       cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n")
       cat("Models to be tested:", model)
