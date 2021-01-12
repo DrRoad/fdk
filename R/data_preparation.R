@@ -23,7 +23,6 @@ prescribe_ts <- function(.data, key = NULL, y_var, date_var, reg_name = NULL, re
   attr(.data, "prescription") <- list(key = "key", y_var = "y_var"
                                       , date_var = "date_var", freq = "freq"
                                       , max_date = as.Date("1970-01-01"))
-  
   if(is.null(key)==TRUE){
     if(any(duplicated(.data[[date_var]])) == TRUE){
       stop("A duplicated date index has been found and no key column has been defined, please review the input data.")
@@ -32,7 +31,6 @@ prescribe_ts <- function(.data, key = NULL, y_var, date_var, reg_name = NULL, re
         mutate(key = "key_001")
     }
   }
-  
   if(is.null(reg_name) == T | is.null(reg_value) == T){
     .data_tmp <- .data %>% 
       mutate(reg_name = NA_character_, reg_value = 0)
@@ -44,19 +42,17 @@ prescribe_ts <- function(.data, key = NULL, y_var, date_var, reg_name = NULL, re
     attr(.data_tmp, "prescription")[["has_regressors"]] <- TRUE
     prescription <- attributes(.data_tmp)[["prescription"]]
   }
-  
   .data_tmp <- .data_tmp %>% 
     rename("key" = key, "y_var" = y_var, "date_var" = date_var) %>% 
     dplyr::select(key, date_var, y_var, everything())
-  
   attr(.data_tmp, "prescription")[["y_var"]] <- "y_var"
   attr(.data_tmp, "prescription")[["freq"]] <- freq
   attr(.data_tmp, "prescription")[["date_var"]] <- "date_var"
   attr(.data_tmp, "prescription")[["key"]] <- "key"
   attr(.data_tmp, "prescription")[["max_date"]] <- max(.data_tmp[["date_var"]])
   attr(.data_tmp, "prescription")[["multiple_keys"]] <- n_distinct(.data_tmp[["key"]])>1
-  
   prescription <- attributes(.data_tmp)[["prescription"]]
-  
   return(.data_tmp)
 }
+
+#---

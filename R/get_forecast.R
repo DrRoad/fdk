@@ -15,7 +15,7 @@
 #' \dontrun{
 #' get_forecast()
 #' }
-get_forecast <- function(.fit_output, x_data = NULL, horizon = NULL, tune = FALSE) {
+get_forecast <- function(.fit_output, x_data = NULL, tune = FALSE, horizon) {
   if(is.null(attributes(.fit_output)[["prescription"]]) == FALSE) {
     prescription <- attributes(.fit_output)[["prescription"]]
     # y_var <- prescription$y_var

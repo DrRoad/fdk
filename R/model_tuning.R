@@ -2,12 +2,12 @@
 #'
 #' @param .data Data frame or tibble.
 #' @param test_size Numeric. How many periods will be use to asses the forecast accuracy.
+#' @param model String. Model to be optimized.
 #' @param lag Numeric. How many periods ahead to start the test size. 
 #' @param parameter List. Hyperparameters to be used for estimation. There are 4 hyperparameters: first, 
 #' *alpha* in the space [0,1] controls whether it is a Ridge (L2) a LASSO (L1) shrinkage method, respectively.
 #' Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
 #' The other 2 hyperparameters are time weights and trend discount.
-#' @param model String. Model to be optimized.
 #' @param tune_parallel Logical. Perform parallelization across different model selection (**experimental**).
 #' @param metric Metric for optimization
 #'
@@ -27,12 +27,36 @@
 #' \dontrun{
 #' optim_ts()
 #' }
-optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FALSE, metric = "mape"){
+optim_ts <- function(.data, test_size, model, lag, parameter = NULL, tune_parallel = FALSE, metric = "mape"){
   
+  # Notes
   # y_var_true <- cv_metric <- ranking <- y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
   # globalVariables(c("trend_discount", "time_weight", "lambda", "lambda_cov", "model_i"))
   # Find the best parameter among the vector
-  ## For strings takes the mode, for numeric average.
+  # For strings takes the mode, for numeric average.
+  
+  # Params
+  
+  if(is.null(parameter)){
+    grid_glmnet <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.025)
+                               , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1)
+                               , alpha = seq(from = 0, to = 1, by = 0.25))
+    grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.025)
+                            , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1))
+    parameter <- list(glmnet = list(time_weight = .95, trend_discount = .70, alpha = 0, lambda = .1
+                                    , grid_glmnet = grid_glmnet
+                                    , job = list(optim_lambda = TRUE, x_excluded = NULL
+                                                 , random_search_size = 0.3
+                                                 , n_best_model = 1))
+                      , croston = list(alpha = 0.1)
+                      , glm = list(time_weight = .99, trend_discount = 0.70
+                                   , grid_glm = grid_glm
+                                   , job = list(x_excluded = NULL
+                                                , random_search_size = 0.3
+                                                , n_best_model = 1))
+                      , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
+                      , ets = list(ets = "ZZZ"))
+  }
   
   best_parameter_int <- function(best_par_string){
     if(is.numeric(best_par_string)== TRUE){
@@ -70,9 +94,11 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
 
   optim_switcher <- function(model){
     if(model == "glmnet"){
+      
       random_grid <- sample(x = 1:nrow(parameter$glmnet$grid)
                             , size = round(length(1:nrow(parameter$glmnet$grid))*parameter$glmnet$job$random_search_size)
                             , replace = FALSE)
+      
       cat(paste0("\nElastic Net: Hyperparameter tuning - Fitting ", length(random_grid) * test_size, " models...\n"))
       
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
@@ -103,6 +129,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
                                                                    , lambda)))
       
     } else if(model == "arima") {
+      
       cat(paste0("\nARIMA: Hyperparameter tuning...\n"))
       
       suppressMessages(
@@ -290,3 +317,5 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
   return(optim_out)
   
 }
+
+#---
