@@ -8,44 +8,40 @@ lapply(pkg, require, character.only = TRUE)
 
 # Data import
 
-data_init <- read_csv("test_source/demo_data_pac.csv")
+data_init <- read_csv("test_source/exerci_tmp_check.csv") %>% 
+  dplyr::select(-gbu) %>% 
+  dplyr::mutate(
+    reg_name = 0,
+    reg_value = 0
+  ) %>% 
+  dplyr::arrange(key, date_var)
 
 data_all <- data_init %>%
-  prescribe_ts(key = "forecast_item", y_var = "volume", date_var = "date"
-               , freq = 12, reg_name = "reg_name", reg_value = "reg_value")
+  prescribe_ts(key = "key", date_var = "date_var", y_var = "y_sales",
+               reg_name = "reg_name", reg_value = "reg_value",
+               freq = 12)
 
-# Final Testing!!!
+# Single test ----------------------------------------------------------
 
-# data
-
-data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[271])
-
-# params
-
-model_list <- "glm"
-optim_profile <- "light"
-test_size <- 3
-lag <- 3
-method <- "kalman"
-tune_parallel <- TRUE
-number_best_models <- 1
-horizon <- 24
-pred_interval <- TRUE
-metric <- "mape"
-
-# run
-
-aux <- autoforecast(.data = data_test, horizon = horizon
-             , model = model_list
-             , parameter = NULL, optim_profile = "light", test_size = 6
-             , lag = 3, meta_data = FALSE, method = "mean", tune_parallel = TRUE
-             , number_best_models = 5, pred_interval = TRUE)
-
-aux %>% plot_ts()
+# data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[22])
+# 
+# # run
+# 
+# model_list <- c("glm", "arima", "prophet", "dyn_theta", "ets", "croston")
+# 
+# 
+# aux <- autoforecast(.data = data_test
+#   , model = model_list
+#   , parameter = NULL, optim_profile = "complete", test_size = 6
+#   , lag = 3, meta_data = FALSE, method = "kalman", tune_parallel = TRUE
+#   , number_best_models = 1, pred_interval = TRUE
+# )
+# 
+# aux %>% plot_ts()
 
 # Multiple items / Parallel ----------------------------------------------------------
 
-model_list <- c("glm", "glmnet", "svm", "dyn_theta", "croston", "arima", "ets")
+model_list <- c("glm", "glmnet", "croston", "arima", "ets")
 
 cluster = makeCluster(4, type = "SOCK")
 registerDoSNOW(cluster)
@@ -56,7 +52,7 @@ progress <- function(n) {
 opts <- list(progress=progress)
 
 tictoc::tic()
-results <- foreach(key_i = unique(data_all$key), .errorhandling='stop', .combine = "rbind", 
+results <- foreach(key_i = unique(data_all$key), .errorhandling='stop', .combine = "rbind",
                    .options.snow=opts, .packages = pkg) %dopar% {
   data_i <- data_all[data_all$key == key_i,]
   autoforecast(.data = data_i, horizon = 24
@@ -72,11 +68,11 @@ stopCluster(cluster)
 
 # Results
 
-write.csv(results,"test_source/final_results.csv")
+write.csv(results,"test_source/diagnostics.csv")
 
 # Plot
 
-plot_res <- results %>% filter(key == unique(data_all$key)[616] & !model == "ensemble") %>%
+plot_res <- results %>% filter(key == unique(data_all$key)[1] & !model == "ensemble") %>%
   plot_ts(interactive = F)
 
 plot_res

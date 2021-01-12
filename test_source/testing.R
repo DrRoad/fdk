@@ -42,7 +42,7 @@ source("R/get_svm.R")
   mutate(reg_name = "0", reg_value = 0, key = "airpassengers", index = as.Date(index)) %>%
   prescribe_ts(key = "key", y_var = "value", date_var = "index", reg_name = "reg_name", reg_value = "reg_value", freq = 12)
 
-# Prescribe -------------------------------------------------------------
+# Test -------------------------------------------------------------
 
 .data_test_0 <- .data_test %>% 
   feature_engineering_ts() %>% 

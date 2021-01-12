@@ -15,7 +15,6 @@
 #' @param number_best_models Integer. Among the best models, how many to output (also controls the Ensemble forecast).
 #' @param pred_interval Logical. Control if prediction intervals are printed.
 #' @param ... Other parameter from the sub-functions.
-#' 
 #' @importFrom lubridate ymd
 #' @importFrom stlplus stlplus
 #' @importFrom purrr map
@@ -35,9 +34,17 @@
 #' autoforecast()
 #' }
 autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36, model, optim_profile
-                         , meta_data = FALSE, tune_parallel = FALSE, number_best_models = 1
+                         , meta_data = FALSE, tune_parallel = TRUE, number_best_models = 1
                          , pred_interval = TRUE, metric = "mape", method = "kalman"
                          , frequency = 12, ensemble = FALSE, ...){
+  
+  # Internal lag calculation
+  
+  lag <- lag + 1
+  
+  # Set seed
+  
+  set.seed(123)
   
   # Checks -> If there is only one model for output, don't do ensemble
   
@@ -56,14 +63,6 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   if(optim_profile == "fast" && length(model) > 1){
     pred_interval <- FALSE
   } 
-  
-  # Internal lag calculation
-  
-  lag <- lag + 1
-  
-  # Set seed
-  
-  set.seed(123)
   
   # Get default parameters
   
@@ -103,27 +102,35 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
   
   .main_attributes <- attributes(.data_tmp)
 
-  # Main check forecasting rules
+  # Main rules of forecasting rules & integrity
   
-  if(.main_attributes$prescription$size < 12 | .main_attributes$prescription$intermittency > 0.35){
-    # Feature engineering and fast mode
+  if(.main_attributes$prescription$size - test_size < 12 | .main_attributes$prescription$intermittency > 0.5){ # Use simple models
     .data_tmp <- .data_tmp %>% 
       feature_engineering_ts()
-    optim_profile <- "fast"
-    model <- "croston"
-  }else{ # Check if data in test or 0 consistency
+    model <- model[model %in% c("arima","ets","croston")]
+    cat("Models to be tested:", model)
+     if(.main_attributes$prescription$size < 12){ # Super simple: Default croston + fast mode
+     .data_tmp <- .data_tmp %>% 
+       feature_engineering_ts()
+     optim_profile <- "fast"
+     model <- c("croston")
+     cat("Models to be tested:", model)
+     }
+  }else{ # Check data in test or 0 consistency
     quantity_test_size <- sum(.data_tmp[["y_var"]][(.main_attributes$prescription$size-test_size):(.main_attributes$prescription$size)])
-    if(sum(.data_tmp$y_var) == 0 | quantity_test_size == 0){ # If not enough data, do feature engineering & select a croston
+    if(sum(.data_tmp$y_var) == 0 | quantity_test_size == 0){ # If no data consitency, do feature engineering & select a croston
       .data_tmp <- .data_tmp %>% 
         feature_engineering_ts()
       optim_profile <- "fast"
       model <- "croston"
-    }else{ # Else, do feature engineering & cleansing
+      cat("Models to be tested:", model)
+    }else{ # Else, do feature engineering & cleansing with selected inputs
       .data_tmp <- .data_tmp  %>% 
         feature_engineering_ts() %>% 
         clean_ts(method = method)
       # Print
       cat("\nProcedures applied: \n- Feature engineering \n- Cleansing\n")
+      cat("Models to be tested:", model)
     }
   }
   
@@ -213,7 +220,8 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     # Generates forecast given default (hyper)parameters.
     
     forecast_tmp <- map(model, ~get_forecast_int(.data = .data_tmp
-                                               , model = .x, horizon = horizon
+                                               , model = .x
+                                               , horizon = horizon
                                                , parameter = parameter)) %>% 
       bind_rows() %>% 
       dplyr::mutate(y_var_fcst = ifelse(y_var_fcst < 0, 0, y_var_fcst)) %>% 
@@ -291,14 +299,10 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
   } else if (optim_profile == "complete"){ # Complete profile -------------------------
     
-    # Don't optimize heavy models
-    
-    model <- model[!model %in% c("svm")]
-    
     # Set parameters to "full power"
     
     parameter$glm$job$random_search_size <- 1
-    parameter$glmnet$job$random_search_size <- 0.6
+    parameter$glmnet$job$random_search_size <- 1
     parameter$glmnet$job$optim_lambda <- TRUE
     
     best_model_int <- optim_ts(.data_tmp, test_size = test_size, lag = lag
@@ -308,17 +312,17 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     
     print(knitr::kable(best_model_int, "simple", 4))
     
-    # Get "n" best models
+    # Get arranged best models
     
     model <- best_model_int %>% 
       .[["model"]]
     
-    # Train - valid strategy
+    # Train & valid strategy
     
     .data_tmp_train <- .data_tmp[1:(nrow(.data_tmp)-test_size),]
     .data_tmp_valid <- .data_tmp[(nrow(.data_tmp)-test_size+1):nrow(.data_tmp),]
     
-    # Forecasting
+    # Forecasting test size
     
     forecast_tmp_0 <- map(model
                         , ~ optim_join_int(.data_tmp_train, model = .x, parameter = parameter
@@ -348,7 +352,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
     best_model_int_0 <- best_model_int %>% 
       dplyr::select(model, parameter)
     
-    # Get "n" best models
+    # Get arranged best models
     
     best_model_int_final <- final_evaluation %>% 
       dplyr::filter(ranking <= number_best_models) %>% 
@@ -379,7 +383,7 @@ autoforecast <- function(.data, parameter, test_size = 6, lag = 3, horizon = 36,
       
       cat(paste0("\n Complete optimization for ", length(model), " models + Unweighted Ensemble Forecast"))
       
-      best_model_int_sup <- best_model_int_final %>% rename("cv_metric" = "final_mape")
+      best_model_int_sup <- best_model_int_final %>% rename("cv_metric" = "final_metric")
       
       ensemble_tmp <- get_ensemble_int_weighted(.forecast_tmp = forecast_tmp, .weights = best_model_int_sup[best_model_int_sup$model%in%model,])
       

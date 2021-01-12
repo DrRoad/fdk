@@ -37,7 +37,7 @@ fill_ts <- function(.data, na_value = 0){
   if(pull(has_gaps(tmp))==TRUE){
     cat("Input data has time index gaps, padding...\n")
     tmp <- tmp %>%
-      fill_gaps(reg_name = "0", reg_value = 0, y_var = na_value) %>% 
+      fill_gaps(reg_name = 0, reg_value = 0, y_var = na_value) %>% 
       as_tibble() %>%
       mutate(date_var = as.Date(date_var)) %>% 
       fill(key, .direction = "down") %>% 
