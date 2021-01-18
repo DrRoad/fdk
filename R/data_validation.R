@@ -1,74 +1,3 @@
-#' Fill time series data
-#'
-#' @param .data 
-#'
-#' @return tibble
-#' @export 
-#'
-fill_ts <- function(.data, na_value = 0){
-  prescription <- attributes(.data)[["prescription"]]
-  date_transf <- function(date_var, freq){
-    freq <- as.numeric(freq)
-    if(freq == 1){
-      lubridate::year(date_var)
-    } else if(freq == 12){
-      yearmonth(date_var)
-    } else if(freq == 4){
-      yearquarter(date_var)
-    } else if(freq == 52){
-      yearweek(date_var)
-    } else if(freq == 365){
-      ymd(date_var)
-    }
-  }
-  if(max(.data[["date_var"]]) < prescription$max_date){
-    cat("Input data has a max time index lower than global, padding...\n")
-    tmp <- .data %>% 
-      dplyr::bind_rows(tibble(date_var = prescription$max_date)) %>% 
-      dplyr::mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
-      tsibble::as_tsibble(index = date_var) %>% 
-      tidyr::fill(key, .direction = "down") %>% 
-      tidyr::replace_na(list("y_var" = 0, "reg_name" = 0, "reg_value" = 0))
-  } else {
-    tmp <- .data %>% 
-      dplyr::mutate(date_var = date_transf(date_var, freq = prescription[["freq"]])) %>% 
-      tsibble::as_tsibble(index = date_var) 
-  }
-  if(pull(has_gaps(tmp))==TRUE){
-    cat("Input data has time index gaps, padding...\n")
-    tmp <- tmp %>%
-      fill_gaps(reg_name = 0, reg_value = 0, y_var = na_value) %>% 
-      as_tibble() %>%
-      mutate(date_var = as.Date(date_var)) %>% 
-      fill(key, .direction = "down") %>% 
-      replace_na(replace = list(y_var = na_value, reg_name = "0", reg_value = 0)) %>% 
-      as_tibble() %>% 
-      mutate(date_var = as.Date(date_var))
-  } else {
-    tmp <- tmp %>% 
-      as_tibble() %>% 
-      mutate(date_var = as.Date(date_var))
-  }
-  attr(tmp, "prescription") <- prescription
-  return(tmp)
-}
-
-#' Time series descriptors
-#'
-#' @param .data Input tibble
-#'
-#' @return tibble
-#' @export
-#'
-describe_ts <- function(.data){
-  prescription <- attributes(.data)[["prescription"]]
-  prescription[["size"]] <- nrow(.data)
-  prescription[["intermittency"]] <- round(sum(.data[["y_var"]]==0)/length(.data[["y_var"]]), 2)
-  prescription[["tail_zero"]] <- sum(cumsum(rev(.data$y_var))==0)
-  attr(.data, "prescription") <- prescription
-  return(.data)
-}
-
 #' Validate Time Series Data
 #' 
 #' This functions fill gaps in time series and provide revelant statistics
@@ -78,10 +7,93 @@ describe_ts <- function(.data){
 #' @return Tibble
 #' @export
 #'
-validate_ts <- function(.data, na_value = 0){
+validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_name = "")){
+  
+  fill_ts <- function(.data){
+    seq_complete <- seq.Date(from = as.Date(min(.data[["date_var"]]))
+                             , to = as.Date(max(.data[["date_var"]]))
+                             , by = af_log$log[[c(1,3)]])
+    n_missing_dates <- (length(seq_complete) - length(.data[["date_var"]]))
+    missing_dates <- base::setdiff(as.character(seq_complete), as.character(.data[["date_var"]]))
+    dates_with_reg <- .data %>% 
+      filter(is.na(reg_name)==F | reg_name != "") %>% 
+      pull(date_var) %>% 
+      unique() %>% 
+      as.character()
+    
+    duplicated_dates <- .data[["date_var"]][duplicated(.data[["date_var"]])]
+    
+    if(length(duplicated_dates)>0){
+      suspicious_cases <- .data %>% 
+        filter(date_var %in% duplicated_dates)
+      
+      if(n_distinct(suspicious_cases$reg_name) > length(duplicated_dates)){
+        warning_log <- "Multiple regressors have been found for a same date"
+        if(sum(suspicious_cases$reg_value == 0) == length(duplicated_dates)){
+          solution_log <- "Zeros have been found, they will be filtered out"
+          vec_excluded <- (.data$reg_value == 0 & .data$date_var %in% duplicated_dates)
+          .data <- .data[!vec_excluded, ]
+        } else {
+          solution_log <- "No solution has been applied"
+        }
+      }
+      
+      log_duplicates <- update_logger(key = attributes(.data)[["key"]]
+                               , module = "date_duplication"
+                               , new_log = tibble(duplicated_dates = list(duplicated_dates)
+                                                  , missing_dates = list(missing_dates)
+                                                  , dates_with_reg = list(dates_with_reg)
+                                                  , warning = warning_log
+                                                  , solution = solution_log))
+    } else {
+      log_duplicates <- update_logger(key = attributes(.data)[["key"]]
+                                      , module = "date_duplication"
+                                      , new_log = tibble(solution = "No duplicated dates have been found"))
+    }
+    
+    # Output ------------------------------------------------------------------
+    
+    tmp <- seq_complete %>% 
+      enframe(value = "date_var") %>% 
+      left_join(.data, by = "date_var") %>%
+      do({
+        tmp_1 <- tibble(.)
+        if(all(is.na(tmp_1$reg_name))){
+          tmp_1 %>% 
+            replace_na(replace = list(y_var = na_values[["y_var"]]
+                                      , reg_value = na_values[["reg_value"]]
+                                      , reg_name = na_values[["reg_name"]]))
+        } else {
+          tmp_1 %>% 
+            #fill("reg_name", .direction = "down") %>% 
+            replace_na(replace = list(reg_value = 0
+                                      , y_var = na_values[["y_var"]]))
+        }
+      }) %>% 
+      dplyr::select(-name) %>% 
+      structure("key" = attributes(.data)[["key"]])
+    
+    log_meta <- update_logger(key = attributes(tmp)[["key"]]
+                  , module = "gap_filling"
+                  , new_log = tibble(size = nrow(tmp)
+                                     , n_missing_dates = n_missing_dates
+                                     , intermittency = round(sum(tmp[["y_var"]]==0)/length(tmp[["y_var"]]), 2)
+                                     , tail_zero = sum(cumsum(rev(tmp$y_var))==0)
+                                     , excluded_models = c("glmnet")
+                                     , date_min = as.character(min(tmp[["date_var"]]))
+                                     , date_max = as.character(max(tmp[["date_var"]]))
+                                     , has_reg = ifelse(!all(tmp[["reg_name"]] %in% ""), T, F)
+                  #, env = ls(environment())
+                  )
+    )
+    
+    
+    
+    list(.data = tmp, .log = bind_rows(log_meta, log_duplicates))
+  }
+  
   .data %>% 
-    fill_ts(na_value = na_value) %>% 
-    describe_ts() 
+    fill_ts()
+  
+  #list(.data = fill_ts(.data), logger)
 }
-
-#---
