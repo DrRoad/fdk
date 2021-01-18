@@ -18,41 +18,106 @@
 #' \dontrun{
 #' prescribe_ts()
 #' }
-prescribe_ts <- function(.data, key = NULL, y_var, date_var, reg_name = NULL, reg_value = NULL, freq){
-  # basic configuration
-  attr(.data, "prescription") <- list(key = "key", y_var = "y_var"
-                                      , date_var = "date_var", freq = "freq"
-                                      , max_date = as.Date("1970-01-01"))
+prescribe_ts <- function(.data_init, key = NULL, y_var
+                         , date_var, reg_name = NULL
+                         , reg_value = NULL, freq, date_format){
+  
+  # Validators --------------------------------------------------------------
+  
+  stopifnot(freq %in% c(1, 12, 4, 52, 365))
+  stopifnot(date_format %in% c("ymd", "dmy", "ym"))
+  
+  freq_name <- data.frame(freq_number = c(1, 4, 12, 52, 365)
+             , freq_name = c("year", "quarter", "month", "week", "day")) %>% 
+    dplyr::filter(freq_number == freq) %>% 
+    pull(freq_name)
+  
   if(is.null(key)==TRUE){
-    if(any(duplicated(.data[[date_var]])) == TRUE){
+    if(any(duplicated(.data_init[[date_var]])) == TRUE){
       stop("A duplicated date index has been found and no key column has been defined, please review the input data.")
     } else {
-      .data <- .data %>% 
+      .data_init <- .data_init %>% 
         mutate(key = "key_001")
     }
   }
+  
   if(is.null(reg_name) == T | is.null(reg_value) == T){
-    .data_tmp <- .data %>% 
-      mutate(reg_name = NA_character_, reg_value = 0)
+    .data_init <- .data_init %>% 
+      mutate(reg_name = NA_character_, reg_value = 0) %>% 
+      rename("key" = key, "y_var" = y_var, "date_var" = date_var)
   } else {
-    .data_tmp <- .data %>% 
-      rename("reg_name" = reg_name, "reg_value" = reg_value)
-    attr(.data_tmp, "prescription")[["reg_name"]] <- "reg_name"
-    attr(.data_tmp, "prescription")[["reg_value"]] <- "reg_value"
-    attr(.data_tmp, "prescription")[["has_regressors"]] <- TRUE
-    prescription <- attributes(.data_tmp)[["prescription"]]
+    .data_init <- .data_init %>% 
+      rename("reg_name" = reg_name, "reg_value" = reg_value) %>% 
+      rename("key" = key, "y_var" = y_var, "date_var" = date_var)
   }
-  .data_tmp <- .data_tmp %>% 
-    rename("key" = key, "y_var" = y_var, "date_var" = date_var) %>% 
-    dplyr::select(key, date_var, y_var, everything())
-  attr(.data_tmp, "prescription")[["y_var"]] <- "y_var"
-  attr(.data_tmp, "prescription")[["freq"]] <- freq
-  attr(.data_tmp, "prescription")[["date_var"]] <- "date_var"
-  attr(.data_tmp, "prescription")[["key"]] <- "key"
-  attr(.data_tmp, "prescription")[["max_date"]] <- max(.data_tmp[["date_var"]])
-  attr(.data_tmp, "prescription")[["multiple_keys"]] <- n_distinct(.data_tmp[["key"]])>1
-  prescription <- attributes(.data_tmp)[["prescription"]]
-  return(.data_tmp)
+  
+  # Attributes --------------------------------------------------------------
+  
+  assign("af_log", value = tibble(key = character(), log_time = Sys.time(), module = NA_character_
+                  , log = list(), .rows = 1) %>% slice(0)
+         , envir = .GlobalEnv)
+  
+  attr(.data_init[["date_var"]], "date_meta") <- c(date_format, freq, freq_name
+                                                 , as.character(range(.data_init$date_var)))
+  
+  update_logger(key = "all_keys"
+                , module = "prescription"
+                , new_log = tibble(date_format = date_format
+                                   , freq = freq
+                                   , freq_name = freq_name
+                                   , date_min = as.character(min(.data_init$date_var))
+                                   , date_max = as.character(max(.data_init$date_var))))
+
+  # Ouput -------------------------------------------------------------------
+
+  .data_init %>% 
+    dplyr::select(all_of(c("key", "date_var", "y_var")), everything()) %>% 
+    mutate(across(.cols = c("reg_value"), .fns = ~if_else(is.na(.x), 0, .x))) %>%
+    arrange(key, date_var) %>%
+    group_nest(key) %>% 
+    mutate(data = map2(data, key, ~{
+      .x %>%
+        structure(key = .y)
+    }))
 }
 
-#---
+
+
+#' Logger updater
+#'
+#' @param key 
+#' @param module 
+#' @param new_log 
+#' @param env 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_logger <- function(key = character(), module = character(), new_log = list(), env = globalenv()){
+  stopifnot(is.character(module))
+  
+  entering_log <- bind_rows(tibble(key = ifelse(is.null(key), NA_character_, key)
+                    , log_time = Sys.time()
+                    , module = module
+                    , log = list(new_log)))
+  
+  if(module %in% c("prescribe", "prescription")){
+    assign("af_log", value = tibble(key = character(), log_time = Sys.time(), module = NA_character_
+                    , log = list(), .rows = 1) %>% slice(0)
+           , envir = .GlobalEnv)
+    assign("af_log", value = entering_log, envir = .GlobalEnv)
+  } else {
+    entering_log
+  }
+  #assign("logger", value = bind_rows(logger, new_line), envir = env)
+}
+
+task_transfer <- function(.output){
+  if(is.list(.output)){
+    .output[[1]]
+  } else {
+    .output
+  }
+}
+
