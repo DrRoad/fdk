@@ -35,8 +35,21 @@ d1 <- prescribe_ts(.data = new_data
   pull(data) %>% 
   .[[1]] %>% 
   validate_ts() %>% 
-  feature_engineering_ts(lag_var = list(y_var = c(1, 3)))
+  feature_engineering_ts(level_seas = FALSE
+                           , lag_var = list(y_var = c(1, 3))) %>% 
+  clean_ts(winsorize_config = list(apply_winsorize = T)
+           , imputation_config = list(impute_method = "kalman"
+                                      , na_regressor = TRUE
+                                      , na_missing_dates = TRUE))
 
+l <- .data$.data
+
+.data$.data %>% 
+  ggplot()+
+  geom_line(aes(date_var, y_var))+
+  geom_line(aes(date_var, y_var_clean), col ="red")+
+  geom_line(aes(date_var, y_var_imp), col = "purple")+
+  geom_line(aes(date_var, y_var_winso_imp), col ="blue")
 
 
 
