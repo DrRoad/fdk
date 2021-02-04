@@ -13,7 +13,6 @@ AutoForecast provides a collection of automated procedures to analyze, forecast 
 
 Autoforecast is also accompanied by a front-end and cloud solution to improve user experience.
 
-
 # Installation
 
 The installation can be performed directly from GitLab. 

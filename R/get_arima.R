@@ -27,10 +27,12 @@ get_arima <- function(.data, y_var, is_seasonal = TRUE, parameter = NULL, freq){
     message("ARIMA optimization...")
     model_fit <- auto.arima(y_var_int, stepwise = TRUE, seasonal = is_seasonal)
   } else if(is.null(parameter[["arima"]][["seasonal"]])==FALSE){
-    model_fit <- Arima(y_var_int, order = as.numeric(parameter[["arima"]][c("p", "d", "q")])
-                       , seasonal = c(as.numeric(parameter[["arima"]][c("P", "D", "Q")], freq)))
+    model_fit <- suppressWarnings(Arima(y_var_int, order = as.numeric(parameter[["arima"]][c("p", "d", "q")])
+                       , seasonal = c(as.numeric(parameter[["arima"]][c("P", "D", "Q")], freq)),
+                       method = "ML"))
   } else {
-    model_fit <- Arima(y_var_int, order = as.numeric(parameter[["arima"]][c("p", "d", "q")]))
+    model_fit <- suppressWarnings(Arima(y_var_int, order = as.numeric(parameter[["arima"]][c("p", "d", "q")]),
+                       method = "ML"))
   }
   .fit_output <- list(model = "arima"
                  , model_fit = model_fit
