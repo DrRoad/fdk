@@ -9,6 +9,7 @@ lapply(pkg, require, character.only = TRUE)
 # Data import
 
 data_init <- read_csv("test_source/exerci_tmp_check.csv") %>% 
+  dplyr::filter(date_var < "2019-07-01") %>% 
   dplyr::select(-gbu) %>% 
   dplyr::mutate(
     reg_name = 0,
@@ -23,12 +24,37 @@ data_all <- data_init %>%
 
 # Single test ----------------------------------------------------------
 
-data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[533])
+data_test <- .data <- data_all %>% filter(key == unique(data_all$key)[15])
+
+# GLM ----------------------------------------------------------
+
+optim <- data_test %>% 
+  optim_ts(test_size = 6, model = "glm", lag = 3, parameter = NULL, metric = "mape")
+
+output <- optim$parameter %>% as.data.frame()
+
+optim_params <- list(glm = list(time_weight = output$time_weight, trend_discount = output$trend_discount))
+  
+fcst <- data_test %>% 
+  fit_ts(model = "glm", parameter = optim_params) %>% 
+  get_forecast(h = 60)
+
+# Glmnet ----------------------------------------------------------
+
+optim <- data_test %>% 
+  optim_ts(test_size = 6, model = "glmnet", lag = 3, parameter = NULL, metric = "mape")
+
+output <- optim$parameter %>% as.data.frame()
+
+optim_params <- list(glm = list(time_weight = output$time_weight, trend_discount = output$trend_discount))
+
+fcst <- data_test %>% 
+  fit_ts(model = "glm", parameter = optim_params) %>% 
+  get_forecast(h = 60)
 
 # run
 
 model_list <- c("glm", "arima", "prophet", "dyn_theta", "ets", "croston")
-
 
 aux <- autoforecast(.data = data_test
   , model = model_list
