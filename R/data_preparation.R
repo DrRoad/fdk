@@ -51,23 +51,26 @@ prescribe_ts <- function(.data_init, key = NULL, y_var
       rename("key" = key, "y_var" = y_var, "date_var" = date_var)
   }
   
-  # Attributes --------------------------------------------------------------
-  
-  assign("af_log", value = tibble(key = character(), log_time = Sys.time(), module = NA_character_
-                  , log = list(), .rows = 1) %>% slice(0)
-         , envir = .GlobalEnv)
-  
-  attr(.data_init[["date_var"]], "date_meta") <- c(date_format, freq, freq_name
-                                                 , as.character(range(.data_init$date_var)))
-  
-  update_logger(key = "all_keys"
-                , module = "prescription"
-                , new_log = tibble(date_format = date_format
-                                   , freq = freq
-                                   , freq_name = freq_name
-                                   , date_min = as.character(min(.data_init$date_var))
-                                   , date_max = as.character(max(.data_init$date_var))))
 
+  # Log init ----------------------------------------------------------------
+
+  keys <- unique(.data_init$key)
+  .log_init <- list()
+  for(i in seq_along(keys)){
+    .log_init[[i]] <- list(NULL)
+  }
+  
+  prescription_log <- list(date_format = date_format
+       , freq = freq
+       , freq_name = freq_name
+       , date_min = as.character(min(.data_init$date_var))
+       , date_max = as.character(max(.data_init$date_var)))
+  
+  .log_init <- append(.log_init, values = list(prescription_log), after = 0)
+  names(.log_init) <- c("prescription", keys)
+  assign(x = ".log_init", value = .log_init, envir = .GlobalEnv)
+  assign(x = ".log", value = .log_init, envir = .GlobalEnv)
+  
   # Ouput -------------------------------------------------------------------
 
   .data_init %>% 
@@ -94,30 +97,64 @@ prescribe_ts <- function(.data_init, key = NULL, y_var
 #' @export
 #'
 #' @examples
-update_logger <- function(key = character(), module = character(), new_log = list(), env = globalenv()){
+log_update <- function(module = character(), key = character(), new_log = list()){
   stopifnot(is.character(module))
-  
-  entering_log <- bind_rows(tibble(key = ifelse(is.null(key), NA_character_, key)
-                    , log_time = Sys.time()
-                    , module = module
-                    , log = list(new_log)))
-  
-  if(module %in% c("prescribe", "prescription")){
-    assign("af_log", value = tibble(key = character(), log_time = Sys.time(), module = NA_character_
-                    , log = list(), .rows = 1) %>% slice(0)
-           , envir = .GlobalEnv)
-    assign("af_log", value = entering_log, envir = .GlobalEnv)
-  } else {
-    entering_log
+  if(exists(".log", envir = .GlobalEnv) == FALSE){
+    .log <- .log_init
   }
-  #assign("logger", value = bind_rows(logger, new_line), envir = env)
+  in_log_update <- list(append(new_log, values = list(sys_time = Sys.time())))
+  names(in_log_update) <- module
+  
+  if(module %in% names(.log[[key]])){
+    .log[[key]] <- modifyList(x = .log[[key]], val = in_log_update)
+  } else {
+    .log[[key]] <- append(.log[[key]], values = in_log_update)
+    if(is.null(.log[[key]][[1]])){.log[[key]][[1]] <- NULL}
+  }
+  
+  assign(x = ".log", value = .log, envir = .GlobalEnv)
+  
+  # if(module %in% c("validation", "validate")){
+  #   key_init <- list(NULL)
+  #   names(key_init) <- key
+  #   key_init[[key]] <- in_log
+  # } else {
+  #   
+  #   key_init <- list(append(.log[[key]], values = in_log_update))
+  #   names(key_init) <- key
+  # }
+  
+  # if(exists("key_init", envir = .GlobalEnv) == FALSE){
+  # 
+  #   in_log <- list(append(new_log, values = list(sys_time = Sys.time())))
+  #   names(in_log) <- module
+  #   key_init[[key]] <- in_log
+  # } else if((module %in% names(key_init[[key]])) == FALSE){
+  #   in_log_update <- list(append(new_log, values = list(sys_time = Sys.time())))
+  #   names(in_log_update) <- module
+  #   key_init <- list(append(key_init[[key]], values = in_log_update))
+  #   names(key_init) <- key
+  # } else {
+  #   message("last")
+  # }
+  
+  #assign(x = ".log", value = key_init, envir = .GlobalEnv)
 }
 
-task_transfer <- function(.output){
-  if(is.list(.output)){
-    .output[[1]]
-  } else {
-    .output
-  }
-}
+
+# if(module %in% c("prescribe", "prescription")){
+#   assign(".log_init", value = in_log, envir = env)
+# } else {
+#   if(exists(".log") == T){
+#     if((module %in% names(.log)) == T){
+#       modifyList(x = .log, val = in_log)
+#     } else {
+#       assign(x = ".log", value = append(x = .log, values = in_log), envir = env)
+#     }
+#   } else {
+#     assign(x = ".log", value = append(x = .log_init, values = in_log), envir = env)
+#   }
+# }
+
+
 
