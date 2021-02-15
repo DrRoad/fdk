@@ -20,24 +20,24 @@
 #' \dontrun{
 #' get_trend_discounts()
 #' }
-get_trend_discounts <- function(y_var_length, trend_discount, horizon=NULL, lag = NULL){
+get_trend_decay <- function(y_var_length, trend_decay, horizon=NULL, lag = NULL){
   if(length(y_var_length)>1){
     y_var_length <- length(y_var_length)
   } else {
     y_var_length
   }
-  if(length(trend_discount)!=1) stop("Only one trend discount value should be provided")
+  if(length(trend_decay)!=1) stop("Only one trend discount value should be provided")
   if(is.null(lag)==F & length(lag) != 1) stop("Only one lag value should be provided")
   if(is.null(horizon)==T){
-    trend_discount <- y_var_length + cumsum(trend_discount^(0:(y_var_length-1)))
+    trend_decay <- y_var_length + cumsum(trend_decay^(0:(y_var_length-1)))
     if(is.null(lag)==T){
-      return(trend_discount)
+      return(trend_decay)
     } else {
-      return(trend_discount[[lag]])
+      return(trend_decay[[lag]])
     }
   } else {
-    trend_discount <- y_var_length + cumsum(trend_discount^(0:(horizon-1)))
-    return(trend_discount)
+    trend_decay <- y_var_length + cumsum(trend_decay^(0:(horizon-1)))
+    return(trend_decay)
   }
 }
 
@@ -228,4 +228,86 @@ update_parameter <- function(old_parameter, new_parameter, model, optim = FALSE)
     stop("No model has been set")
   }
   return(parameter_tmp)
+}
+
+summary_ts <- function(.data){
+  if(class(.data) == "optim_ts"){
+    mape <- .data$mape %>% format(digits = 2, nsmall = 2)
+    spa <- .data$spa %>% format(digits = 2, nsmall = 2)
+    mse <- .data$mse %>% format(digits = 2, nsmall = 2)
+    mae <- .data$mae %>% format(digits = 2, nsmall = 2)
+    mape_i <- .data$mape_vec %>% format(digits = 2, nsmall = 2)
+    spa_i <- .data$spa_vec %>% format(digits = 2, nsmall = 2)
+    error <- diag(.data$error_matrix) %>% abs() %>%  format(digits = 2, nsmall = 2)
+    
+    # c1 <- c("AGGREGATED","", "{iter}", 1:6)
+    # c2 <- c(mape,"", "", mape_i)
+    # c3 <- c(spa,"", "", spa_i)
+    # c4 <- c("","", "", error)
+    # 
+    # matrix(c(c1, c2, c3, c4), nrow = 9) %>% 
+    #   knitr::kable(col.names = c("", "MAPE", "SPA", "ERROR ABS")
+    #                , digits = 2, format = "simple")
+    
+    cat(c(paste0("OPTIMIZATION METRICS ", "#######")
+          , paste0(rep("#", 28), collapse = "")
+          , toupper(.data$model)
+          , mape, spa, mse, mae), fill = 1
+        , labels = paste0("##", c("", "", " MODEL ="
+                                  ," MAPE ="
+                                  , " SPA ="
+                                  , " MSE ="
+                                  , " MAE =")))
+    
+    return(.data)
+    
+    #cat(paste0("## Optimization results ", paste0(rep("#", 40), collapse = "")), "\n")
+    # vec <- c(paste0("MAPE = ", mape), paste0("SPA  = ", spa))
+    #cat(vec, fill = 2, labels = "##")
+    #cat(c(mape, spa))
+    # cat(" ## MAPE = ", mape, "\n"
+    #     , "## MAPE iteration = ", mape_i, "\n"
+    #     , "## SPA = ", spa, "\n"
+    #     , "## SPA iteration = ", spa_i
+    #     , fill = T
+    #     , labels = )
+  }
+}
+
+
+optim_tidy <- function(.optim_ts, optim){
+  optim_out_t <- transpose(.optim_ts)
+  fitted_matrix <- plyr::ldply(optim_out_t$fitted, rbind)
+  error_matrix <- matrix(unlist(optim_out_t$error), ncol = .test_size, byrow = T)
+  predicted_matrix <- matrix(unlist(optim_out_t$predicted), ncol = .test_size, byrow = T)
+  observed_matrix <- matrix(unlist(optim_out_t$observed), ncol = .test_size, byrow = T)
+  mape_matrix <- abs(error_matrix)/predicted_matrix
+  spa_matrix <- observed_matrix/predicted_matrix
+  mape_vec <- abs(diag(error_matrix))/diag(observed_matrix)
+  spa_vec <- diag(observed_matrix)/diag(predicted_matrix)
+  mape <- sum(abs(diag(error_matrix)))/sum(diag(observed_matrix))
+  spa <- sum(diag(observed_matrix))/sum(diag(predicted_matrix))
+  mse <- sum((diag(error_matrix))^2)/test_size
+  mae <- sum(abs(diag(error_matrix)))/test_size
+  
+  optim_out <- list(
+    model = ts_model
+    , fitted_matrix = round(fitted_matrix, 3)
+    , error_matrix = round(error_matrix, 3)
+    , predicted_matrix = round(predicted_matrix, 3)
+    , mape_matrix = round(mape_matrix, 3)
+    , spa_matrix = round(spa_matrix, 3)
+    , mape_vec = round(mape_vec, 3)
+    , spa_vec = round(spa_vec, 3)
+    , mape = round(mape, 3)
+    , spa = round(spa, 3)
+    , mse = round(mse, 3)
+    , mae = round(mae, 3)
+  )
+  
+  if(export_fit == TRUE){
+    append(optim_out, values = list(fit = optim_out_t$fit), after = 0)
+  } else {
+    optim_out
+  }
 }
