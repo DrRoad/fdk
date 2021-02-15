@@ -15,8 +15,10 @@
 #' \dontrun{
 #' fit_ts()
 #' }
-fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
+fit_ts <- function(.data, ts_model, parameter = list()){
+
   # Params
+  
   if(is.null(parameter)){
     grid_glmnet <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.025)
                                , trend_discount = c(0.7,0.8,0.9,0.95,0.99,1)
@@ -37,31 +39,34 @@ fit_ts <- function(.data, y_var, date_var, model, parameter = NULL){
                       , arima = list(p = 1, d = 1, q = 0, P = 1, D = 0, Q = 0)
                       , ets = list(ets = "ZZZ"))
   }
+  
   # Model selection
-  if(model == "glmnet"){
-    get_glmnet(.data = .data, y_var = y_var, date_var = date_var, parameter = parameter)
-  } else if(model == "glm"){
-    get_glm(.data = .data, y_var = y_var, date_var = date_var, parameter = parameter)
-  } else if(model == "ets"){
-    get_ets(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "arima"){
-    get_arima(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "neural_network"){
-    get_neural_network(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "seasonal_naive"){
-    get_seasonal_naive(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "tbats"){
-    get_tbats(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "croston"){
-    get_croston(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "dyn_theta"){
-    get_dyn_theta(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "prophet"){
-    suppressWarnings({get_prophet(.data = .data, y_var = y_var, parameter = parameter)})
-  } else if(model == "tslm"){
-    get_tslm(.data = .data, y_var = y_var, parameter = parameter)
-  } else if(model == "svm"){
-    get_svm(.data = .data, y_var = y_var, parameter = parameter)
+  if(ts_model == "glmnet"){
+    fit_glmnet(.data = .data, parameter = parameter)
+  } else if(ts_model == "glm"){
+    get_glm(.data = .data, parameter = parameter)
+  } else if(ts_model == "ets"){
+    get_ets(.data = .data, parameter = parameter)
+  } else if(ts_model == "arima"){
+    get_arima(.data = .data, parameter = parameter)
+  } else if(ts_model == "neural_network"){
+    get_neural_network(.data = .data, parameter = parameter)
+  } else if(ts_model == "seasonal_naive"){
+    get_seasonal_naive(.data = .data, parameter = parameter)
+  } else if(ts_model == "tbats"){
+    get_tbats(.data = .data, parameter = parameter)
+  } else if(ts_model == "croston"){
+    get_croston(.data = .data, parameter = parameter)
+  } else if(ts_model == "dyn_theta"){
+    get_dyn_theta(.data = .data, parameter = parameter)
+  } else if(ts_model == "prophet"){
+    suppressWarnings({get_prophet(.data = .data_tmp, parameter = parameter)})
+  } else if(ts_model == "tslm"){
+    get_tslm(.data = .data, parameter = parameter)
+  } else if(ts_model == "svm"){
+    get_svm(.data = .data, parameter = parameter)
+  } else if(ts_model == "gam"){
+    fit_gam(.data = .data, parameter = parameter)
   }
 }
 
