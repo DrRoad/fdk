@@ -50,12 +50,17 @@ fit_glmnet <- function(.data, parameter){
         , lambda = parameter$glmnet$lambda
       )
     } else {
+      set.seed(parameter$glmnet$seed)
+      n_folds <- 3
+      fold_id <- sample(rep(seq(n_folds), length.out = nrow(.data)))
       fit_tmp <- cv.glmnet(
         x = features_matrix
         , y = y_var
         , alpha = parameter$glmnet$alpha
+        , nfolds = n_folds
+        , foldid = fold_id
         , weights = time_weights_tmp
-        , type.measure = "mae"
+        , type.measure = parameter$glmnet$lambda_measure
       )
       
       fit <- glmnet(
@@ -63,9 +68,8 @@ fit_glmnet <- function(.data, parameter){
         , weights = time_weights_tmp
         , alpha = parameter$glmnet$alpha
         , lambda = fit_tmp$lambda.min
-        , family = "gaussian"
+        , family = parameter$glmnet$link_function
       )
     }
-  
     return(fit)
 }
