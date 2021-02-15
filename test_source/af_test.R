@@ -4,7 +4,10 @@ library(parallel)
 library(doSNOW)
 library(doParallel)
 library(furrr)
-
+library(profvis)
+library(imputeTS)
+library(sparklyr)
+library(mgcv)
 
 sales <- readRDS("~/Dropbox/Sanofi/data/cs.rds") %>% 
   mutate(date = as.Date(date))
@@ -19,6 +22,9 @@ date_var <- "date"
 key = "forecast_item"
 reg_name = "regressor"
 reg_value = "quantity"
+date_format = "ymd"
+freq = 12
+
 
 d1 <- prescribe_ts(.data = new_data
              , key = "forecast_item"
@@ -29,18 +35,83 @@ d1 <- prescribe_ts(.data = new_data
              , freq = 12
              , date_format = "ymd")
 
+source("R/data_cleansing.R")
+source("R/data_preparation.R")
+source("R/feature_engineering.R")
+source("R/data_validation.R")
+
+# Parameter ---------------------------------------------------------------
+
+parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = "tp"))
+                             , formula = NULL
+                             , excluded_features = NULL
+                             , time_weight = 1
+                             , link_function = "gaussian")
+                  , glmnet = list(alpha = .9, lambda = NULL
+                                  , time_weight = 1
+                                  , trend_decay = .9
+                                  , excluded_features = list("quarter_seas")
+                                  , formula = NULL))
+
+optim_conf <- list(test_size = 6, lag_ref = 3, export_fit = FALSE)
+
 
 .data <- d1 %>%
-  filter(key == "BE: 106384") %>% 
+  filter(key == "AE: 424199") %>% 
   pull(data) %>% 
   .[[1]] %>% 
   validate_ts() %>% 
-  feature_engineering_ts(level_seas = FALSE
-                           , lag_var = list(y_var = c(1, 3))) %>% 
-  clean_ts(winsorize_config = list(apply_winsorize = T)
-           , imputation_config = list(impute_method = "kalman"
+  feature_engineering_ts(hierarchy_seas = T, lag_var = list(y_var = 3)
+                         , numeric_seas = F) %>% 
+  clean_ts(winsorize_config = list(apply_winsorize = FALSE)
+           , imputation_config = list(impute_method = "none"
                                       , na_regressor = TRUE
                                       , na_missing_dates = TRUE))
+
+
+
+%>% 
+  fit_ts(ts_model = "gam", parameter = parameter, optim = optim) %>% 
+  summary_ts()
+
+
+  optim_ts(.data = ., test_size = 6, lag_ref = 3, ts_model = "gam"
+           , parameter = parameter, export_fit = FALSE)
+
+
+d2 <- d1 %>% 
+  mutate(n = map_int(data, ~nrow(.x))) %>% 
+  filter(str_detect(key, "^DK|^SE"))
+
+registerDoParallel(cores = 2)
+
+l <- foreach(i = d2$key[1:5]) %dopar% {
+  d1 <- prescribe_ts(.data = new_data
+                     , key = "forecast_item"
+                     , y_var = "sales"
+                     , date_var = "date"
+                     , reg_name = "regressor"
+                     , reg_value = "quantity"
+                     , freq = 12
+                     , date_format = "ymd")
+  .data <- d2 %>% 
+    filter(key == i) %>% 
+    pull(data) %>% 
+    .[[1]] %>% 
+    validate_ts()%>% 
+    feature_engineering_ts() %>% 
+    clean_ts(winsorize_config = list(apply_winsorize = T)
+             , imputation_config = list(impute_method = "kalman"
+                                        , na_regressor = TRUE
+                                        , na_missing_dates = TRUE)) %>%
+    optim_ts(.test_size = 6, .lag_ref = 3, .data = ., ts_model = "gam", parameter = parameter)
+  .data
+}
+names(l) <- d2$key[1:5]
+l2 <- l %>% 
+  enframe() %>% 
+  mutate(mape = map_dbl(value, ~.x[["mape"]]))
+
 
 l <- .data$.data
 
