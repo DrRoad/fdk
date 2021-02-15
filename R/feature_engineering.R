@@ -235,6 +235,8 @@ feature_engineering_ts <- function(.data, lag_var = list(), ma_var = list()
     long_to_wide() %>% 
     seasonal_features(numeric_seas = numeric_seas, hierarchy_seas = hierarchy_seas) %>% 
     lag_features(lag_var = lag_var) %>% 
-    ma_features(ma_var = ma_var)
+    ma_features(ma_var = ma_var) %>% 
+    na.omit() %>% 
+    mutate(trend = 1:n())
 }
 
