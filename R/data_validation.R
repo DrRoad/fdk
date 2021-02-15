@@ -14,7 +14,7 @@ validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_na
   fill_ts <- function(.data){
     seq_complete <- seq.Date(from = as.Date(min(.data[["date_var"]]))
                              , to = as.Date(max(.data[["date_var"]]))
-                             , by = .log_init$prescription$freq_name)
+                             , by = as.character(.log_init$prescription$freq_name))
     n_missing_dates <- (length(seq_complete) - length(.data[["date_var"]]))
     missing_dates <- base::setdiff(as.character(seq_complete), as.character(.data[["date_var"]]))
     dates_with_reg <- .data %>% 
