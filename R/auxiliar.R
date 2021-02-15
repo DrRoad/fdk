@@ -259,7 +259,7 @@ summary_ts <- function(.data){
                                   , " MSE ="
                                   , " MAE =")))
     
-    return(.data)
+    #return(.data)
     
     #cat(paste0("## Optimization results ", paste0(rep("#", 40), collapse = "")), "\n")
     # vec <- c(paste0("MAPE = ", mape), paste0("SPA  = ", spa))
