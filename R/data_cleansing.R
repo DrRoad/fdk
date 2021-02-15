@@ -21,12 +21,14 @@
 #' \dontrun{
 #' winsorize_ts(AirPassengers)
 #' }
-winsorize_ts <- function(.data, freq = numeric(), add_transformations = FALSE
-                         , na_regressor = TRUE
-                         , na_missing_dates = FALSE
-                         , threshold = 0.05, impute_winsorize = FALSE){
+winsorize_ts <- function(.data, freq = numeric()
+                         , add_transformations = logical()
+                         , na_regressor = logical()
+                         , na_missing_dates = logical()
+                         , threshold = 0.05
+                         , impute_winsorize = logical()){
 
-  key_int <- attributes(.data)[["key"]]
+  key <- attributes(.data)[["key"]]
   
   # Warnings ----------------------------------------------------------------
 
@@ -34,19 +36,24 @@ winsorize_ts <- function(.data, freq = numeric(), add_transformations = FALSE
 
   # NA rules ----------------------------------------------------------------
 
-  if(all(na_regressor == T & na_missing_dates == T)){
-    na_vec <- c(.log[[key_int]]$dates_check$dates_with_reg
-                , .log[[key_int]]$dates_check$missing_dates) %>% 
-      as.Date()
-  } else if(na_regressor == T){
-    na_vec <- c(.log[[key_int]]$dates_check$dates_with_reg) %>% 
-      as.Date()
-  } else if(na_missing_dates == T){
-    na_vec <- c(.log[[key_int]]$dates_check$missing_dates) %>% 
-      as.Date()
-  } else {
-    na_vec = date()
-  }
+  na_vec <- tryCatch(
+    {
+      if(all(na_regressor == T & na_missing_dates == T)){
+        c(.log[[key]]$dates_check$dates_with_reg
+          , .log[[key]]$dates_check$missing_dates) %>% 
+          as.Date()
+      } else if(na_regressor == T){
+        c(.log[[key]]$dates_check$dates_with_reg) %>% 
+          as.Date()
+      } else if(na_missing_dates == T){
+        c(.log[[key]]$dates_check$missing_dates) %>% 
+          as.Date()
+      } else {
+        as.Date(character(0))
+      }
+    }
+    , error = function(err) return(as.Date(character(0)))
+  )
   
   # TS vector ---------------------------------------------------------------
 
@@ -58,25 +65,31 @@ winsorize_ts <- function(.data, freq = numeric(), add_transformations = FALSE
 
   # Decomposition -----------------------------------------------------------
 
-  y_var_decomp <- stlplus::stlplus(x = y_var_vec, n.p = freq, s.window = "periodic")[["data"]][,c(1:4)] %>% 
-    #as_tibble() %>% # slightly improvement
-    mutate(y_var_denoise = seasonal + trend) %>%
-    rename(trend_smooth = trend) %>% 
-    mutate(remainder_winso = case_when(
-      remainder < quantile(remainder, probs = threshold, na.rm = T) ~ quantile(remainder, probs = threshold, na.rm = T)
-      , remainder > quantile(remainder, probs = (1 - threshold), na.rm = T) ~ quantile(remainder, probs = (1 - threshold), na.rm = T)
-      , TRUE ~ remainder)
-      , thres_low = y_var_denoise + quantile(remainder, probs = threshold, na.rm = T)
-      , thres_up = y_var_denoise + quantile(remainder, probs = (1 - threshold), na.rm = T)
-      , y_var_clean = case_when(
-        raw > thres_up ~ thres_up
-        , raw < thres_low ~ thres_low
-        , TRUE ~ raw)
-      , y_var_winso_imp = case_when(
-        y_var_denoise > median(y_var_denoise) & is.na(raw) == T ~ thres_up
-        , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
-        , TRUE ~ raw)) %>% 
-    dplyr::select(y_var_clean, y_var_winso_imp, y_var_denoise)
+  y_var_decomp <- tryCatch(
+    {
+      stlplus::stlplus(x = y_var_vec, n.p = freq
+                       , s.window = "periodic")[["data"]][,c(1:4)] %>% 
+        #as_tibble() %>% # slightly improvement
+        mutate(y_var_denoise = seasonal + trend) %>%
+        rename(trend_smooth = trend) %>% 
+        mutate(remainder_winso = case_when(
+          remainder < quantile(remainder, probs = threshold, na.rm = T) ~ quantile(remainder, probs = threshold, na.rm = T)
+          , remainder > quantile(remainder, probs = (1 - threshold), na.rm = T) ~ quantile(remainder, probs = (1 - threshold), na.rm = T)
+          , TRUE ~ remainder)
+          , thres_low = y_var_denoise + quantile(remainder, probs = threshold, na.rm = T)
+          , thres_up = y_var_denoise + quantile(remainder, probs = (1 - threshold), na.rm = T)
+          , y_var_clean = case_when(
+            raw > thres_up ~ thres_up
+            , raw < thres_low ~ thres_low
+            , TRUE ~ raw)
+          , y_var_winso_imp = case_when(
+            y_var_denoise > median(y_var_denoise) & is.na(raw) == T ~ thres_up
+            , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
+            , TRUE ~ raw)) %>% 
+        dplyr::select(y_var_clean, y_var_winso_imp, y_var_denoise)
+    }
+    , error = function(err) stop("Time series is too short. Please deactivate winsorize.")
+  )
   
   if(add_transformations == FALSE){
     .data_tmp <- .data_tmp %>% 
@@ -123,7 +136,7 @@ impute_ts <- function(.data, freq = numeric()
                       , na_missing_dates = TRUE
                       , replace_y_var = TRUE, ...){
   
-  key_int <- attributes(.data)[["key"]]
+  key <- attributes(.data)[["key"]]
   
   
   # Internal functions ------------------------------------------------------
@@ -149,19 +162,24 @@ impute_ts <- function(.data, freq = numeric()
   
   # NA rules ----------------------------------------------------------------
   
-  if(all(na_regressor == T & na_missing_dates == T)){
-    na_vec <- c(.log[[key_int]]$dates_check$dates_with_reg
-                , .log[[key_int]]$dates_check$missing_dates) %>% 
-      as.Date()
-  } else if(na_regressor == T){
-    na_vec <- c(.log[[key_int]]$dates_check$dates_with_reg) %>% 
-      as.Date()
-  } else if(na_missing_dates == T){
-    na_vec <- c(.log[[key_int]]$dates_check$missing_dates) %>% 
-      as.Date()
-  } else {
-    na_vec = date()
-  }
+  na_vec <- tryCatch(
+    {
+      if(all(na_regressor == T & na_missing_dates == T)){
+        c(.log[[key]]$dates_check$dates_with_reg
+          , .log[[key]]$dates_check$missing_dates) %>% 
+          as.Date()
+      } else if(na_regressor == T){
+        c(.log[[key]]$dates_check$dates_with_reg) %>% 
+          as.Date()
+      } else if(na_missing_dates == T){
+        c(.log[[key]]$dates_check$missing_dates) %>% 
+          as.Date()
+      } else {
+        as.Date(character(0))
+      }
+    }
+    , error = function(err) return(as.Date(character(0)))
+  )
 
   # TS vector ---------------------------------------------------------------
 
@@ -216,16 +234,17 @@ impute_ts <- function(.data, freq = numeric()
 #' \dontrun{
 #' clean_ts()
 #' }
-clean_ts <- function(.data, freq = numeric()
+clean_ts <- function(.data, freq = .log$prescription$freq
                      , winsorize_config = list()
                      , imputation_config = list()){
   
+  key <- attributes(.data)[["key"]]
   .data_tmp <- .data
-  key_int <- attributes(.data)[["key"]]
+  
   
   # Warnings ----------------------------------------------------------------
   
-  if(length(freq) == 0 & exists(".log_init")){
+  if(exists(".log_init")){
     freq <- as.numeric(.log_init$prescription$freq)
   } else {
     stop("Please provide time series frequency.")
@@ -262,10 +281,10 @@ clean_ts <- function(.data, freq = numeric()
   # Log update --------------------------------------------------------------
   
   log_update(module = "winsorize"
-             , key = key_int
+             , key = key
              , new_log = winsorize_config_default)
   log_update(module = "imputation"
-             , key = key_int
+             , key = key
              , new_log = imputation_config_default)
   
   # Skip leading zeros ------------------------------------------------------
