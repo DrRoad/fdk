@@ -13,10 +13,9 @@
 #' \dontrun{
 #' get_design_matrix()
 #' }
-seasonal_features <- function(.data, freq = af_log$log[[1]]$freq, numeric_seas = FALSE, level_seas = T){
-  
-  .log_tmp <- .data$.log
-  .data_tmp <- .data$.data
+seasonal_features <- function(.data, freq = .log$prescription$freq, numeric_seas = FALSE, hierarchy_seas = FALSE){
+
+  .data_tmp <- .data
   
   get_year_seas <- function(date) factor(lubridate::year(as.Date(date)))
   get_quarter_seas <- function(date) factor(as.factor(quarters(as.Date(date), abbreviate = T)), levels = paste0("Q", 1:4))
@@ -29,8 +28,8 @@ seasonal_features <- function(.data, freq = af_log$log[[1]]$freq, numeric_seas =
                     , month_seas = get_month_seas, quarter_seas = get_quarter_seas
                     , year_seas = get_year_seas)
   
-  get_seas <- function(.data, numeric_seas, level_seas){
-    if(level_seas == TRUE){
+  get_seas <- function(.data, numeric_seas, hierarchy_seas){
+    if(hierarchy_seas == TRUE){
       if(freq == 365){
         .seas_tmp <- map(.x = seas_list[5:1], ~.x(.data$date_var)) %>%
           bind_cols()
@@ -76,12 +75,22 @@ seasonal_features <- function(.data, freq = af_log$log[[1]]$freq, numeric_seas =
 
   seasonal_var <- get_seas(.data = .data_tmp
                            , numeric_seas = numeric_seas
-                           , level_seas = level_seas)
-  .data_tmp <- .data_tmp %>% 
+                           , hierarchy_seas = hierarchy_seas)
+
+  # Log ---------------------------------------------------------------------
+
+  log_update(module = "seasonal_features"
+             , key = attributes(.data)[["key"]]
+             , new_log = list(numeric_seas = numeric_seas
+                              , hierarchy_seas = hierarchy_seas
+                              , seasonal_features = names(seasonal_var))
+             )
+  
+  # Return ------------------------------------------------------------------
+
+  .data_tmp %>% 
     mutate(trend = 1:n()) %>% 
     bind_cols(seasonal_var)
-  
-  list(.data = .data_tmp, .log = .log_tmp)
 }
 
 
@@ -95,32 +104,36 @@ seasonal_features <- function(.data, freq = af_log$log[[1]]$freq, numeric_seas =
 #' @examples
 long_to_wide <- function(.data){
   
-  .log_tmp <- .data$.log
-  .data_tmp <- .data$.data
+  .data_tmp <- .data
+  key_int <- attributes(.data)[["key"]]
   
   #n_regressors <- n_distinct(setdiff(tmp[["reg_name"]], c("0", "NA", NA_character_)))
   
-  if(.log_tmp$log[[1]]$has_reg == FALSE){
-    .data_tmp %>% 
-      dplyr::select(-reg_value, -reg_name)
+  if(length(.log[[key_int]]$dates_check$dates_with_reg) == 0){
+    .data_tmp <- .data_tmp %>% 
+      dplyr::select(-all_of(c("reg_value", "reg_name")))
     
+    log_update(module = "long2wide"
+               , key = key_int
+               , new_log = list(warning = "No regressors' found."))
   } else {
-    .data_tmp_wide <- .data_tmp %>% 
+    .data_tmp <- .data_tmp %>% 
       pivot_wider(names_from = "reg_name", values_from = "reg_value") %>%
       dplyr::select(-matches("^0|^NA")) %>% 
       janitor::clean_names() %>% 
       dplyr::mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
     
     # regressor names
-    
-    reg_names <- setdiff(names(.data_tmp_wide), c("key", "date_var", "y_var"))
-    
-    wide_reg_log <- update_logger(key = attributes(.data_tmp)[["key"]]
-                                  , module = "long_to_wide_format"
-                                  , new_log = tibble(regressor_names = list(reg_names)))
-    
-    list(.data = .data_tmp_wide, .log = bind_rows(.log_tmp, wide_reg_log))
+
+    log_update(module = "long2wide"
+               , key = key_int
+               , new_log = list(
+                 regressor_names = setdiff(names(.data_tmp_wide)
+                                           , c("key", "date_var", "y_var"))
+               ))
   }
+  
+  return(.data_tmp)
 }
 
 
@@ -137,14 +150,14 @@ long_to_wide <- function(.data){
 #'
 #' @examples
 lag_features <- function(.data, lag_var = list()){
-  .log_tmp <- .data$.log
-  .data_tmp <- .data$.data
+  
+  .data_tmp <- .data
 
   stopifnot(is.list(lag_var) | is.null(lag_var))
   #stopifnot(length(lag_var) == length(n_lag))
   suppressMessages(
     if(is.null(lag_var) | length(lag_var) == 0){
-      .data
+      .data_tmp
     } else {
       stopifnot(all(names(lag_var) %in% names(.data_tmp)))
       grid_lag <- unnest(enframe(lag_var, name = "lag_var", value = "n_lag"), cols = "n_lag")
@@ -153,18 +166,25 @@ lag_features <- function(.data, lag_var = list()){
         setNames(paste0(grid_lag$lag_var,"_lag_",  grid_lag$n_lag)) %>% 
         bind_cols(.data_tmp, .)
       
-      list(.data = .data_tmp, .log = .log_tmp)
+      log_update(module = "lag_features"
+                 , key = attributes(.data)[["key"]]
+                 , new_log = list(lag_var = lag_var))
+
+      return(.data_tmp)
     }
   )
 }
 
 ma_features <- function(.data, ma_var = list()){
-  .log_tmp <- .data$.log
-  .data_tmp <- .data$.data
+  
+  .data_tmp <- .data
   
   stopifnot(is.list(ma_var) | is.null(ma_var))
   
   if(length(ma_var)!=0){
+    if(any(map_dbl(names(ma_var), ~length(ma_var[[.x]])) == 1) == T){
+      stop("Moving average needs to specify the number of periods before and after explicitly")
+    }
     grid_ma <- enframe(ma_var, name = "ma_var", value = "window_ma") %>% 
       rowwise() %>%
       mutate(names = paste0(unlist(window_ma), collapse = "_")
@@ -181,9 +201,13 @@ ma_features <- function(.data, ma_var = list()){
         bind_cols(.data_tmp, .)
     )
     
-    list(.data = .data_tmp, .log = .log_tmp)
+    log_update(module = "ma_features"
+               , key = attributes(.data)[["key"]]
+               , new_log = list(ma_var = ma_var))
+    
+    .data_tmp
   } else {
-    .data
+    .data_tmp
   }
 }
 
@@ -203,12 +227,14 @@ ma_features <- function(.data, ma_var = list()){
 #' \dontrun{
 #' feature_engineering_ts()
 #' }
-feature_engineering_ts <- function(.data, lag_var = list(), ma_var = list(), numeric_seas = FALSE, level_seas = FALSE){
+feature_engineering_ts <- function(.data, lag_var = list(), ma_var = list()
+                                   , numeric_seas = FALSE, hierarchy_seas = FALSE){
   # Export
-  
+
   .data %>% 
     long_to_wide() %>% 
-    seasonal_features(numeric_seas = numeric_seas, level_seas = level_seas) %>% 
+    seasonal_features(numeric_seas = numeric_seas, hierarchy_seas = hierarchy_seas) %>% 
     lag_features(lag_var = lag_var) %>% 
     ma_features(ma_var = ma_var)
 }
+
