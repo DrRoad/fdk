@@ -8,6 +8,7 @@ library(profvis)
 library(imputeTS)
 library(sparklyr)
 library(mgcv)
+library(glmnet)
 
 
 # Work --------------------------------------------------------------------
@@ -37,6 +38,7 @@ source("R/model_training.R")
 source("R/fit_gam.R")
 source("R/fit_glmnet.R")
 source("R/optim_dev.R")
+source("R/predict_ts.R")
 
 .data_init <- new_data
 y_var <- "sales"
@@ -76,9 +78,6 @@ parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = 
 
 optim_conf <- list(test_size = 6, lag = 3, export_fit = FALSE)
 
-set.seed(123)
-
-
 d2 <- d1 %>% 
   slice(1:10) %>% 
   mutate(fit2 = map(data, ~t1(.x)))
@@ -102,7 +101,10 @@ t1 <- purrr::possibly(function(x){
 
 
 
-l <- map(.x = d1$key[5], .f = function(x){
+
+
+
+l <- map(.x = d1$key, .f = function(x){
   d1 %>%
     filter(key == x) %>% 
     pull(data) %>% 
@@ -112,7 +114,7 @@ l <- map(.x = d1$key[5], .f = function(x){
     clean_ts(winsorize_config = list(apply_winsorize = T)
              , imputation_config = list(impute_method = "none"
                                         , na_regressor = TRUE
-                                        , na_missing_dates = TRUE)) %>% 
+                                        , na_missing_dates = TRUE)) %>%
     optim_ts(.data = ., ts_model = "gam", optim_conf = optim_conf
              , parameter = parameter, export_fit = F)
 })
@@ -120,7 +122,7 @@ l <- map(.x = d1$key[5], .f = function(x){
 
 
 .data <- d1 %>%
-  filter(key == "AE: 424205") %>% 
+  filter(key == "AE: 424283") %>% 
   pull(data) %>% 
   .[[1]] %>% 
   validate_ts() %>% 
@@ -128,8 +130,8 @@ l <- map(.x = d1$key[5], .f = function(x){
   clean_ts(winsorize_config = list(apply_winsorize = T)
            , imputation_config = list(impute_method = "none"
                                       , na_regressor = TRUE
-                                      , na_missing_dates = TRUE)) %>% 
-  optim_ts(.data = ., ts_model = "gam", optim_conf = optim_conf
+                                      , na_missing_dates = TRUE)) %>%
+  optim_ts(.data = ., ts_model = "glmnet", optim_conf = optim_conf
            , parameter = parameter, export_fit = F) %>% 
   summary_ts()
 
@@ -144,7 +146,7 @@ l <- map(.x = d1$key[5], .f = function(x){
            , imputation_config = list(impute_method = "none"
                                       , na_regressor = TRUE
                                       , na_missing_dates = TRUE)) %>% 
-  optim_ts(.data = ., ts_model = "glmnet", optim_conf = optim_conf
+  optim_ts(.data = ., ts_model = "gam", optim_conf = optim_conf
            , parameter = parameter, export_fit = T)
 
 
