@@ -13,7 +13,9 @@
 #' \dontrun{
 #' get_design_matrix()
 #' }
-seasonal_features <- function(.data, freq = .log$prescription$freq, numeric_seas = FALSE, hierarchy_seas = FALSE){
+seasonal_features <- function(.data, freq = .log$prescription$freq
+                              , numeric_seas = FALSE
+                              , hierarchy_seas = FALSE){
 
   .data_tmp <- .data
   
