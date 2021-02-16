@@ -55,9 +55,21 @@ fit_gam <- function(.data, parameter = list()){
   
   # Fitting -----------------------------------------------------------------
   
-  gam(formula = gam_formula
-      , family = parameter$gam$link_function
-      #, weights = time_weights_tmp
-      , data = .data
-      , method = "REML")
+  tryCatch(
+    {
+      gam(formula = gam_formula
+          , family = parameter$gam$link_function
+          #, weights = time_weights_tmp
+          , data = .data
+          , method = "REML")
+    }
+    , error = function(err){
+      message("Too many parameters, fitting a smooth trend model.")
+      gam(formula = as.formula('y_var ~ s(trend, bs = "tp")')
+          , family = parameter$gam$link_function
+          #, weights = time_weights_tmp
+          , data = .data
+          , method = "REML")
+    }
+  )
 }
