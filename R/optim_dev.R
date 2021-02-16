@@ -5,7 +5,7 @@ optim_ts <- function(.data, ts_model = character(), optim_conf = list(), paramet
   } else {
     if((nrow(.data) - optim_conf$test_size - optim_conf$lag)<13 & 
        ts_model %in% c("glmnet", "gam", "svm")){
-      #message(paste0("Time series is too short for optimization for ", ts_model, " model."))
+      message(paste0("Sample is too short to tune a ", toupper(ts_model), " model."))
       return(NULL)
     } else {
       train_index <- 1:(nrow(.data) - (optim_conf$test_size + optim_conf$lag) + 1)
@@ -49,6 +49,7 @@ optim_ts <- function(.data, ts_model = character(), optim_conf = list(), paramet
       
       optim_out <- list(
         model = ts_model
+        , parameter = unlist(parameter[[ts_model]])
         , key = attributes(.data)[["key"]]
         , fitted_matrix = round(fitted_matrix, 3)
         , error_matrix = round(error_matrix, 3)
