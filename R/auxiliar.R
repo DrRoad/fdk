@@ -231,7 +231,7 @@ update_parameter <- function(old_parameter, new_parameter, model, optim = FALSE)
 }
 
 summary_ts <- function(.data){
-  if(class(.data) == "optim_ts"){
+  if("optim_ts" %in% class(.data)){
     mape <- .data$mape %>% format(digits = 2, nsmall = 2)
     spa <- .data$spa %>% format(digits = 2, nsmall = 2)
     mse <- .data$mse %>% format(digits = 2, nsmall = 2)
@@ -274,40 +274,103 @@ summary_ts <- function(.data){
   }
 }
 
+# Input transformers
 
-optim_tidy <- function(.optim_ts, optim){
-  optim_out_t <- transpose(.optim_ts)
-  fitted_matrix <- plyr::ldply(optim_out_t$fitted, rbind)
-  error_matrix <- matrix(unlist(optim_out_t$error), ncol = .test_size, byrow = T)
-  predicted_matrix <- matrix(unlist(optim_out_t$predicted), ncol = .test_size, byrow = T)
-  observed_matrix <- matrix(unlist(optim_out_t$observed), ncol = .test_size, byrow = T)
-  mape_matrix <- abs(error_matrix)/predicted_matrix
-  spa_matrix <- observed_matrix/predicted_matrix
-  mape_vec <- abs(diag(error_matrix))/diag(observed_matrix)
-  spa_vec <- diag(observed_matrix)/diag(predicted_matrix)
-  mape <- sum(abs(diag(error_matrix)))/sum(diag(observed_matrix))
-  spa <- sum(diag(observed_matrix))/sum(diag(predicted_matrix))
-  mse <- sum((diag(error_matrix))^2)/test_size
-  mae <- sum(abs(diag(error_matrix)))/test_size
+## Inherited from OC -----------------------------------------------------------
+
+#' Reverse scope
+#' 
+#' This function collects paths or RDatas given countries and GBU
+#'
+#' @param countries 
+#' @param gbus 
+#' @param date_cycle 
+#' @param db 
+#' @param read_db 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+reverse_scope <- function(countries, gbus, date_cycle, db = NULL, read_db = FALSE){
+  root_input <- "//E21flsbcnschub/BCN_SC_HUB/3 - Forecast/10 - Kinaxis Operating Cycle/0 - Data/"
   
-  optim_out <- list(
-    model = ts_model
-    , fitted_matrix = round(fitted_matrix, 3)
-    , error_matrix = round(error_matrix, 3)
-    , predicted_matrix = round(predicted_matrix, 3)
-    , mape_matrix = round(mape_matrix, 3)
-    , spa_matrix = round(spa_matrix, 3)
-    , mape_vec = round(mape_vec, 3)
-    , spa_vec = round(spa_vec, 3)
-    , mape = round(mape, 3)
-    , spa = round(spa, 3)
-    , mse = round(mse, 3)
-    , mae = round(mae, 3)
-  )
+  input_path <- readRDS("data/loc_mapping.rds") %>% 
+    janitor::clean_names() %>% 
+    dplyr::filter(country %in% countries) %>% 
+    rowwise() %>% 
+    mutate(path_input = paste0(root_input
+                               , "Outputs/"
+                               , gbus, "/"
+                               , mco, "/"
+                               , country, "/"
+                               , format(as.Date(date_cycle)
+                                        , format = "%b - %Y"), "/")) %>% 
+    ungroup()
   
-  if(export_fit == TRUE){
-    append(optim_out, values = list(fit = optim_out_t$fit), after = 0)
+  if(is.null(db)==F){
+    paths <- paste0(input_path$path_input,"RData/", db, ".RData")
   } else {
-    optim_out
+    paths <- input_path$path_input
+  }
+  
+  if(read_db == T){
+    map(paths, ~rdata2obj(.x)) %>% 
+      bind_rows()
+  } else {
+    paths
   }
 }
+
+
+#' RData 2 Object
+#'
+#' @param path 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+rdata2obj <- function(path){
+  tmp_env <- new.env()
+  load(path, envir = tmp_env)
+  as.list(tmp_env)[[1]]
+}
+
+
+# Input data --------------------------------------------------------------
+
+get_oc_data <- function(db = list(), countries, gbus, date_cycle){
+  admitted <- c("full_sales", "full_forecast", "forecast_item_info", "regressor")
+  
+  if(!any(unlist(db) %in% admitted)){
+    stop(paste0("Only the following DB's are admitted: ", paste0(admitted, collapse = ", ")))
+  }
+  
+  
+  count <- 0
+  all <- length(db)
+  data <- map(unlist(db), ~{
+    count <<- count + 1
+    message(paste0("Reading: ", count, "/", all))
+    reverse_scope(
+      countries = countries
+      , gbus = gbus
+      , date_cycle = date_cycle
+      , db = .x
+      , read_db = T)
+    }
+    )
+  names(data) <- unlist(db)
+  if("regressor" %in% names(data)){
+    data[["regressor"]] <- data[["regressor"]] %>% 
+      dplyr::select(forecast_item, reg_name, reg_date, reg_value) %>% 
+      mutate(reg_name = str_remove(string = reg_name
+                                   , pattern = paste0(forecast_item, " - |-"))
+             ) %>% 
+      dplyr::distinct()
+  }
+  data
+}
+
+
