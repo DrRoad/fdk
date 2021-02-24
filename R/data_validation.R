@@ -9,7 +9,7 @@
 #'
 validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_name = "")){
   
-  .data_tmp <- .data
+  key <- attributes(.data)[["key"]]
   
   fill_ts <- function(.data){
     seq_complete <- seq.Date(from = as.Date(min(.data[["date_var"]]))
@@ -38,22 +38,25 @@ validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_na
         } else {
           solution_log <- "No solution has been applied"
         }
-      }
-      
-      log_update(module = "dates_check"
-                 , key = attributes(.data)[["key"]]
-                 , new_log = list(n_dates = length(seq_complete)
-                                  , duplicated_dates = duplicated_dates
-                                  , missing_dates = missing_dates
-                                  , dates_with_reg = dates_with_reg
-                                  , warning = warning_log
-                                  , solution = solution_log))
-    } else {
-      log_update(module = "dates_check"
-                 , key = attributes(.data)[["key"]]
-                 , new_log = list(n_dates = length(seq_complete)
-                                  , warning = "No duplicated dates have been found."))
+        
+        log_update(module = "dates_check"
+                   , key = attributes(.data)[["key"]]
+                   , new_log = list(n_dates = length(seq_complete)
+                                    , duplicated_dates = duplicated_dates
+                                    , missing_dates = missing_dates
+                                    , dates_with_reg = dates_with_reg
+                                    , warning = warning_log
+                                    , solution = solution_log))
+        }
     }
+    
+    log_update(module = "dates_check"
+               , key = attributes(.data)[["key"]]
+               , new_log = list(n_dates = length(seq_complete)
+                                , missing_dates = missing_dates
+                                , duplicated_dates = duplicated_dates
+                                , dates_with_reg = dates_with_reg
+                                , warning = "No duplicated dates have been found."))
     
     # Output ------------------------------------------------------------------
     
