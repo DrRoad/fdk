@@ -78,33 +78,31 @@ parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = 
 
 optim_conf <- list(test_size = 6, lag = 3, export_fit = FALSE)
 
-d2 <- d1 %>% 
-  slice(1:10) %>% 
-  mutate(fit2 = map(data, ~t1(.x)))
+my_mkt <- d1 %>% 
+  filter(str_detect(key, "IN|DK|SE|NO|FI|NL|BE|EE|LT|LV")) %>% 
+  pull(key)
 
 
-t1 <- purrr::possibly(function(x){
-  x %>% 
-  validate_ts() %>% 
+count <- 0
+glmnet <- map(.x = my_mkt, .f = function(x){
+  count <<- count + length(x)
+  d1 %>%
+    filter(key == x) %>% 
+    pull(data) %>% 
+    .[[1]] %>% 
+    validate_ts() %>% 
     feature_engineering_ts() %>% 
     clean_ts(winsorize_config = list(apply_winsorize = T)
              , imputation_config = list(impute_method = "none"
                                         , na_regressor = TRUE
                                         , na_missing_dates = TRUE)) %>%
-    attributes()
-  # 
-  # 
-  # %>% 
-  #   optim_ts(.data = ., ts_model = "glmnet", optim_conf = optim_conf
-  #            , parameter = parameter, export_fit = F)
-}, otherwise = NA)
-
-
-
-
-
-
-l <- map(.x = d1$key, .f = function(x){
+    optim_ts(.data = ., ts_model = "glmnet", optim_conf = optim_conf
+             , parameter = parameter, export_fit = F)
+})
+  
+count <- 0
+gam <- map(.x = my_mkt, .f = function(x){
+  count <<- count + length(x)
   d1 %>%
     filter(key == x) %>% 
     pull(data) %>% 
@@ -121,23 +119,42 @@ l <- map(.x = d1$key, .f = function(x){
 
 
 
+opt_sum <- function(.key){
+  d1 %>%
+    filter(key == .key) %>% 
+    pull(data) %>% 
+    .[[1]] %>% 
+    validate_ts() %>% 
+    feature_engineering_ts() %>% 
+    clean_ts(winsorize_config = list(apply_winsorize = T)
+             , imputation_config = list(impute_method = "none"
+                                        , na_regressor = TRUE
+                                        , na_missing_dates = TRUE)) %>%
+    optim_ts(.data = ., ts_model = "glmnet"
+             , optim_conf = optim_conf
+             , parameter = parameter, export_fit = F) %>% 
+    summary_ts()
+}
+
+
+
 .data <- d1 %>%
   filter(key == "AE: 424283") %>% 
   pull(data) %>% 
   .[[1]] %>% 
   validate_ts() %>% 
   feature_engineering_ts() %>% 
-  clean_ts(winsorize_config = list(apply_winsorize = T)
+  clean_ts(winsorize_config = list(apply_winsorize = F)
            , imputation_config = list(impute_method = "none"
                                       , na_regressor = TRUE
                                       , na_missing_dates = TRUE)) %>%
-  optim_ts(.data = ., ts_model = "glmnet", optim_conf = optim_conf
+  optim_ts(.data = ., ts_model = "glmnet"
+           , optim_conf = optim_conf
            , parameter = parameter, export_fit = F) %>% 
   summary_ts()
 
-
 .data <- d1 %>%
-  filter(key == "AE: 414778") %>% 
+  filter(key == "AE: 424283") %>% 
   pull(data) %>% 
   .[[1]] %>% 
   validate_ts() %>% 
@@ -149,17 +166,44 @@ l <- map(.x = d1$key, .f = function(x){
   optim_ts(.data = ., ts_model = "gam", optim_conf = optim_conf
            , parameter = parameter, export_fit = T)
 
+f <- d1 %>%
+  filter(key == "AE: 424283") %>% 
+  pull(data) %>% 
+  .[[1]] %>% 
+  validate_ts() %>% 
+  feature_engineering_ts(hierarchy_seas = T, numeric_seas = T) %>% 
+  clean_ts(winsorize_config = list(apply_winsorize = T
+                                   , add_transformations = T)
+           , imputation_config = list(impute_method = "kalman"
+                                      , na_regressor = TRUE
+                                      , na_missing_dates = TRUE
+                                      , add_transformations = T
+                                      , na_value = 0)) %>% 
+  pivot_longer(cols = matches("y_var")) %>% 
+  ggplot()+
+  geom_line(aes(date_var, value, col = name)) 
 
 
+s1 <- d1 %>%
+  filter(key == "DK: 421908") %>% 
+  pull(data) %>% 
+  .[[1]] %>% 
+  validate_ts() %>% 
+  feature_engineering_ts(hierarchy_seas = T) %>% 
+  clean_ts(winsorize_config = list(apply_winsorize = T
+                                   , add_transformations = T)
+           , imputation_config = list(impute_method = "none"
+                                      , na_regressor = TRUE
+                                      , na_missing_dates = TRUE
+                                      , add_transformations = T
+                                      , na_value = NULL)) %>% 
+  mutate(y_var_d1 = tsibble::difference(y_var)) %>% 
+  slice(1:(n())) %>% 
+  na.omit()
 
-foreach(i = d1$key, )
-
-
-
-
-
-
-
+fit <- glm(y_var_d1 ~ month_seas, data = s1)
+ggeffects::ggemmeans(fit, terms = "month_seas", ci.lvl = .8) %>% 
+  plot()
 
 
 
