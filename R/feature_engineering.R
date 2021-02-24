@@ -106,36 +106,36 @@ seasonal_features <- function(.data, freq = .log$prescription$freq
 #' @examples
 long_to_wide <- function(.data){
   
-  .data_tmp <- .data
-  key_int <- attributes(.data)[["key"]]
+  key <- attributes(.data)[["key"]]
   
   #n_regressors <- n_distinct(setdiff(tmp[["reg_name"]], c("0", "NA", NA_character_)))
   
-  if(length(.log[[key_int]]$dates_check$dates_with_reg) == 0){
-    .data_tmp <- .data_tmp %>% 
+  if(length(.log[[key]]$dates_check$dates_with_reg) == 0){
+    .data <- .data %>% 
       dplyr::select(-all_of(c("reg_value", "reg_name")))
     
     log_update(module = "long2wide"
-               , key = key_int
+               , key = key
                , new_log = list(warning = "No regressors' found."))
   } else {
-    .data_tmp <- .data_tmp %>% 
+    .data <- .data %>% 
       pivot_wider(names_from = "reg_name", values_from = "reg_value") %>%
       dplyr::select(-matches("^0|^NA")) %>% 
       janitor::clean_names() %>% 
-      dplyr::mutate_at(.vars = vars(-matches("date_var|key|y_var")), .funs = ~ifelse(is.na(.x), 0, .x))
+      dplyr::mutate_at(.vars = vars(-matches("date_var|key|y_var"))
+                       , .funs = ~ifelse(is.na(.x), 0, .x))
     
     # regressor names
 
     log_update(module = "long2wide"
-               , key = key_int
+               , key = key
                , new_log = list(
-                 regressor_names = setdiff(names(.data_tmp_wide)
+                 regressor_names = setdiff(names(.data)
                                            , c("key", "date_var", "y_var"))
                ))
   }
   
-  return(.data_tmp)
+  return(structure(.data, key = key))
 }
 
 
