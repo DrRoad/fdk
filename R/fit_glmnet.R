@@ -21,7 +21,6 @@
 #' }
 fit_glmnet <- function(.data, parameter){
   
-  .data <- .data %>% na.omit()
   key_int <- attributes(.data)[["key"]]
   features <- setdiff(names(.data), c("date_var", "y_var", unlist(parameter$glmnet$excluded_features)))
   features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(.data[[x]])))]
@@ -43,33 +42,49 @@ fit_glmnet <- function(.data, parameter){
                             , remove_first_dummy = T) %>% 
     as.matrix()
 
-    if(is.null(parameter$glmnet$lambda) == FALSE) {
-      fit <- glmnet(
-        x = features_matrix, y = y_var, weights = time_weights_tmp
-        , alpha = parameter$glmnet$alpha
-        , lambda = parameter$glmnet$lambda
-      )
-    } else {
-      set.seed(parameter$glmnet$seed)
-      n_folds <- 3
-      fold_id <- sample(rep(seq(n_folds), length.out = nrow(.data)))
-      fit_tmp <- cv.glmnet(
-        x = features_matrix
-        , y = y_var
-        , alpha = parameter$glmnet$alpha
-        , nfolds = n_folds
-        , foldid = fold_id
-        , weights = time_weights_tmp
-        , type.measure = parameter$glmnet$lambda_measure
-      )
-      
-      fit <- glmnet(
-        x = features_matrix, y = y_var
-        , weights = time_weights_tmp
-        , alpha = parameter$glmnet$alpha
-        , lambda = fit_tmp$lambda.min
-        , family = parameter$glmnet$link_function
-      )
+  fit <- tryCatch(
+    {
+      if(is.null(parameter$glmnet$lambda) == FALSE) {
+        fit <- glmnet(
+          x = features_matrix, y = y_var, weights = time_weights_tmp
+          , alpha = parameter$glmnet$alpha
+          , lambda = parameter$glmnet$lambda
+        )
+      } else {
+        set.seed(parameter$glmnet$seed)
+        n_folds <- 3
+        fold_id <- sample(rep(seq(n_folds), length.out = nrow(.data)))
+        
+        lambda_min <- tryCatch(
+          {
+            cv.glmnet(
+              x = features_matrix
+              , y = y_var
+              , alpha = parameter$glmnet$alpha
+              , nfolds = n_folds
+              , foldid = fold_id
+              , weights = time_weights_tmp
+              , type.measure = parameter$glmnet$lambda_measure
+            )[["lambda.min"]]
+          }
+          , error = function(err) 1
+        )
+        
+        
+        glmnet(
+          x = features_matrix, y = y_var
+          , weights = time_weights_tmp
+          , alpha = parameter$glmnet$alpha
+          , lambda = lambda_min
+          , family = parameter$glmnet$link_function
+        )
+      }
     }
-    return(fit)
+    , error = function(err){
+      message("Error in GLMNET model")
+    }
+  )
+  
+  return(fit)
+
 }
