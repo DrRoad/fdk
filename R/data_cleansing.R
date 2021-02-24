@@ -21,85 +21,117 @@
 #' \dontrun{
 #' winsorize_ts(AirPassengers)
 #' }
-winsorize_ts <- function(.data, freq = numeric()
-                         , add_transformations = logical()
-                         , na_regressor = logical()
-                         , na_missing_dates = logical()
-                         , threshold = 0.05
-                         , impute_winsorize = logical()){
-
+winsorize_ts <- function(.data, freq = numeric(), winsorize_config = list()){
+  
+  stopifnot(all(names(winsorize_config) %in% c("apply_winsorize"
+                                               , "threshold"
+                                               , "add_transformations"
+                                               , "na_regressor"
+                                               , "na_missing_dates"
+                                               , "impute_winsorize")))
+  
+  winsorize_config_default = list(apply_winsorize = FALSE
+                                  , na_regressor = FALSE
+                                  , na_missing_dates = FALSE
+                                  , threshold = 0.05
+                                  , impute_winsorize = FALSE
+                                  , add_transformations = FALSE) %>% 
+    modifyList(x = ., val = winsorize_config)
+  
   key <- attributes(.data)[["key"]]
   
-  # Warnings ----------------------------------------------------------------
-
-  stopifnot(exists(".log"))
-
-  # NA rules ----------------------------------------------------------------
-
-  na_vec <- tryCatch(
-    {
-      if(all(na_regressor == T & na_missing_dates == T)){
-        c(.log[[key]]$dates_check$dates_with_reg
-          , .log[[key]]$dates_check$missing_dates) %>% 
-          as.Date()
-      } else if(na_regressor == T){
-        c(.log[[key]]$dates_check$dates_with_reg) %>% 
-          as.Date()
-      } else if(na_missing_dates == T){
-        c(.log[[key]]$dates_check$missing_dates) %>% 
-          as.Date()
-      } else {
-        as.Date(character(0))
-      }
-    }
-    , error = function(err) return(as.Date(character(0)))
-  )
+  log_update(module = "winsorize"
+             , key = key
+             , new_log = winsorize_config_default)
   
-  # TS vector ---------------------------------------------------------------
-
-  y_var_vec <- .data_tmp %>% 
-    mutate(y_var_na_reg = case_when(
-      date_var %in% na_vec ~ NA_real_
-      , TRUE ~ y_var)) %>% 
-    pull(y_var_na_reg)
-
-  # Decomposition -----------------------------------------------------------
-
-  y_var_decomp <- tryCatch(
-    {
-      stlplus::stlplus(x = y_var_vec, n.p = freq
-                       , s.window = "periodic")[["data"]][,c(1:4)] %>% 
-        #as_tibble() %>% # slightly improvement
-        mutate(y_var_denoise = seasonal + trend) %>%
-        rename(trend_smooth = trend) %>% 
-        mutate(remainder_winso = case_when(
-          remainder < quantile(remainder, probs = threshold, na.rm = T) ~ quantile(remainder, probs = threshold, na.rm = T)
-          , remainder > quantile(remainder, probs = (1 - threshold), na.rm = T) ~ quantile(remainder, probs = (1 - threshold), na.rm = T)
-          , TRUE ~ remainder)
-          , thres_low = y_var_denoise + quantile(remainder, probs = threshold, na.rm = T)
-          , thres_up = y_var_denoise + quantile(remainder, probs = (1 - threshold), na.rm = T)
-          , y_var_clean = case_when(
-            raw > thres_up ~ thres_up
-            , raw < thres_low ~ thres_low
-            , TRUE ~ raw)
-          , y_var_winso_imp = case_when(
-            y_var_denoise > median(y_var_denoise) & is.na(raw) == T ~ thres_up
-            , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
-            , TRUE ~ raw)) %>% 
-        dplyr::select(y_var_clean, y_var_winso_imp, y_var_denoise)
-    }
-    , error = function(err) stop("Time series is too short. Please deactivate winsorize.")
-  )
   
-  if(add_transformations == FALSE){
-    .data_tmp <- .data_tmp %>% 
-      mutate(y_var = y_var_decomp$y_var_clean)
+  if(winsorize_config_default$apply_winsorize == F){
+    .data
   } else {
-    .data_tmp <- .data_tmp %>% 
-      bind_cols(y_var_decomp)
+    # Warnings ----------------------------------------------------------------
+    
+    stopifnot(exists(".log"))
+    
+    # NA rules ----------------------------------------------------------------
+    
+    na_vec <- tryCatch(
+      {
+        if(all(winsorize_config_default$na_regressor == T & 
+               winsorize_config_default$na_missing_dates == T)){
+          c(.log[[key]]$dates_check$dates_with_reg
+            , .log[[key]]$dates_check$missing_dates) %>% 
+            as.Date()
+        } else if(winsorize_config_default$na_regressor == T){
+          c(.log[[key]]$dates_check$dates_with_reg) %>% 
+            as.Date()
+        } else if(winsorize_config_default$na_missing_dates == T){
+          c(.log[[key]]$dates_check$missing_dates) %>% 
+            as.Date()
+        } else {
+          as.Date(character(0))
+        }
+      }
+      , error = function(err) return(as.Date(character(0)))
+    )
+    
+    # TS vector ---------------------------------------------------------------
+    
+    y_var_vec <- .data %>% 
+      mutate(y_var_na_reg = case_when(
+        date_var %in% na_vec ~ NA_real_
+        , TRUE ~ y_var)) %>% 
+      pull(y_var_na_reg)
+    
+    # Decomposition -----------------------------------------------------------
+    
+    y_var_decomp <- tryCatch(
+      {
+        stlplus::stlplus(x = y_var_vec, n.p = freq
+                         , s.window = "periodic")[["data"]][,c(1:4)] %>% 
+          #as_tibble() %>% # slightly improvement
+          mutate(y_var_denoise = seasonal + trend) %>%
+          rename(trend_smooth = trend) %>% 
+          mutate(remainder_winso = case_when(
+            remainder < quantile(remainder
+                                 , probs = winsorize_config_default$threshold
+                                 , na.rm = T) ~ quantile(remainder
+                                                         , probs = winsorize_config_default$threshold
+                                                         , na.rm = T)
+            , remainder > quantile(remainder
+                                   , probs = (1 - winsorize_config_default$threshold)
+                                   , na.rm = T) ~ quantile(remainder
+                                                           , probs = (1 - winsorize_config_default$threshold)
+                                                           , na.rm = T)
+            , TRUE ~ remainder)
+            , thres_low = y_var_denoise + quantile(remainder
+                                                   , probs = winsorize_config_default$threshold
+                                                   , na.rm = T)
+            , thres_up = y_var_denoise + quantile(remainder
+                                                  , probs = (1 - winsorize_config_default$threshold)
+                                                  , na.rm = T)
+            , y_var_clean = case_when(
+              raw > thres_up ~ thres_up
+              , raw < thres_low ~ thres_low
+              , TRUE ~ raw)
+            , y_var_winso_imp = case_when(
+              y_var_denoise > median(y_var_denoise) & is.na(raw) == T ~ thres_up
+              , y_var_denoise < median(y_var_denoise) & is.na(raw) == T ~ thres_low
+              , TRUE ~ raw)) %>% 
+          dplyr::select(y_var_clean, y_var_winso_imp, y_var_denoise)
+      }
+      , error = function(err) stop("Time series is too short. Please deactivate winsorize.")
+    )
+    
+    if(winsorize_config_default$add_transformations == FALSE){
+      .data <- .data %>% 
+        mutate(y_var = round(y_var_decomp$y_var_clean, 2))
+    } else {
+      .data <- .data %>% 
+        bind_cols(y_var_decomp)
+    }
+    
+    return(.data)
   }
-  
-  return(.data_tmp)
 }
 
 #' Time series imputation
@@ -131,79 +163,112 @@ winsorize_ts <- function(.data, freq = numeric()
 #' impute_ts()
 #' }
 impute_ts <- function(.data, freq = numeric()
-                      , imputation_method = "none"
-                      , na_regressor = TRUE
-                      , na_missing_dates = TRUE
-                      , replace_y_var = TRUE, ...){
+                      , imputation_config = list()
+                      , ...){
+  # Default parameters ------------------------------------------------------
+
+  stopifnot(any(names(imputation_config) %in% c("impute_method"
+                                                , "add_transformations"
+                                                , "na_regressor"
+                                                , "na_missing_dates"
+                                                , "na_value")))
+  
+  
+  imputation_config_default = list(impute_method = "none"
+                                   , na_regressor = FALSE
+                                   , na_missing_dates = FALSE
+                                   , add_transformations = FALSE
+                                   , na_value = NULL) %>% 
+    modifyList(x = ., val = imputation_config)
   
   key <- attributes(.data)[["key"]]
   
+  # Log update --------------------------------------------------------------
   
-  # Internal functions ------------------------------------------------------
+  log_update(module = "imputation"
+             , key = key
+             , new_log = imputation_config_default)
+  
 
-  imputation_switcher <- function(.y_var, imputation_method, freq, ...) {
-    y_var_int <- ts(.y_var, frequency = freq, start = c(1, 1))
-    if(imputation_method == "none"){
-      .y_var
-    } else if (imputation_method == "kalman") {
-      round(as.numeric(na_seadec(x = y_var_int, algorithm = "kalman", ...)),0)
-    } else if (imputation_method == "mean") {
-      as.numeric(na_mean(x = y_var_int, option = "mean", ...))
-    } else if (imputation_method == "median") {
-      as.numeric(na_mean(x = y_var_int, option = "median", ...))
-    } else if (imputation_method == "nearest") {
-      as.numeric(na_locf(x = y_var_int, option = "locf", na_remaining = "rev", ...))
-    } else if (imputation_method == "interpolation") {
-      as.numeric(na_interpolation(x = y_var_int, option = "linear", ...))
-    } else {
-      stop("Imputation method not recognized")
-    }
-  }
-  
-  # NA rules ----------------------------------------------------------------
-  
-  na_vec <- tryCatch(
-    {
-      if(all(na_regressor == T & na_missing_dates == T)){
-        c(.log[[key]]$dates_check$dates_with_reg
-          , .log[[key]]$dates_check$missing_dates) %>% 
-          as.Date()
-      } else if(na_regressor == T){
-        c(.log[[key]]$dates_check$dates_with_reg) %>% 
-          as.Date()
-      } else if(na_missing_dates == T){
-        c(.log[[key]]$dates_check$missing_dates) %>% 
-          as.Date()
+  # Do ----------------------------------------------------------------------
+
+  if(imputation_config_default$impute_method == "none"){
+    return(.data)
+  } else {
+    
+    # Internal functions ------------------------------------------------------
+    
+    imputation_switcher <- function(.y_var, imputation_method, freq, ...) {
+      y_var_int <- ts(.y_var, frequency = freq, start = c(1, 1))
+      if(imputation_method == "none"){
+        .y_var
+      } else if (imputation_method == "kalman") {
+        round(as.numeric(na_seadec(x = y_var_int, algorithm = "kalman", ...)),0)
+      } else if (imputation_method == "mean") {
+        as.numeric(na_mean(x = y_var_int, option = "mean", ...))
+      } else if (imputation_method == "median") {
+        as.numeric(na_mean(x = y_var_int, option = "median", ...))
+      } else if (imputation_method == "nearest") {
+        as.numeric(na_locf(x = y_var_int, option = "locf", na_remaining = "rev", ...))
+      } else if (imputation_method == "interpolation") {
+        as.numeric(na_interpolation(x = y_var_int, option = "linear", ...))
       } else {
-        as.Date(character(0))
+        stop("Imputation method not recognized")
       }
     }
-    , error = function(err) return(as.Date(character(0)))
-  )
+    
+    # NA rules ----------------------------------------------------------------
+    
+    na_vec <- tryCatch(
+      {
+        if(all(imputation_config_default$na_regressor == T & 
+               imputation_config_default$na_missing_dates == T)){
+          c(.log[[key]]$dates_check$dates_with_reg
+            , .log[[key]]$dates_check$missing_dates) %>% 
+            as.Date()
+        } else if(imputation_config_default$na_regressor == T){
+          c(.log[[key]]$dates_check$dates_with_reg) %>% 
+            as.Date()
+        } else if(imputation_config_default$na_missing_dates == T){
+          c(.log[[key]]$dates_check$missing_dates) %>% 
+            as.Date()
+        } else if(is.null(imputation_config_default$na_value) != T){
+          .data[["date_var"]][.data[["y_var"]] == imputation_config_default$na_value] %>% 
+            as.Date()
+        } else {
+          as.Date(character(0))
+        }
+      }
+      , error = function(err) return(as.Date(character(0)))
+    )
+    
+    # TS vector ---------------------------------------------------------------
+    
+    y_var_na_reg <- .data %>%
+      mutate(y_var_na_reg = case_when(
+        date_var %in% na_vec ~ NA_real_
+        , TRUE ~ y_var)) %>% 
+      pull(y_var_na_reg)
+    
+    # Apply imputation --------------------------------------------------------
+    
+    y_var_imp <- imputation_switcher(.y_var = y_var_na_reg
+                                     , imputation_method = imputation_config_default$impute_method
+                                     , freq = freq)
+    
 
-  # TS vector ---------------------------------------------------------------
-
-  y_var_na_reg <- .data_tmp %>%
-    mutate(y_var_na_reg = case_when(
-      date_var %in% na_vec ~ NA_real_
-      , TRUE ~ y_var)) %>% 
-    pull(y_var_na_reg)
-  
-  # Apply imputation --------------------------------------------------------
-
-  y_var_imp <- imputation_switcher(.y_var = y_var_na_reg
-                      , imputation_method = imputation_method
-                      , freq = freq)
-  
-  if(replace_y_var == TRUE){
-    .data_tmp <- .data_tmp %>% 
-      mutate(y_var = y_var_imp)
-  } else {
-    .data_tmp <- .data_tmp %>% 
-      mutate(y_var_imp = y_var_imp, .after = "y_var")
-  }
-  
-  return(.data_tmp)
+    # Out ---------------------------------------------------------------------
+    
+    if(imputation_config_default$add_transformations == TRUE){
+      new_name <- paste0("y_var_"
+                         , imputation_config_default$impute_method)
+      .data %>%
+        mutate("{new_name}" := y_var_imp)
+    } else {
+      .data %>% 
+        mutate(y_var = y_var_imp)
+      }
+    }
 }
 
 # Cleansing ---------------------------------------------------------------
@@ -234,14 +299,12 @@ impute_ts <- function(.data, freq = numeric()
 #' \dontrun{
 #' clean_ts()
 #' }
-clean_ts <- function(.data, freq = .log$prescription$freq
+clean_ts <- function(.data, freq = numeric()
                      , winsorize_config = list()
                      , imputation_config = list()){
   
   key <- attributes(.data)[["key"]]
-  .data_tmp <- .data
-  
-  
+
   # Warnings ----------------------------------------------------------------
   
   if(exists(".log_init")){
@@ -249,70 +312,14 @@ clean_ts <- function(.data, freq = .log$prescription$freq
   } else {
     stop("Please provide time series frequency.")
   }
-
-  stopifnot(all(names(winsorize_config) %in% c("apply_winsorize"
-                                               , "threshold"
-                                               , "add_transformations"
-                                               , "na_regressor"
-                                               , "na_missing_dates"
-                                               , "impute_winsorize")))
-  
-  stopifnot(all(names(imputation_config) %in% c("impute_method"
-                                               , "replace_y_var"
-                                               , "na_regressor"
-                                               , "na_missing_dates")))
-  
-  # Default parameters ------------------------------------------------------
-  
-  winsorize_config_default = list(apply_winsorize = FALSE
-                                  , na_regressor = FALSE
-                                  , na_missing_dates = FALSE
-                                  , threshold = 0.05
-                                  , impute_winsorize = FALSE
-                                  , add_transformations = FALSE) %>% 
-    modifyList(x = ., val = winsorize_config)
-  
-  imputation_config_default = list(impute_method = "none"
-                                   , na_regressor = FALSE
-                                   , na_missing_dates = FALSE
-                                   , replace_y_var = TRUE) %>% 
-    modifyList(x = ., val = imputation_config)
-  
-  # Log update --------------------------------------------------------------
-  
-  log_update(module = "winsorize"
-             , key = key
-             , new_log = winsorize_config_default)
-  log_update(module = "imputation"
-             , key = key
-             , new_log = imputation_config_default)
   
   # Skip leading zeros ------------------------------------------------------
 
-  .data_tmp <- .data_tmp %>%
+  .data %>%
     dplyr::filter(cumsum(replace_na(y_var, 0))>0) %>% 
-    mutate(trend = 1:n())
-  
-  # Imputation
-  
-  if(winsorize_config_default$apply_winsorize == TRUE){
-    .data_tmp <- winsorize_ts(.data = .data_tmp
-                              , freq = freq
-                              , add_transformations = winsorize_config_default$add_transformations
-                              , na_regressor = winsorize_config_default$na_regressor
-                              , na_missing_dates = winsorize_config_default$na_missing_dates
-                              , threshold = winsorize_config_default$threshold
-                              , impute_winso = winsorize_config_default$impute_winsorize)
-  }
-  
-  if(imputation_config_default$impute_method != "none"){
-    .data_tmp <- impute_ts(.data = .data_tmp
-              , imputation_method = imputation_config_default$impute_method
-              , na_regressor = imputation_config_default$na_regressor
-              , na_missing_dates = imputation_config_default$na_missing_dates
-              , replace_y_var = imputation_config_default$replace_y_var
-              , freq = freq)
-  }
-  
-  return(.data_tmp)
+    mutate(trend = 1:n()) %>% 
+    winsorize_ts(.data = ., freq = freq
+                 , winsorize_config = winsorize_config) %>% 
+    impute_ts(.data = ., freq = freq
+              , imputation_config = imputation_config)
 }
