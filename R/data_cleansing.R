@@ -119,7 +119,17 @@ winsorize_ts <- function(.data, freq = numeric(), winsorize_config = list()){
               , TRUE ~ raw)) %>% 
           dplyr::select(y_var_clean, y_var_winso_imp, y_var_denoise)
       }
-      , error = function(err) stop("Time series is too short. Please deactivate winsorize.")
+      , error = function(err) {
+        #print(warning("Time series is too short, no winsorize has been applied."))
+        log_update(module = "winsorize"
+                   , key = key
+                   , new_log = list(warning = "Time series is too short, no winsorize has been applied."))
+        return(
+          tibble(y_var_clean = y_var_vec
+                 , y_var_winso_imp = y_var_vec
+                 , y_var_denoise = y_var_vec)
+        )
+      }
     )
     
     if(winsorize_config_default$add_transformations == FALSE){
@@ -166,13 +176,12 @@ impute_ts <- function(.data, freq = numeric()
                       , imputation_config = list()
                       , ...){
   # Default parameters ------------------------------------------------------
-
-  stopifnot(any(names(imputation_config) %in% c("impute_method"
-                                                , "add_transformations"
-                                                , "na_regressor"
-                                                , "na_missing_dates"
-                                                , "na_value")))
-  
+# 
+#   stopifnot(any(names(imputation_config) %in% c("impute_method"
+#                                                 , "add_transformations"
+#                                                 , "na_regressor"
+#                                                 , "na_missing_dates"
+#                                                 , "na_value")))
   
   imputation_config_default = list(impute_method = "none"
                                    , na_regressor = FALSE
@@ -271,6 +280,7 @@ impute_ts <- function(.data, freq = numeric()
     }
 }
 
+
 # Cleansing ---------------------------------------------------------------
 
 #' Time Series Cleansing
@@ -315,8 +325,23 @@ clean_ts <- function(.data, freq = numeric()
   
   # Skip leading zeros ------------------------------------------------------
 
-  .data %>%
-    dplyr::filter(cumsum(replace_na(y_var, 0))>0) %>% 
+  out <- .data %>%
+    dplyr::filter(cumsum(replace_na(y_var, 0))>0)
+  
+
+  # Out ---------------------------------------------------------------------
+
+  out %>% 
+    {
+      if(nrow(tibble(.))==0){
+        log_update(module = "leading_zero"
+                   , key = key
+                   , new_log = list(warning = "All zero series."))
+        .data
+      } else {
+        out
+      }
+    } %>% 
     mutate(trend = 1:n()) %>% 
     winsorize_ts(.data = ., freq = freq
                  , winsorize_config = winsorize_config) %>% 
