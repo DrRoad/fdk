@@ -9,13 +9,12 @@ library(imputeTS)
 library(sparklyr)
 library(mgcv)
 library(glmnet)
-
+library(forecast)
 
 # Work --------------------------------------------------------------------
 
 sales <- read_rds(file = "C:/Users/I0415596/Dropbox/Sanofi/data/cs.rds")
 cf <- readRDS("C:/Users/I0415596/Dropbox/Sanofi/data/cf.rds")
-
 
 # Home --------------------------------------------------------------------
 
@@ -37,6 +36,8 @@ source("R/auxiliar.R")
 source("R/model_training.R")
 source("R/fit_gam.R")
 source("R/fit_glmnet.R")
+source("R/fit_glm.R")
+source("R/fit_arima.R")
 source("R/optim_dev.R")
 source("R/predict_ts.R")
 
@@ -67,6 +68,11 @@ parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = 
                              , time_weight = 1
                              , trend_decay = 1
                              , link_function = "gaussian")
+                  , glm = list(formula = NULL
+                               , excluded_features = NULL
+                               , time_weight = 1
+                               , trend_decay = 1
+                               , link_function = "gaussian")
                   , glmnet = list(alpha = .9, lambda = NULL
                                   , time_weight = .95
                                   , trend_decay = .97
@@ -74,7 +80,13 @@ parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = 
                                   , formula = NULL
                                   , lambda_measure = "mae"
                                   , link_function = "gaussian"
-                                  , seed = 123))
+                                  , seed = 123)
+                  , arima = list(search_seasonal = TRUE
+                                 , auto_arima = FALSE
+                                 , pdq = c(1, 0, 0, NULL, NULL, NULL))
+                  , croston = list(alpha = 0.1)
+                  , ets = list(ets = "ZZZ")
+                  )
 
 optim_conf <- list(test_size = 6, lag = 3, export_fit = FALSE)
 
@@ -84,7 +96,7 @@ my_mkt <- d1 %>%
 
 
 count <- 0
-glmnet <- map(.x = my_mkt, .f = function(x){
+glmnet <- map(.x = my_mkt[1:10], .f = function(x){
   count <<- count + length(x)
   d1 %>%
     filter(key == x) %>% 
@@ -109,13 +121,65 @@ gam <- map(.x = my_mkt, .f = function(x){
     .[[1]] %>% 
     validate_ts() %>% 
     feature_engineering_ts() %>% 
-    clean_ts(winsorize_config = list(apply_winsorize = T)
+    clean_ts(winsorize_config = list(apply_winsorize = F)
              , imputation_config = list(impute_method = "none"
                                         , na_regressor = TRUE
                                         , na_missing_dates = TRUE)) %>%
     optim_ts(.data = ., ts_model = "gam", optim_conf = optim_conf
              , parameter = parameter, export_fit = F)
 })
+
+count <- 0
+glm <- map(.x = my_mkt, .f = function(x){
+  count <<- count + length(x)
+  d1 %>%
+    filter(key == x) %>% 
+    pull(data) %>% 
+    .[[1]] %>% 
+    validate_ts() %>% 
+    feature_engineering_ts() %>% 
+    clean_ts(winsorize_config = list(apply_winsorize = F)
+             , imputation_config = list(impute_method = "none"
+                                        , na_regressor = TRUE
+                                        , na_missing_dates = TRUE)) %>%
+    optim_ts(.data = ., ts_model = "glm", optim_conf = optim_conf
+             , parameter = parameter, export_fit = F)
+})
+
+#count_i <- 0
+arima <- map(.x = my_mkt, ~{
+  #count_i <<- count_i + length(x)
+  d1 %>%
+    filter(key == .x) %>% 
+    pull(data) %>% 
+    .[[1]] %>% 
+    validate_ts() %>% 
+    feature_engineering_ts() %>% 
+    clean_ts(winsorize_config = list(apply_winsorize = F)
+             , imputation_config = list(impute_method = "none"
+                                        , na_regressor = TRUE
+                                        , na_missing_dates = TRUE)) %>%
+    optim_ts(.data = ., ts_model = "arima", optim_conf = optim_conf
+            , parameter = parameter, export_fit = F)
+})
+
+count_i = 0
+ets <- map(.x = my_mkt[6], ~{
+  count_i <<- count_i + length(.x)
+  d1 %>%
+    filter(key == .x) %>% 
+    pull(data) %>% 
+    .[[1]] %>% 
+    validate_ts() %>% 
+    feature_engineering_ts() %>% 
+    clean_ts(winsorize_config = list(apply_winsorize = F)
+             , imputation_config = list(impute_method = "none"
+                                        , na_regressor = TRUE
+                                        , na_missing_dates = TRUE)) %>%
+    optim_ts(.data = ., ts_model = "ets", optim_conf = optim_conf
+             , parameter = parameter, export_fit = F)
+})
+
 
 
 
@@ -147,11 +211,7 @@ opt_sum <- function(.key){
   clean_ts(winsorize_config = list(apply_winsorize = F)
            , imputation_config = list(impute_method = "none"
                                       , na_regressor = TRUE
-                                      , na_missing_dates = TRUE)) %>%
-  optim_ts(.data = ., ts_model = "glmnet"
-           , optim_conf = optim_conf
-           , parameter = parameter, export_fit = F) %>% 
-  summary_ts()
+                                      , na_missing_dates = TRUE))
 
 .data <- d1 %>%
   filter(key == "AE: 424283") %>% 
@@ -163,7 +223,7 @@ opt_sum <- function(.key){
            , imputation_config = list(impute_method = "none"
                                       , na_regressor = TRUE
                                       , na_missing_dates = TRUE)) %>% 
-  optim_ts(.data = ., ts_model = "gam", optim_conf = optim_conf
+  optim_ts(.data = ., ts_model = "glm", optim_conf = optim_conf
            , parameter = parameter, export_fit = T)
 
 f <- d1 %>%
