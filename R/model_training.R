@@ -44,11 +44,11 @@ fit_ts <- function(.data, ts_model, parameter = list()){
   if(ts_model == "glmnet"){
     fit_glmnet(.data = .data, parameter = parameter)
   } else if(ts_model == "glm"){
-    get_glm(.data = .data, parameter = parameter)
+    fit_glm(.data = .data, parameter = parameter)
   } else if(ts_model == "ets"){
-    get_ets(.data = .data, parameter = parameter)
+    fit_ets(.data = .data, parameter = parameter)
   } else if(ts_model == "arima"){
-    get_arima(.data = .data, parameter = parameter)
+    fit_arima(.data = .data, parameter = parameter)
   } else if(ts_model == "neural_network"){
     get_neural_network(.data = .data, parameter = parameter)
   } else if(ts_model == "seasonal_naive"){
@@ -56,7 +56,7 @@ fit_ts <- function(.data, ts_model, parameter = list()){
   } else if(ts_model == "tbats"){
     get_tbats(.data = .data, parameter = parameter)
   } else if(ts_model == "croston"){
-    get_croston(.data = .data, parameter = parameter)
+    fit_croston(.data = .data, parameter = parameter)
   } else if(ts_model == "dyn_theta"){
     get_dyn_theta(.data = .data, parameter = parameter)
   } else if(ts_model == "prophet"){
