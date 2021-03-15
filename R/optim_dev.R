@@ -6,27 +6,27 @@ optim_ts <- function(.data, ts_model = character()
   
   stopifnot(length(ts_model)==1)
   
-
   # Rules -------------------------------------------------------------------
 
-  interm_rule <- (sum(.data$y_var==0)/nrow(.data)>.4)
+  interm_rule <- (sum(.data$y_var==0)/nrow(.data)>.3)
   size_rule <- (nrow(.data) - optim_conf$test_size - optim_conf$lag)<13
-  ts_models_rule <- ts_model %in% c("glmnet", "gam", "svm")
+  ts_models_rule <- ts_model %in% c("glmnet", "gam", "glm", "arima")
   
   # What to do if the conditions are not met
   
-  if((interm_rule | size_rule) & ts_models_rule){
-    message(paste0("Too much intermittency or small sample to tune a "
-                   , toupper(ts_model), " model."))
+  if((interm_rule | size_rule)# & ts_models_rule
+     ){
+    message(paste0("Too much intermittency or small sample to tune model <"
+                   , toupper(ts_model), ">."))
   } else {
     
-    train_index <- 1:(nrow(.data) - (optim_conf$test_size + optim_conf$lag))
-    test_index <- (nrow(.data) - optim_conf$test_size + 1):nrow(.data)
+    train_index_int <- 1:(nrow(.data) - (optim_conf$test_size + optim_conf$lag))
+    test_index_int <- (nrow(.data) - optim_conf$test_size + 1):nrow(.data)
     
     #iter_count <- 0
-    out <- map(1:optim_conf$test_size, function(iter){
+    optim_out <- map(1:optim_conf$test_size, function(iter){
       #iter_count <<- iter_count + length(iter)
-      train <- .data[1:(length(train_index) + iter),]
+      train <- .data[1:(length(train_index_int) + iter),]
       fit <- fit_ts(.data = train, ts_model = ts_model, parameter = parameter)
       fitted_values <- predict_ts(fit, .data = train
                                   , optim_conf = optim_conf
@@ -40,14 +40,16 @@ optim_ts <- function(.data, ts_model = character()
                               , ts_model = ts_model
                               , add_fitted = FALSE
                               , type = "response")
-      error <- .data[test_index,]$y_var - predicted
-      out <- list(fit = fit, fitted_values = fitted_values, predicted = predicted
+      error <- .data[test_index_int,]$y_var - predicted
+      out <- list(fit = fit
+                  , fitted_values = fitted_values
+                  , predicted = predicted
                   , error = error
-                  , observed = .data[test_index,][["y_var"]])
+                  , observed = .data[test_index_int,][["y_var"]])
       return(out)
     })
     
-    optim_out_t <- transpose(out)
+    optim_out_t <- transpose(optim_out)
     fitted_matrix <- plyr::ldply(optim_out_t$fitted_values, rbind)
     error_matrix <- matrix(unlist(optim_out_t$error), ncol = optim_conf$test_size, byrow = T)
     predicted_matrix <- matrix(unlist(optim_out_t$predicted), ncol = optim_conf$test_size, byrow = T)
