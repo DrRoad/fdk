@@ -54,47 +54,51 @@ presc_data <- prescribe_ts(.data = new_data
 
 # Parameter ---------------------------------------------------------------
 
-parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = "tp"))
-                             , formula = NULL
-                             , excluded_features = list()
-                             , time_weight = 1
-                             , trend_decay = 1
-                             , link_function = "gaussian"
-                             , grid = tibble(trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1)
-                                             #, time_weight = seq(from = 1, to = 1, by = 0.025)
-                                             )
-                             , random_search = 1)
-                  , glm = list(formula = NULL
-                               , excluded_features = NULL
-                               , time_weight = 1
-                               , trend_decay = 1
-                               , link_function = "gaussian"
-                               , grid = expand_grid(time_weight = seq(from = 0.8
-                                                                      , to = 1, by = 0.025)
-                                                  , trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1))
-                               , random_search = 1)
-                  , glmnet = list(alpha = .9
-                                  , lambda = numeric()
-                                  , time_weight = .95
-                                  , trend_decay = .97
-                                  , excluded_features = list()
-                                  , formula = NULL
-                                  , metric_lambda_optim = "mae"
-                                  , link_function = "gaussian"
-                                  , grid = expand_grid(time_weight = seq(from = 0.8
-                                                                         , to = 1, by = 0.025)
-                                                       , trend_decay = c(0.7, 0.8, 0.9
-                                                                            , 0.95, 0.99,1)
-                                                       , alpha = seq(from = 0
-                                                                     , to = 1, by = 0.25))
-                                  , random_search = .5
-                                  , seed = 123)
-                  , arima = list(search_seasonal = TRUE
-                                 , auto_arima = FALSE
-                                 , pdq = c(1, 0, 0, NULL, NULL, NULL))
-                  , croston = list(alpha = 0.1)
-                  , ets = list(ets = "ZZZ")
+
+
+get_parameter <- function(){
+  list(gam = list(smoothed_features = list(trend = list(k = NA, bs = "tp"))
+                  , formula = NULL
+                  , excluded_features = list()
+                  , time_weight = 1
+                  , trend_decay = 1
+                  , link_function = "gaussian"
+                  , grid = tibble(trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1)
+                                  #, time_weight = seq(from = 1, to = 1, by = 0.025)
                   )
+                  , random_search = 1)
+       , glm = list(formula = NULL
+                    , excluded_features = NULL
+                    , time_weight = 1
+                    , trend_decay = 1
+                    , link_function = "gaussian"
+                    , grid = expand_grid(time_weight = seq(from = 0.8
+                                                           , to = 1, by = 0.025)
+                                         , trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1))
+                    , random_search = 1)
+       , glmnet = list(alpha = .9
+                       , lambda = numeric()
+                       , time_weight = .95
+                       , trend_decay = .97
+                       , excluded_features = list()
+                       , formula = NULL
+                       , metric_lambda_optim = "mae"
+                       , link_function = "gaussian"
+                       , grid = expand_grid(time_weight = seq(from = 0.8
+                                                              , to = 1, by = 0.025)
+                                            , trend_decay = c(0.7, 0.8, 0.9
+                                                              , 0.95, 0.99,1)
+                                            , alpha = seq(from = 0
+                                                          , to = 1, by = 0.25))
+                       , random_search = .5
+                       , seed = 123)
+       , arima = list(search_seasonal = TRUE
+                      , auto_arima = FALSE
+                      , pdq = c(1, 0, 0, NULL, NULL, NULL))
+       , croston = list(alpha = 0.1)
+       , ets = list(ets = "ZZZ")
+  )
+}
 
 optim_conf <- list(test_size = 6
                    , lag = 1
