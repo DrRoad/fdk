@@ -21,6 +21,8 @@
 #' }
 fit_glmnet <- function(.data, parameter){
   
+  stopifnot(is.numeric(parameter$glmnet$lambda) & length(parameter$glmnet$lambda)<2)
+  
   key_int <- attributes(.data)[["key"]]
   features <- setdiff(names(.data), c("date_var", "y_var", unlist(parameter$glmnet$excluded_features)))
   features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(.data[[x]])))]
@@ -44,7 +46,7 @@ fit_glmnet <- function(.data, parameter){
 
   fit <- tryCatch(
     {
-      if(is.null(parameter$glmnet$lambda) == FALSE) {
+      if(length(parameter$glmnet$lambda) == 1) {
         fit <- glmnet(
           x = features_matrix, y = y_var, weights = time_weights_tmp
           , alpha = parameter$glmnet$alpha
@@ -64,7 +66,7 @@ fit_glmnet <- function(.data, parameter){
               , nfolds = n_folds
               , foldid = fold_id
               , weights = time_weights_tmp
-              , type.measure = parameter$glmnet$lambda_measure
+              , type.measure = parameter$glmnet$metric_lambda_optim
             )[["lambda.min"]]
           }
           , error = function(err) 1

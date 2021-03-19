@@ -14,7 +14,7 @@
 #' \dontrun{
 #' get_glm()
 #' }
-fit_glm <- function(.data, y_var, date_var, parameter) {
+fit_glm <- function(.data, parameter) {
   key <- attributes(.data)[["key"]]
   features <- setdiff(names(.data), c("date_var", "y_var"))
   features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(.data[[x]])))]

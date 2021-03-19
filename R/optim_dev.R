@@ -4,10 +4,61 @@ optim_ts <- function(.data, ts_model = character()
                      , parameter = list()
                      , export_fit = FALSE){
   
-  stopifnot(length(ts_model)==1)
+  interm_rule <- (sum(.data$y_var==0)/nrow(.data)>.3)
+  size_rule <- (nrow(.data) - optim_conf$test_size - optim_conf$lag)<13
+  ts_models_rule <- any(ts_model %in% c("glmnet", "gam", "glm", "arima")) == F
   
-  # Rules -------------------------------------------------------------------
+  
+  if((interm_rule | size_rule)==T){
+    message(paste0("Too much intermittency or small sample to tune model <"
+                   , toupper(paste0(ts_model, collapse = ", ")), ">."))
+  } else {
+    map(unlist(ts_model), function(ts_model_i){
+      parameter_list <- update_hyperpar(ts_model = ts_model_i, parameter = parameter)
+      best_hyperpar <- map(1:length(parameter_list), function(parameter_i){
+        optim_int(.data = .data
+                  , ts_model = ts_model_i
+                  , optim_conf = optim_conf
+                  , parameter = parameter_list[[parameter_i]]
+                  , export_fit = export_fit) %>% 
+          .[c("model","parameter", "mape", "spa", "mse", "mae")]}) %>% 
+        transpose() %>% 
+        enframe() %>% 
+        pivot_wider() %>%
+        mutate(across(.cols = -2, .fns = ~list(unlist(.x)))) %>% 
+        unnest(c(mse, mae, spa, mape, model, parameter)) %>% 
+        mutate(index = 1:n()
+               , spa_d = abs(round(spa - 1, 2))
+               , across(c("mape", "spa_d", "mse", "mae")
+                        , .fns = list(rank = ~rank(.x
+                                                   , ties.method = "first")
+                        ))
+               , rank_agg = mape_rank + mse_rank + mae_rank) %>% 
+        dplyr::select(index, model, everything(), -matches("_rank"))}) %>% 
+      bind_rows() %>% 
+      arrange(mape)
+  }
+}
 
+#' Time series optimization internal function
+#'
+#' @param .data 
+#' @param ts_model 
+#' @param optim_conf 
+#' @param parameter 
+#' @param export_fit 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+optim_int <- function(.data
+                      , ts_model = character()
+                      , optim_conf = list()
+                      , parameter = list()
+                      , export_fit = FALSE){
+  # Rules -------------------------------------------------------------------
+  
   interm_rule <- (sum(.data$y_var==0)/nrow(.data)>.3)
   size_rule <- (nrow(.data) - optim_conf$test_size - optim_conf$lag)<13
   ts_models_rule <- ts_model %in% c("glmnet", "gam", "glm", "arima")
@@ -15,7 +66,7 @@ optim_ts <- function(.data, ts_model = character()
   # What to do if the conditions are not met
   
   if((interm_rule | size_rule)# & ts_models_rule
-     ){
+  ){
     message(paste0("Too much intermittency or small sample to tune model <"
                    , toupper(ts_model), ">."))
   } else {
@@ -65,7 +116,7 @@ optim_ts <- function(.data, ts_model = character()
     
     optim_out <- list(
       model = ts_model
-      , parameter = unlist(parameter[[ts_model]])
+      , parameter = unlist(modifyList(parameter[[ts_model]], list(grid = NULL)))
       , key = attributes(.data)[["key"]]
       , fitted_matrix = round(fitted_matrix, 3)
       , error_matrix = round(error_matrix, 3)
@@ -88,5 +139,72 @@ optim_ts <- function(.data, ts_model = character()
       class(optim_out) <- c("list", "optim_ts")
       optim_out
     }
+  }
+}
+
+
+#' Hyperparameter updater
+#'
+#' @param ts_model 
+#' @param parameter 
+#'
+#' @return
+#' @export
+#'
+#' @examples
+update_hyperpar <- function(ts_model, parameter){
+  # hyperparameter sample ---------------------------------------------------
+  
+  if(ts_model %in% c("gam", "glmnet", "glm")){
+    par_sample <- parameter[[ts_model]]$grid %>% 
+      mutate(index = 1:n(), .before = 1) %>%
+      sample_frac(parameter[[ts_model]]$random_search, replace = F)
+  }
+  
+  if(ts_model == "gam"){
+    map(1:nrow(par_sample), ~{
+      tmp <- modifyList(parameter
+                 , list(gam = modifyList(x = parameter$gam
+                                         , list(trend_decay = par_sample$trend_decay[.x]
+                                                #, time_weight = par_sample$time_weight[.x]
+                                                , grid = FALSE)
+                                         )
+                 )
+      )
+      tmp[setdiff(names(tmp), ts_model)] <- NULL
+      tmp
+      }
+    )
+  } else if(ts_model == "glmnet"){
+    
+    map(1:nrow(par_sample), ~{
+      tmp <- modifyList(parameter
+                 , list(glmnet = modifyList(x = parameter$glmnet
+                                            , list(time_weight = par_sample$time_weight[.x]
+                                                   , trend_decay = par_sample$trend_decay[.x]
+                                                   , alpha = par_sample$alpha[.x]
+                                                   , grid = FALSE)
+                                            )
+                 )
+      )
+      
+      tmp[setdiff(names(tmp), ts_model)] <- NULL
+      tmp
+      
+    })
+  } else if(ts_model == "glm"){
+    map(1:nrow(par_sample), ~{
+      tmp <- modifyList(parameter
+                 , list(glm = modifyList(x = parameter$glm
+                                         , list(time_weight = par_sample$time_weight[.x]
+                                                , trend_decay = par_sample$trend_decay[.x]
+                                                , grid = FALSE)
+                                         )
+                 )
+      )
+      tmp[setdiff(names(tmp), ts_model)] <- NULL
+      tmp
+    }
+    )
   }
 }

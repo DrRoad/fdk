@@ -27,7 +27,6 @@ cf <- readRDS("~/Dropbox/Sanofi/data/cf.rds")
 new_data <- sales %>% 
   left_join(cf, by = c("forecast_item", "date"))
 
-
 source("R/data_cleansing.R")
 source("R/data_preparation.R")
 source("R/feature_engineering.R")
@@ -38,20 +37,13 @@ source("R/fit_gam.R")
 source("R/fit_glmnet.R")
 source("R/fit_glm.R")
 source("R/fit_arima.R")
+source("R/fit_croston.R")
+source("R/fit_ets.R")
 source("R/optim_dev.R")
 source("R/predict_ts.R")
+source("R/data_import.R")
 
-.data_init <- new_data
-y_var <- "sales"
-date_var <- "date"
-key = "forecast_item"
-reg_name = "regressor"
-reg_value = "quantity"
-date_format = "ymd"
-freq = 12
-
-
-d1 <- prescribe_ts(.data = new_data
+presc_data <- prescribe_ts(.data = new_data
              , key = "forecast_item"
              , y_var = "sales"
              , date_var = "date"
@@ -64,22 +56,38 @@ d1 <- prescribe_ts(.data = new_data
 
 parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = "tp"))
                              , formula = NULL
-                             , excluded_features = NULL
+                             , excluded_features = list()
                              , time_weight = 1
                              , trend_decay = 1
-                             , link_function = "gaussian")
+                             , link_function = "gaussian"
+                             , grid = tibble(trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1)
+                                             #, time_weight = seq(from = 1, to = 1, by = 0.025)
+                                             )
+                             , random_search = 1)
                   , glm = list(formula = NULL
                                , excluded_features = NULL
                                , time_weight = 1
                                , trend_decay = 1
-                               , link_function = "gaussian")
-                  , glmnet = list(alpha = .9, lambda = NULL
+                               , link_function = "gaussian"
+                               , grid = expand_grid(time_weight = seq(from = 0.8
+                                                                      , to = 1, by = 0.025)
+                                                  , trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1))
+                               , random_search = 1)
+                  , glmnet = list(alpha = .9
+                                  , lambda = numeric()
                                   , time_weight = .95
                                   , trend_decay = .97
                                   , excluded_features = list()
                                   , formula = NULL
-                                  , lambda_measure = "mae"
+                                  , metric_lambda_optim = "mae"
                                   , link_function = "gaussian"
+                                  , grid = expand_grid(time_weight = seq(from = 0.8
+                                                                         , to = 1, by = 0.025)
+                                                       , trend_decay = c(0.7, 0.8, 0.9
+                                                                            , 0.95, 0.99,1)
+                                                       , alpha = seq(from = 0
+                                                                     , to = 1, by = 0.25))
+                                  , random_search = .5
                                   , seed = 123)
                   , arima = list(search_seasonal = TRUE
                                  , auto_arima = FALSE
@@ -88,11 +96,50 @@ parameter <- list(gam = list(smoothed_features = list(trend = list(k = NA, bs = 
                   , ets = list(ets = "ZZZ")
                   )
 
-optim_conf <- list(test_size = 6, lag = 3, export_fit = FALSE)
+optim_conf <- list(test_size = 6
+                   , lag = 1
+                   , optim_profile = "light")
 
-my_mkt <- d1 %>% 
+my_mkt <- presc_data %>% 
   filter(str_detect(key, "IN|DK|SE|NO|FI|NL|BE|EE|LT|LV")) %>% 
   pull(key)
+
+
+# TESTING
+
+.data <- presc_data %>% 
+  filter(key == "AE: 424283") %>% 
+  pull(data) %>% 
+  .[[1]] %>% 
+  validate_ts() %>% 
+  feature_engineering_ts() %>% 
+  clean_ts(winsorize_config = list(apply_winsorize = TRUE)
+           , imputation_config = list(impute_method = "none"
+                                      , na_regressor = TRUE
+                                      , na_missing_dates = TRUE)) %>%
+  optim_ts(.data = .
+           , ts_model = c("gam", "glmnet", "glm")
+           , optim_conf = optim_conf
+           , parameter = parameter
+           , export_fit = F)
+
+# -------
+
+
+p <- .data %>% 
+  mutate(spa_d_log = log(spa_d + 1)
+         , mape_log = log(mape + 1)) %>% 
+  ggplot()+
+  geom_density2d_filled(aes(mape, spa_d), alpha = .9)+
+  geom_point(aes(mape, spa_d, col = model), size = 3, shape = 21)+
+  scale_x_log10()+
+  scale_y_log10()+
+  theme_minimal()
+
+plotly::ggplotly(p)
+
+
+
 
 
 count <- 0
@@ -224,7 +271,8 @@ opt_sum <- function(.key){
                                       , na_regressor = TRUE
                                       , na_missing_dates = TRUE)) %>% 
   optim_ts(.data = ., ts_model = "glm", optim_conf = optim_conf
-           , parameter = parameter, export_fit = T)
+           , parameter = parameter, export_fit = T) %>% 
+  summary_ts()
 
 f <- d1 %>%
   filter(key == "AE: 424283") %>% 
