@@ -45,10 +45,10 @@ source("R/optim_ts.R")
 ## Hyperparameter
 
 ```{r}
-grid_glmnet <- expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
+grid_glmnet <- tidyr::expand_grid(time_weight = seq(from = 0.9, to = 1, by = 0.02)
                            , trend_discount = seq(from = 0.95, to = 1, by = 0.01)
                            , alpha = seq(from = 0, to = 1, by = 0.10))
-grid_glm <- expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
+grid_glm <- tidyr::expand_grid(time_weight = seq(from = 0.8, to = 1, by = 0.02)
                         , trend_discount = seq(from = 0.8, to = 1, by = 0.02))
 
 parameter <- list(glmnet = list(time_weight = .94, trend_discount = .93, alpha = 0, lambda = .1

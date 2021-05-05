@@ -1,11 +1,12 @@
 #' Plot time series forecast
 #'
-#' @param .data data-frame of class optim_output
-#' @param interactive Logical. Whether or not to return interative plotly graph
+#' @param .optim_output optimization output.
+#' @param interactive logical: Whether or not to return interative plotly graph
 #' @param multiple_keys Logical. The data has or not multiple keys to plot as grid.
 #'
 #' @import ggplot2
 #' @importFrom plotly ggplotly
+#' @importFrom plotly layout
 #' @return graph
 #' @export
 #'
