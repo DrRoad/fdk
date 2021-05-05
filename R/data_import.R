@@ -88,29 +88,7 @@ import_data <- function(source_conf){
     sales_tmp <- sales_tmp %>% 
       filter(!is.na(date))
     
-    list(sales = sales_tmp) 
-    # if(source_conf$do_prescribe == T){
-    #   knx_forecast <- knx_forecast %>% 
-    #     prescribe_ts(.data = .
-    #                  , key = "forecast_item"
-    #                  , y_var = "sales"
-    #                  , date_var = "date"
-    #                  , reg_name = "reg_name"
-    #                  , reg_value = "reg_value"
-    #                  , freq = 12
-    #                  , date_format = "ymd")
-    #   
-    #   knx_sales <- knx_sales %>% 
-    #     prescribe_ts(.data = .
-    #                  , key = "forecast_item"
-    #                  , y_var = "sales"
-    #                  , date_var = "date"
-    #                  , reg_name = "reg_name"
-    #                  , reg_value = "reg_value"
-    #                  , freq = 12
-    #                  , date_format = "ymd")
-    # }
-    # list(knx_sales = knx_sales, knx_forecast = knx_forecast)
+    list(sales = sales_tmp)
   }
 }
 
