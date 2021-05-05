@@ -2,16 +2,19 @@
 #' 
 #' Prescribe provides a simple way to prepare the data for ingestion
 #'
-#' @param .data DataFrame or tibble.
+#' @param .data_init DataFrame or tibble.
 #' @param key Column name of the key if any.
 #' @param y_var Column name of the variable to be forecasted.
 #' @param date_var Column name of time index.
 #' @param freq Frequency of the data.
 #' @param reg_name Column name of the regressors.
 #' @param reg_value Column name of the regressors' values.
+#' @param date_format string: date format such as "ymd".
 #'
 #' @return data-frame
 #' @import dplyr
+#' @importFrom purrr map
+#' @importFrom purrr map2
 #' @export
 #'
 #' @examples
@@ -21,6 +24,9 @@
 prescribe_ts <- function(.data_init, key = NULL, y_var
                          , date_var, reg_name = NULL
                          , reg_value = NULL, freq, date_format){
+  
+  old_names <- c(key, date_var, y_var, reg_name, reg_value)
+  new_names <- c("key", "date_var", "y_var", "reg_name", "reg_value")
   
   # Validators --------------------------------------------------------------
   
@@ -44,11 +50,12 @@ prescribe_ts <- function(.data_init, key = NULL, y_var
   if(is.null(reg_name) == T | is.null(reg_value) == T){
     .data_init <- .data_init %>% 
       mutate(reg_name = NA_character_, reg_value = 0) %>% 
-      rename("key" = key, "y_var" = y_var, "date_var" = date_var)
+      dplyr::select(all_of(old_names)) %>% 
+      set_names(nm = new_names)
   } else {
     .data_init <- .data_init %>% 
-      rename("reg_name" = reg_name, "reg_value" = reg_value) %>% 
-      rename("key" = key, "y_var" = y_var, "date_var" = date_var)
+      dplyr::select(all_of(old_names)) %>% 
+      set_names(nm = new_names)
   }
   
 
@@ -88,10 +95,9 @@ prescribe_ts <- function(.data_init, key = NULL, y_var
 
 #' Logger updater
 #'
-#' @param key 
-#' @param module 
-#' @param new_log 
-#' @param env 
+#' @param key string
+#' @param module string: name of the module.
+#' @param new_log list: log to be added.
 #'
 #' @return
 #' @export
@@ -157,4 +163,17 @@ log_update <- function(module = character(), key = character(), new_log = list()
 # }
 
 
-
+utils::globalVariables(c(".log", ".log_init", "key", "date_var", "y_var", "month_seas", "ci"
+                         , "z", "upr", "lwr", "fit", "data", "se.fit", "se_fit"
+                         , "conf_low", "conf_high", "category", "cycle_category"
+                         , "is_history", "lower", "upper", "derivative", "predicted"
+                         , "forecast_item", "y_var_d1", "std_error", "x", "group"
+                         , "is_valid", "value", "window_ma", ".", "mse", "mae"
+                         , "mape", "spa", "model", "mape_rank", "mae_rank"
+                         , "mae_rank","mse_rank", "index", "lower_threshold", "upper_threshold"
+                         , "freq_number", "country", "mco", "reg_name", "reg_value"
+                         , "y_var_na_reg", "y_var_denoise", "y_var_clean", "y_var_winso_tmp"
+                         , "index", "m_sales", "series_type", "sales", "type"
+                         , "ind", "reg_date", "name", ".id", "bs", "k", "y_var_winso_imp"
+                         , "forecast_gam", "date_gam", "se", "y_var_cum", "fit_gam_cum"
+                         , "months_ahead", "fit_cum_diff_perc", "trend_deriv"))
