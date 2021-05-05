@@ -4,23 +4,14 @@
 \alias{winsorize_ts}
 \title{Winsorize imputation}
 \usage{
-winsorize_ts(
-  .data,
-  freq = 12,
-  print_all = FALSE,
-  threshold = 0.05,
-  impute = FALSE
-)
+winsorize_ts(.data, freq = numeric(), winsorize_config = list())
 }
 \arguments{
-\item{freq}{Numeric. Time series frequency, 12 by default.}
+\item{.data}{tibble/data.frame: data.}
 
-\item{print_all}{Logical. Whether to print all time series components.}
+\item{freq}{integer: frequency of the time series.}
 
-\item{y_var}{Numeric. Time series to be cleansed.}
-
-\item{na_marker}{logical or binary indicator that defines which observation should be take out of the
-loess decomposition.}
+\item{winsorize_config}{list: options for winsorize cleansing method.}
 }
 \value{
 numeric cleansed series

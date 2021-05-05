@@ -4,10 +4,13 @@
 \alias{validate_ts}
 \title{Validate Time Series Data}
 \usage{
-validate_ts(.data, na_value = 0)
+validate_ts(.data, na_values = list(y_var = 0, reg_value = 0, reg_name = ""))
 }
 \arguments{
 \item{.data}{Tibble}
+
+\item{na_values}{list: which values to consider and replace, by default: 
+na_values = list(y_var = 0, reg_value = 0, reg_name = "")}
 }
 \value{
 Tibble

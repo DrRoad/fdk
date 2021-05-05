@@ -5,17 +5,18 @@
 \title{Data prescription}
 \usage{
 prescribe_ts(
-  .data,
+  .data_init,
   key = NULL,
   y_var,
   date_var,
   reg_name = NULL,
   reg_value = NULL,
-  freq
+  freq,
+  date_format
 )
 }
 \arguments{
-\item{.data}{DataFrame or tibble.}
+\item{.data_init}{DataFrame or tibble.}
 
 \item{key}{Column name of the key if any.}
 
@@ -28,6 +29,8 @@ prescribe_ts(
 \item{reg_value}{Column name of the regressors' values.}
 
 \item{freq}{Frequency of the data.}
+
+\item{date_format}{string: date format such as "ymd".}
 }
 \value{
 data-frame

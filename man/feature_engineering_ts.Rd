@@ -4,14 +4,27 @@
 \alias{feature_engineering_ts}
 \title{Automatic Time Series Feature Engineering}
 \usage{
-feature_engineering_ts(.data, lag_var = NULL, n_lag = NULL)
+feature_engineering_ts(
+  .data,
+  lag_var = list(),
+  ma_var = list(),
+  numeric_seas = FALSE,
+  hierarchy_seas = FALSE
+)
 }
 \arguments{
 \item{.data}{data-frame or tibble}
 
-\item{lag_var}{String. Name of the regressor or dependent variable (y_var) to be lagged.}
+\item{lag_var}{list: defines the number of lag periods for a given variable, for instance, 
+list(y_var = 1) will generate a lag (autoregressive) variable of 1 period.}
 
-\item{n_lag}{Numeric. How many lags to create for each lag_var}
+\item{ma_var}{list: defines the number of periods before and after to apply a mean, for instance, 
+list(y_var = c(1, 2)) will generate a moving average of 1 period before and 2 after a given point.}
+
+\item{numeric_seas}{logical: whether or not to print numberic seasonal variables instead of factor.}
+
+\item{hierarchy_seas}{logical: whether or not to provide higher aggregation levels. For instance, 
+a time series of weekly frequency will generate besides week_seas, also month_seas, and year_seas.}
 }
 \value{
 data-frame or tibble

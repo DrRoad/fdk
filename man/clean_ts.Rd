@@ -6,33 +6,23 @@
 \usage{
 clean_ts(
   .data,
-  method = "kalman",
-  na_exclude = NULL,
-  replace_y_var = TRUE,
-  print_all = FALSE,
-  threshold = 0.05,
-  impute = FALSE,
-  winsorize = TRUE
+  freq = numeric(),
+  winsorize_config = list(),
+  imputation_config = list()
 )
 }
 \arguments{
 \item{.data}{DataFrame or tibble.}
 
-\item{method}{Method to be applied to the time series. Options: kalman, winsorize, 
-mean, median, nearest observation, interpolation. If more than one method is chosen, a set of new columns
-is automatically generated.}
+\item{freq}{numeric, sets the frequency of the data.}
 
-\item{na_exclude}{Vector of names that **should not** be used to replace the observation by NA.}
+\item{winsorize_config}{list: options for winsorize cleansing method.}
 
-\item{replace_y_var}{Logical. If replace = TRUE (default) it will 
-replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_var_clean" column will
-be attached to the data matrix.}
-
-\item{y_var}{String. Colname of the variable to be cleansed.}
-
-\item{date_var}{String. Colname of time serie index.}
-
-\item{freq}{Time series frequency.}
+\item{imputation_config}{list: options for imputation methods. The names can take the 
+following configurations: impute_method = {kalman, median, mean, nearest, interpolation}
+add_transformation = logical, na_regressor = logical (replaces response variable with NA's and imputates)
+, na_missing_dates = logical (replaces response variable with NA's and imputates when missing dates)
+, na_value = character (replace NA's by a specific value)}
 }
 \value{
 data-frame, tibble or tsibble.
