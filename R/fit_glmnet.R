@@ -1,12 +1,7 @@
 #' Fit a Regularized Generalize Linear Model
 #'
-#' @param .data Data frame or tibble with a response variable.
-#' @param y_var String. Column name of the time series to be forecasted.
-#' @param date_var String.Column name of the time series to be forecasted.
-#' @param parameter List. Parameters to be used for estimation. There are 4 parametereters: first,
-#' *alpha* in the space [0,1] controls whether it is a Ridge (L2) a LASSO (L1) shrinkage method, respectively.
-#' Any number that lies between is considered as ElasticNet regression, a combination of both regularizations.
-#' The other 2 parametereters are time weights and trend discount.
+#' @param .data tibble/data.frame: matrix of response and covariates.
+#' @param parameter list: Combination of parameter to estimate the model.
 #'
 #' @import dplyr
 #' @import fastDummies
@@ -59,7 +54,7 @@ fit_glmnet <- function(.data, parameter){
         
         lambda_min <- tryCatch(
           {
-            cv.glmnet(
+            glmnet::cv.glmnet(
               x = features_matrix
               , y = y_var
               , alpha = parameter$glmnet$alpha
