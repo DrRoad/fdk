@@ -1,9 +1,7 @@
 #' Fit a Generalized Linear Model
 #'
-#' @param .data Data frame or tibble with a response variable.
-#' @param y_var String. Column name of the time series to be forecasted.
-#' @param date_var String.Column name of the time series to be forecasted.
-#' @param parameter List. Trend discount and time weight parameters.
+#' @param .data tibble/data.frame: matrix of response and covariates.
+#' @param parameter list: Combination of parameter to estimate the model.
 #'
 #' @return data-frame
 #' @import stats
@@ -15,6 +13,7 @@
 #' get_glm()
 #' }
 fit_glm <- function(.data, parameter) {
+  
   key <- attributes(.data)[["key"]]
   features <- setdiff(names(.data), c("date_var", "y_var"))
   features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(.data[[x]])))]
