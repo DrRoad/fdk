@@ -138,19 +138,22 @@ get_oc_data <- function(db = list(), countries, gbus, date_cycle){
     stop(paste0("Only the following DB's are admitted: ", paste0(admitted, collapse = ", ")))
   }
   
-  count <- 0
-  all <- length(db)
-  data <- map(unlist(db), ~{
-    count <<- count + 1
-    message(paste0("Reading: ", count, "/", all))
-    reverse_scope(
-      countries = countries
-      , gbus = gbus
-      , date_cycle = date_cycle
-      , db = .x
-      , read_db = T)
-  }
-  )
+  data <- expand_grid(countries, gbus, db = unlist(db)) %>% 
+    mutate(data = pmap(.l = list(countries, gbus, db)
+                       , .f = ~{
+                         reverse_scope(countries = ..1
+                                       , gbus = ..2
+                                       , date_cycle = date_cycle
+                                       , db = ..3
+                                       , read_db = T
+                         )
+                       })
+           ) %>% 
+    dplyr::select(db, data) %>% 
+    group_nest(db) %>% 
+    mutate(data = map(data, ~unnest(.x, "data"))) %>% 
+    pull(data)
+  
   names(data) <- unlist(db)
   if("regressor" %in% names(data)){
     data[["regressor"]] <- data[["regressor"]] %>% 
