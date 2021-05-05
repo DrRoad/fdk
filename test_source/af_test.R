@@ -10,17 +10,16 @@ library(sparklyr)
 library(mgcv)
 library(glmnet)
 library(forecast)
+library(plotly)
+library(shinydashboard)
+library(shinycssloaders)
+library(shinyjs)
+library(tidyverse)
+library(shinyWidgets)
 
-# Work --------------------------------------------------------------------
+sales_tmp %>% 
+  mutate(reg_value = )
 
-sales <- read_rds(file = "C:/Users/I0415596/Dropbox/Sanofi/data/cs.rds")
-cf <- readRDS("C:/Users/I0415596/Dropbox/Sanofi/data/cf.rds")
-
-# Home --------------------------------------------------------------------
-
-sales <- readRDS("~/Dropbox/Sanofi/data/cs.rds") %>% 
-  mutate(date = as.Date(date))
-cf <- readRDS("~/Dropbox/Sanofi/data/cf.rds")
 
 # Initial -----------------------------------------------------------------
 
@@ -32,18 +31,18 @@ source("R/data_preparation.R")
 source("R/feature_engineering.R")
 source("R/data_validation.R")
 source("R/auxiliar.R")
-source("R/model_training.R")
 source("R/fit_gam.R")
 source("R/fit_glmnet.R")
 source("R/fit_glm.R")
 source("R/fit_arima.R")
 source("R/fit_croston.R")
 source("R/fit_ets.R")
-source("R/optim_dev.R")
+source("R/model_optimization.R")
 source("R/predict_ts.R")
 source("R/data_import.R")
+source("R/stat_analysis.R")
 
-presc_data <- prescribe_ts(.data = new_data
+presc_data <- prescribe_ts(.data_init = new_data
              , key = "forecast_item"
              , y_var = "sales"
              , date_var = "date"
@@ -52,57 +51,34 @@ presc_data <- prescribe_ts(.data = new_data
              , freq = 12
              , date_format = "ymd")
 
+
+microbenchmark::microbenchmark(
+results <- pd1$data[[2]] %>% 
+  validate_ts() %>% 
+  feature_engineering_ts() %>% 
+  clean_ts() %>% 
+  optim_ts(.data = .
+           , ts_model = c("arima", "gam", "glm", "ets", "glmnet")
+           , optim_conf = get_default_optim_conf()
+           , parameter = parameter
+           , export_fit = F)
+)
+
 # Parameter ---------------------------------------------------------------
 
+optim_conf <- list(test_size = 6, lag = 1)
 
 
-get_parameter <- function(){
-  list(gam = list(smoothed_features = list(trend = list(k = NA, bs = "tp"))
-                  , formula = NULL
-                  , excluded_features = list()
-                  , time_weight = 1
-                  , trend_decay = 1
-                  , link_function = "gaussian"
-                  , grid = tibble(trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1)
-                                  #, time_weight = seq(from = 1, to = 1, by = 0.025)
-                  )
-                  , random_search = 1)
-       , glm = list(formula = NULL
-                    , excluded_features = NULL
-                    , time_weight = 1
-                    , trend_decay = 1
-                    , link_function = "gaussian"
-                    , grid = expand_grid(time_weight = seq(from = 0.8
-                                                           , to = 1, by = 0.025)
-                                         , trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1))
-                    , random_search = 1)
-       , glmnet = list(alpha = .9
-                       , lambda = numeric()
-                       , time_weight = .95
-                       , trend_decay = .97
-                       , excluded_features = list()
-                       , formula = NULL
-                       , metric_lambda_optim = "mae"
-                       , link_function = "gaussian"
-                       , grid = expand_grid(time_weight = seq(from = 0.8
-                                                              , to = 1, by = 0.025)
-                                            , trend_decay = c(0.7, 0.8, 0.9
-                                                              , 0.95, 0.99,1)
-                                            , alpha = seq(from = 0
-                                                          , to = 1, by = 0.25))
-                       , random_search = .5
-                       , seed = 123)
-       , arima = list(search_seasonal = TRUE
-                      , auto_arima = FALSE
-                      , pdq = c(1, 0, 0, NULL, NULL, NULL))
-       , croston = list(alpha = 0.1)
-       , ets = list(ets = "ZZZ")
-  )
-}
+tdata <- pd1$data[[1]] %>% 
+  validate_ts() %>% 
+  feature_engineering_ts() %>% 
+  clean_ts(winsorize_config = list(apply_winsorize = TRUE)
+           , imputation_config = list(impute_method = "none"
+                                      , na_regressor = FALSE
+                                      , na_missing_dates = FALSE))
 
-optim_conf <- list(test_size = 6
-                   , lag = 1
-                   , optim_profile = "light")
+
+
 
 my_mkt <- presc_data %>% 
   filter(str_detect(key, "IN|DK|SE|NO|FI|NL|BE|EE|LT|LV")) %>% 
@@ -111,39 +87,49 @@ my_mkt <- presc_data %>%
 
 # TESTING
 
-.data <- presc_data %>% 
-  filter(key == "AE: 424283") %>% 
-  pull(data) %>% 
-  .[[1]] %>% 
-  validate_ts() %>% 
-  feature_engineering_ts() %>% 
-  clean_ts(winsorize_config = list(apply_winsorize = TRUE)
-           , imputation_config = list(impute_method = "none"
-                                      , na_regressor = TRUE
-                                      , na_missing_dates = TRUE)) %>%
-  optim_ts(.data = .
-           , ts_model = c("gam", "glmnet", "glm")
-           , optim_conf = optim_conf
-           , parameter = parameter
-           , export_fit = F)
+d1 <-  optim_ts(.data = tdata
+         , ts_model = c("arima", "glmnet", "gam", "glm", "ets")
+         , optim_conf = get_default_optim_conf()
+         , parameter = get_default_hyperpar()
+         , export_fit = F)
+
+
+
+profvis(
+optim_ts(.data = .data
+         , ts_model = c("glmnet")
+         , optim_conf = get_optim_conf()
+         , parameter = get_hyperpar()
+         , export_fit = F)
+)
+
 
 # -------
 
+.data %>% 
+  mutate(distance = 0.3*mape + 0.7*spa_d, .after = 1) %>% 
+  arrange(distance)
 
-p <- .data %>% 
-  mutate(spa_d_log = log(spa_d + 1)
-         , mape_log = log(mape + 1)) %>% 
+results %>% 
+  mutate(spa_d = 1 - spa
+         , score = 0.5*mape + 0.5*abs(spa_d), .after = 1) %>% 
+  # mutate(spa_d_log = log(spa_d + 1)
+  #        , mape_log = log(mape + 1)) %>% 
   ggplot()+
   geom_density2d_filled(aes(mape, spa_d), alpha = .9)+
-  geom_point(aes(mape, spa_d, col = model), size = 3, shape = 21)+
+  geom_hline(yintercept = 0, col = "white")+
+  geom_point(aes(mape, spa_d
+                 , shape = model
+                 , col = model
+                 , size = 100*(score^-1)), fill = NA
+             #, col = "white"
+             #, shape = 21
+             )+
   scale_x_log10()+
-  scale_y_log10()+
+  #scale_y_log10()+
   theme_minimal()
 
 plotly::ggplotly(p)
-
-
-
 
 
 count <- 0
