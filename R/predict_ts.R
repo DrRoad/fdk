@@ -120,9 +120,9 @@ predict_ts <- function(fit, .data, ts_model, parameter, optim_conf, add_fitted =
     }
   } else if(ts_model %in% c("croston")){
     if(add_fitted == T){
-      pred <- rep(fit, length(train_index)) 
+      pred <- as.numeric(fit$fitted) %>% round(2)
     } else {
-      pred <- rep(fit, length(test_index)) 
+      pred <- rep(round(as.numeric(fit$mean), 2), length(test_index))
     }
     pred
   } else if(ts_model == "ets"){
