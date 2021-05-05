@@ -1,5 +1,16 @@
 # GAM --------------------------------------------------------
 
+#' Fit Generalized Additive Model
+#'
+#' @param .data tibble/data.frame:  
+#' @param parameter list: hyperparameter and parameter to be applied.
+#'
+#' @return
+#' @importFrom stringr str_remove_all
+#' @import mgcv
+#' @export
+#'
+#' @examples
 fit_gam <- function(.data, parameter = list()){
 
   key <- attributes(.data)[["key"]]
@@ -22,13 +33,13 @@ fit_gam <- function(.data, parameter = list()){
   } else {
     # Replace formula ---------------------------------------------------------
     if(length(parameter$gam$formula) != 0){
-      gam_formula <- parameter$gam$formula
+      gam_formula <- as.formula(parameter$gam$formula)
     } else {
       # Smoothed features -------------------------------------------------------
       if(any(is.null(names(parameter$gam$smoothed_features)))){
         sf_formula = ""
       } else {
-        sf_formula <-   plyr::ldply(parameter$gam$smoothed_features, unlist) %>% 
+        sf_formula <- plyr::ldply(parameter$gam$smoothed_features, unlist) %>% 
           transmute(sf = paste0("s(", .id, ", k = ", k, ", bs = '", bs, "')")) %>% 
           pull() %>% 
           str_remove_all(pattern = "k = NA, ")
@@ -46,10 +57,13 @@ fit_gam <- function(.data, parameter = list()){
       
       # Formula -----------------------------------------------------------------
       
-      gam_formula <- as.formula(paste0(c("y_var ~ 1"
-                                         , sf_formula
-                                         , lf_formula)
-                                       , collapse = " + "))
+      formula_tmp <- paste0(c("y_var ~ 1"
+               , sf_formula
+               , lf_formula)
+             , collapse = " + ") %>% 
+        str_remove_all(pattern = " \\+ $")
+      
+      gam_formula <- as.formula(formula_tmp)
     }
   }
   
@@ -69,7 +83,7 @@ fit_gam <- function(.data, parameter = list()){
           , family = parameter$gam$link_function
           #, weights = time_weights_tmp
           , data = .data
-          , method = "REML")
+          , method = "GCV.Cp")
     }
   )
 }
