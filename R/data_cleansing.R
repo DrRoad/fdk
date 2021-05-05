@@ -2,11 +2,9 @@
 #'
 #' This function replaces outliers by an expected value given the 5% and 95% percentiles of the
 #' error component plus the denoised series.
-#' @param y_var Numeric. Time series to be cleansed.
-#' @param na_marker logical or binary indicator that defines which observation should be take out of the
-#' loess decomposition.
-#' @param freq Numeric. Time series frequency, 12 by default.
-#' @param print_all Logical. Whether to print all time series components.
+#' @param .data tibble/data.frame: data.
+#' @param freq integer: frequency of the time series.
+#' @param winsorize_config list: options for winsorize cleansing method.
 #'
 #' @author Obryan Poyser
 #' @return numeric cleansed series
@@ -146,20 +144,21 @@ winsorize_ts <- function(.data, freq = numeric(), winsorize_config = list()){
 
 #' Time series imputation
 #'
-#' @param .data DataFrame or tibble.
-#' @param y_var Quoted or unquoted variable name to be cleansed.
-#' @param method Method to be applied to the time series. Options: kalman, winsorize, 
-#' mean, median, nearest observation, interpolation. If more than one method is chosen, a set of new columns
-#' is automatically generated.
-#' @param na_exclude Vector of names that **should not** be used to replace the observation by NA.
-#' @param freq Time series frequency.
-#' @param replace_y_var Logical. If replace_y_var = TRUE (default) it will 
-#' replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_clean" column will
-#' be attached to the data matrix.
+#' @param .data tibble/data.frame: data.
+#' @param freq integer: frequency of the data.
+#' @param imputation_config list: options for imputation methods. The names can take the 
+#' following configurations: impute_method = {kalman, median, mean, nearest, interpolation}
+#' add_transformation = logical, na_regressor = logical (replaces response variable with NA's and imputates)
+#' , na_missing_dates = logical (replaces response variable with NA's and imputates when missing dates)
+#' , na_value = character (replace NA's by a specific value)
 #' @param ... Other parameters,
 #' .
 #' 
-#' @import imputeTS
+#' @importFrom imputeTS na_seadec
+#' @importFrom imputeTS na_mean
+#' @importFrom imputeTS na_locf
+#' @importFrom imputeTS na_interpolation
+
 #' @import dplyr
 #' @import stats
 #' @import rlang
@@ -288,20 +287,19 @@ impute_ts <- function(.data, freq = numeric()
 #' This function collects the data and applies imputation, time series cuts and leading zeros filtering
 #'
 #' @param .data DataFrame or tibble.
-#' @param y_var String. Colname of the variable to be cleansed.
-#' @param date_var String. Colname of time serie index.
-#' @param method Method to be applied to the time series. Options: kalman, winsorize, 
-#' mean, median, nearest observation, interpolation. If more than one method is chosen, a set of new columns
-#' is automatically generated.
-#' @param na_exclude Vector of names that **should not** be used to replace the observation by NA.
-#' @param freq Time series frequency.
-#' @param replace_y_var Logical. If replace = TRUE (default) it will 
-#' replace the previous y_var by its cleansed/imputated version. Otherwise, a "y_var_clean" column will
-#' be attached to the data matrix.
-#'
+#' @param freq numeric, sets the frequency of the data.
+#' @param winsorize_config list: options for winsorize cleansing method.
+#' @param imputation_config list: options for imputation methods. The names can take the 
+#' following configurations: impute_method = {kalman, median, mean, nearest, interpolation}
+#' add_transformation = logical, na_regressor = logical (replaces response variable with NA's and imputates)
+#' , na_missing_dates = logical (replaces response variable with NA's and imputates when missing dates)
+#' , na_value = character (replace NA's by a specific value)
 #' @import stats
 #' @import dplyr
 #' @import fastDummies
+#' @importFrom rlang .data
+#' @importFrom tidyr replace_na
+#' @importFrom utils globalVariables
 #' @return data-frame, tibble or tsibble.
 #' @export
 #'
@@ -312,7 +310,7 @@ impute_ts <- function(.data, freq = numeric()
 clean_ts <- function(.data, freq = numeric()
                      , winsorize_config = list()
                      , imputation_config = list()){
-  
+ 
   key <- attributes(.data)[["key"]]
 
   # Warnings ----------------------------------------------------------------

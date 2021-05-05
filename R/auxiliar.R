@@ -7,10 +7,10 @@
 #' Often, the trend component can significantly impact the forecast in the long run. One way to solve
 #' this issue is to apply a "discount" on the trend vector, henceforth, reducing the marginal effect on the 
 #' predictions.
-#' @param y_var_length Numeric. Length of the time series
-#' @param trend_discount Numeric. How rapidly the trend reach the stability
-#' @param horizon Numeric. How far in time to produce trend discounts.
-#' @param lag Numeric. Lag to be used for cross-validation purposes.
+#' @param y_var_length integer: Length of the time series
+#' @param trend_decay numeric: How rapidly the trend reach the stability.
+#' @param horizon integer: How far in time to produce trend discounts.
+#' @param lag integer: Lag to be used for cross-validation purposes.
 #'
 #' @author Obryan Poyser
 #' @return Numerical vector.
@@ -145,7 +145,8 @@ make_reg_matrix <- function(.fit_output, x_data = NULL, horizon = NULL){
 #'
 #' @return Nested data-frames or tibbles.
 #' @export
-#'
+#' @import tidyverse
+#' @importFrom purrr map
 #' @examples
 #' \dontrun{
 #' split_ts()
@@ -282,12 +283,16 @@ summary_ts <- function(.data){
 #' 
 #' This function collects paths or RDatas given countries and GBU
 #'
-#' @param countries 
-#' @param gbus 
-#' @param date_cycle 
-#' @param db 
-#' @param read_db 
+#' @param countries string: country codes.
+#' @param gbus string
+#' @param date_cycle string: cycle date format yyyy-mm-dd
+#' @param db string 
+#' @param read_db logical
 #'
+#' @importFrom purrr map
+#' @importFrom purrr map2
+#' @import janitor
+#' @import tidyverse
 #' @return
 #' @export
 #'
@@ -325,7 +330,7 @@ reverse_scope <- function(countries, gbus, date_cycle, db = NULL, read_db = FALS
 
 #' RData 2 Object
 #'
-#' @param path 
+#' @param path string 
 #'
 #' @return
 #' @export
@@ -338,39 +343,6 @@ rdata2obj <- function(path){
 }
 
 
-# Input data --------------------------------------------------------------
 
-get_oc_data <- function(db = list(), countries, gbus, date_cycle){
-  admitted <- c("full_sales", "full_forecast", "forecast_item_info", "regressor")
-  
-  if(!any(unlist(db) %in% admitted)){
-    stop(paste0("Only the following DB's are admitted: ", paste0(admitted, collapse = ", ")))
-  }
-  
-  
-  count <- 0
-  all <- length(db)
-  data <- map(unlist(db), ~{
-    count <<- count + 1
-    message(paste0("Reading: ", count, "/", all))
-    reverse_scope(
-      countries = countries
-      , gbus = gbus
-      , date_cycle = date_cycle
-      , db = .x
-      , read_db = T)
-    }
-    )
-  names(data) <- unlist(db)
-  if("regressor" %in% names(data)){
-    data[["regressor"]] <- data[["regressor"]] %>% 
-      dplyr::select(forecast_item, reg_name, reg_date, reg_value) %>% 
-      mutate(reg_name = str_remove(string = reg_name
-                                   , pattern = paste0(forecast_item, " - |-"))
-             ) %>% 
-      dplyr::distinct()
-  }
-  data
-}
 
 

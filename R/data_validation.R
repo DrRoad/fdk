@@ -3,6 +3,8 @@
 #' This functions fill gaps in time series and provide revelant statistics
 #'
 #' @param .data Tibble
+#' @param na_values list: which values to consider and replace, by default: 
+#' na_values = list(y_var = 0, reg_value = 0, reg_name = "")
 #'
 #' @return Tibble
 #' @export
