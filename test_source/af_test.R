@@ -42,12 +42,12 @@ source("R/predict_ts.R")
 source("R/data_import.R")
 source("R/stat_analysis.R")
 
-presc_data <- prescribe_ts(.data_init = new_data
+presc_data <- prescribe_ts(.data_init = oc_data$sales
              , key = "forecast_item"
              , y_var = "sales"
              , date_var = "date"
-             , reg_name = "regressor"
-             , reg_value = "quantity"
+             , reg_name = "reg_name"
+             , reg_value = "reg_value"
              , freq = 12
              , date_format = "ymd")
 
@@ -63,6 +63,28 @@ results <- pd1$data[[2]] %>%
            , parameter = parameter
            , export_fit = F)
 )
+
+
+
+
+presc_data$data[[1]] %>% 
+  validate_ts() %>% 
+  feature_engineering_ts() %>% 
+  clean_ts(winsorize_config = list(apply_winsorize = TRUE)
+           , imputation_config = list(impute_method = "none"
+                                      , na_regressor = FALSE
+                                      , na_missing_dates = FALSE)) %>% 
+  optim_ts(ts_model = "glmnet", optim_conf = get_default_optim_conf()
+           , parameter = get_default_hyperpar()
+           , export_fit = T)
+  
+
+
+
+
+
+
+
 
 # Parameter ---------------------------------------------------------------
 
