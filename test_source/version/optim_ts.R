@@ -29,9 +29,6 @@
 #' }
 optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FALSE, metric = "mape"){
   
-  #y_var_true <- cv_metric <- ranking <- y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
-  #globalVariables(c("trend_discount", "time_weight", "lambda", "lambda_cov", "model_i"))
-  
   # Find the best parameter among the vector
   ## For strings takes the mode, for numeric average.
   
@@ -79,7 +76,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
       
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits") %>% 
-        expand_grid(random_grid)
+        tidyr::expand_grid(random_grid)
       
       splits_tmp_cv <- map2(.x = splits_tmp$splits, .y = splits_tmp$random_grid
                             , ~fit_ts(.data = .x[["train"]]
@@ -141,7 +138,7 @@ optim_ts <- function(.data, test_size, lag, parameter, model, tune_parallel = FA
       
       splits_tmp <- split_ts(.data, test_size = test_size, lag = lag) %>% 
         enframe(name = "iter", value = "splits") %>% 
-        expand_grid(random_grid)
+        tidyr::expand_grid(random_grid)
       
       suppressWarnings({
         splits_tmp_cv <- map2(.x = splits_tmp$splits, .y = splits_tmp$random_grid
