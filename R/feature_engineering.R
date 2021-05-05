@@ -1,12 +1,16 @@
 #' Generate trend and seasonal components for regression based models
 #'
 #' @param .data data-frame or tibble
-#' @param date_var String. Column name of the time index variable
 #' @param freq Numeric. Time series frequency
-#' @param parameter List.
-#' @param to_dummy Logical. Convert design matrix factors to binary.
+#' @param numeric_seas logical: whether or not to print numberic seasonal variables instead of factor.
+#' @param hierarchy_seas logical: whether or not to provide higher aggregation levels. For instance, 
+#' a time series of weekly frequency will generate besides week_seas, also month_seas, and year_seas.
 #'
 #' @return data-frame or tibble
+#' @importFrom purrr map
+#' @importFrom purrr map2
+#' @import tidyverse
+#' @import lubridate
 #' @export
 #'
 #' @examples
@@ -98,7 +102,7 @@ seasonal_features <- function(.data, freq = .log$prescription$freq
 
 #' Long to wide regressor column
 #'
-#' @param .data 
+#' @param .data tibble/data.frame
 #'
 #' @return
 #' @export
@@ -107,10 +111,22 @@ seasonal_features <- function(.data, freq = .log$prescription$freq
 long_to_wide <- function(.data){
   
   key <- attributes(.data)[["key"]]
+  reg_names <- .data$reg_name %>% 
+    enframe() %>% 
+    mutate(is_valid = case_when(
+      value == "" ~ FALSE
+      , is.na(value) ~ FALSE
+      , T ~ T
+    )) %>% 
+    filter(is_valid == T) %>% 
+    na.omit() %>% 
+    pull(value) %>% 
+    unique()
   
   #n_regressors <- n_distinct(setdiff(tmp[["reg_name"]], c("0", "NA", NA_character_)))
   
-  if(length(.log[[key]]$dates_check$dates_with_reg) == 0){
+  if(length(.log[[key]]$dates_check$dates_with_reg) == 0 & length(reg_names) == 0){
+
     .data <- .data %>% 
       dplyr::select(-all_of(c("reg_value", "reg_name")))
     
@@ -143,10 +159,14 @@ long_to_wide <- function(.data){
 #' 
 #' This function generate AR for response and features
 #'
-#' @param .data 
-#' @param lag_var 
-#' @param n_lag 
+#' @param .data data-frame or tibble
+#' @param lag_var list: defines the number of lag periods for a given variable, for instance, 
+#' list(y_var = 1) will generate a lag (autoregressive) variable of 1 period.
 #'
+#' @importFrom purrr map
+#' @importFrom purrr map2
+#' @import tidyverse
+#' @importFrom tidyr unnest
 #' @return
 #' @export
 #'
@@ -177,6 +197,16 @@ lag_features <- function(.data, lag_var = list()){
   )
 }
 
+#' Moving Average feature engineering
+#'
+#' @param .data tibble
+#' @param ma_var list: list of strings defining the desired configuration. 
+#'
+#' @importFrom purrr map_dbl
+#' @return
+#' @export
+#'
+#' @examples
 ma_features <- function(.data, ma_var = list()){
   
   .data_tmp <- .data
@@ -219,9 +249,13 @@ ma_features <- function(.data, ma_var = list()){
 #' This function applies different heuristics to add time series features to the original data.
 #' 
 #' @param .data data-frame or tibble
-#' @param lag_var String. Name of the regressor or dependent variable (y_var) to be lagged.
-#' @param n_lag Numeric. How many lags to create for each lag_var
-#'
+#' @param lag_var list: defines the number of lag periods for a given variable, for instance, 
+#' list(y_var = 1) will generate a lag (autoregressive) variable of 1 period.
+#' @param ma_var list: defines the number of periods before and after to apply a mean, for instance, 
+#' list(y_var = c(1, 2)) will generate a moving average of 1 period before and 2 after a given point.
+#' @param numeric_seas logical: whether or not to print numberic seasonal variables instead of factor.
+#' @param hierarchy_seas logical: whether or not to provide higher aggregation levels. For instance, 
+#' a time series of weekly frequency will generate besides week_seas, also month_seas, and year_seas.
 #' @return data-frame or tibble
 #' @export
 #'
