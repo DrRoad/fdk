@@ -14,16 +14,17 @@
 #' get_ets()
 #' }
 fit_ets <- function(.data, y_var, parameter = NULL){
+  globalVariables(c(".log"))
   options(warn = -1)
   y_var_int <- ts(.data[["y_var"]], frequency = .log$prescription$freq)
   
-  tryCatch(
+  ets_out <- tryCatch(
     {
-      model_fit <- ets(y = y_var_int, model = "ZZZ", damped = TRUE, allow.multiplicative.trend = FALSE)
+      ets(y = y_var_int, model = "ZZZ", damped = TRUE, allow.multiplicative.trend = FALSE)
     }
     , warning = function(warn){
-      model_fit <- ets(y = y_var_int, model = "ZZZ", damped = F, allow.multiplicative.trend = FALSE)
+      ets(y = y_var_int, model = "ZZZ", damped = FALSE, allow.multiplicative.trend = FALSE)
     }
   )
-  model_fit
+  return(ets_out)
 }
