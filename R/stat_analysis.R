@@ -215,8 +215,8 @@ get_insight_data <- function(oc_data, key, parameter){
            , fit_gam_cum = cumsum(forecast_gam)) %>% 
     rowwise() %>% 
     mutate(fit_diff = y_var - forecast_gam
-           , fit_diff_perc = round(y_var/forecast_gam - 1, 2)
-           , fit_cum_diff_perc = round(y_var_cum/fit_gam_cum - 1, 2)) %>% 
+           , fit_diff_perc = round(y_var/forecast_gam - 1, 4)
+           , fit_cum_diff_perc = round(y_var_cum/fit_gam_cum - 1, 4)) %>% 
     ungroup() %>% 
     dplyr::select(-y_var, -fit, - forecast_gam)
   
