@@ -129,10 +129,11 @@ get_oc_data <- function(db = list(), countries, gbus, date_cycle){
            ) %>% 
     dplyr::select(db, data) %>% 
     group_nest(db) %>% 
-    mutate(data = map(data, ~unnest(.x, "data"))) %>% 
-    pull(data)
+    mutate(data = map(data, ~unnest(.x, "data")))
   
-  names(data) <- unlist(db)
+  names(data$data) <- data$db
+  data <- data$data
+  
   if("regressor" %in% names(data)){
     data[["regressor"]] <- data[["regressor"]] %>% 
       dplyr::select(forecast_item, reg_name, reg_date, reg_value) %>% 
