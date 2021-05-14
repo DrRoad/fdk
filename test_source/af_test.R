@@ -16,6 +16,7 @@ library(shinycssloaders)
 library(shinyjs)
 library(tidyverse)
 library(shinyWidgets)
+library(formattable)
 
 sales_tmp %>% 
   mutate(reg_value = )
@@ -52,6 +53,10 @@ presc_data <- prescribe_ts(.data_init = oc_data$sales
              , date_format = "ymd")
 
 
+.data <- presc_data$data[[1]] %>% 
+
+
+
 microbenchmark::microbenchmark(
 results <- pd1$data[[2]] %>% 
   validate_ts() %>% 
@@ -68,8 +73,11 @@ results <- pd1$data[[2]] %>%
 
 
 presc_data$data[[1]] %>% 
+  filter(history == 0)
   validate_ts() %>% 
   feature_engineering_ts() %>% 
+  filter(history == 1) %>% 
+  dplyr::select(-history) %>% 
   clean_ts(winsorize_config = list(apply_winsorize = TRUE)
            , imputation_config = list(impute_method = "none"
                                       , na_regressor = FALSE
