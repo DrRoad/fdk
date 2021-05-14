@@ -9,19 +9,19 @@ Authors@R:
     person(given = "Ignasi", family = "Pascual",
            role = c("aut","cre"),
            email = "ignasi.pascual@sanofi.com")
-Description: AutoForecast provides a collection of automated procedures to analyze, forecast time series data, and, generate insights for decision makers
+Description: FDK provides a collection of automated procedures to analyze, forecast time series data, and, generate insights for decision makers
 License: GPL 
 Encoding: UTF-8
 LazyData: true
 Depends: 
     R (>= 3.6)
 Imports:
-    DescTools, changepoint, doSNOW, dvmisc, fastDummies, foreach, forecTheta, forecast, 
+    DescTools, stats, changepoint, doSNOW, dvmisc, fastDummies, foreach, forecTheta, forecast, 
     ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, prophet, purrr, readr, readxl, rlang, plotly,
-    magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tidyverse, tsfeatures, tsibble, 
-    dplyr, e1071, shinydashboard, shinycssloaders, shinyjs, shinyWidgets, shiny,
-    ggeffects, gratia, plyr, slider, MASS, mgcv, utils
-Suggests: 
+    magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tsfeatures, tsibble, 
+    e1071, shinydashboard, shinycssloaders, shinyjs, shinyWidgets, shiny, formattable,
+    ggeffects, gratia, plyr, slider, MASS, mgcv, utils, tidyverse
+Suggests:
     knitr,
     rmarkdown
 VignetteBuilder: knitr
