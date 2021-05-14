@@ -96,7 +96,7 @@ optim_ts <- function(.data, ts_model = character()
                   , export_fit = export_fit) %>% 
           .[c("model","parameter", "mape", "spa", "mse", "mae")]}) %>% 
         transpose() %>% 
-        enframe() %>% 
+        enframe() %>%
         pivot_wider() %>%
         mutate(across(.cols = -2, .fns = ~list(unlist(.x)))) %>% 
         unnest(c(mse, mae, spa, mape, model, parameter)) %>% 
@@ -141,11 +141,19 @@ optim_int <- function(.data
   train_index_int <- 1:(nrow(.data) - (optim_conf$test_size + optim_conf$lag))
   test_index_int <- (nrow(.data) - optim_conf$test_size + 1):nrow(.data)
   
-  #iter_count <- 0
+  iter_count <- 0
   optim_out <- map(1:optim_conf$test_size, function(iter){
-    #iter_count <<- iter_count + length(iter)
+    iter_count <<- iter_count + length(iter)
     train <- .data[1:(length(train_index_int) + iter),]
-    fit <- fit_ts(.data = train, ts_model = ts_model, parameter = parameter)
+    if(iter_count == 1){
+      fit <- fit_ts(.data = train, ts_model = ts_model, parameter = parameter)
+      log_update(module = "glmnet_optim"
+                 , key = attributes(.data)[["key"]]
+                 , new_log = list(lambda = fit$lambda))
+    } else {
+      parameter[["glmnet"]]$lambda <- .log[[attributes(.data)[["key"]]]][["glmnet_optim"]]$lambda
+      fit <- fit_ts(.data = train, ts_model = ts_model, parameter = parameter)
+    }
     fitted_values <- predict_ts(fit, .data = train
                                 , optim_conf = optim_conf
                                 , parameter = parameter
@@ -183,7 +191,9 @@ optim_int <- function(.data
     
   optim_out <- list(
     model = ts_model
-    , parameter = unlist(modifyList(parameter[[ts_model]], list(grid = NULL)))
+    , parameter = c(unlist(modifyList(parameter[[ts_model]], list(grid = NULL)))
+                    , lambda = round(as.numeric(optim_out_t$fit[[2]]$lambda, 2))
+                    )
     , key = attributes(.data)[["key"]]
     , fitted_matrix = round(fitted_matrix, 3)
     , error_matrix = round(error_matrix, 3)

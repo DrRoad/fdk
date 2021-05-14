@@ -31,7 +31,7 @@ import_data <- function(source_conf){
     sales_cycle_category <- if(is.null(source_conf$filters$category)==F){
       source_conf$filters$cycle_category
     } else {
-      "after_cleansing"
+      "before_cleansing"
     }
     
     # Sales and filters
@@ -110,37 +110,44 @@ import_data <- function(source_conf){
 #' @examples
 get_oc_data <- function(db = list(), countries, gbus, date_cycle){
   
+  root_input <- "//E21flsbcnschub/BCN_SC_HUB/3 - Forecast/10 - Kinaxis Operating Cycle/0 - Data/"
   admitted <- c("full_sales", "full_forecast", "forecast_item_info", "regressor")
   
   if(!any(unlist(db) %in% admitted)){
     stop(paste0("Only the following DB's are admitted: ", paste0(admitted, collapse = ", ")))
   }
   
-  data <- expand_grid(countries, gbus, db = unlist(db)) %>% 
-    mutate(data = pmap(.l = list(countries, gbus, db)
-                       , .f = ~{
-                         reverse_scope(countries = ..1
-                                       , gbus = ..2
-                                       , date_cycle = date_cycle
-                                       , db = ..3
-                                       , read_db = T
-                         )
-                       })
-           ) %>% 
-    dplyr::select(db, data) %>% 
+  imported_oc <- readRDS("data/loc_mapping.rds") %>% 
+    janitor::clean_names() %>% 
+    dplyr::filter(country %in% countries) %>% 
+    rowwise() %>% 
+    mutate(path_input = paste0(root_input
+                               , "Outputs/"
+                               , gbus, "/"
+                               , mco, "/"
+                               , country, "/"
+                               , format(as.Date(date_cycle)
+                                        , format = "%b - %Y"), "/")) %>% 
+    ungroup() %>% 
+    expand_grid(db = unlist(db)) %>% 
+    mutate(path_input = paste0(path_input, "RData/",db, ".RData")) %>% 
+    dplyr::select(path_input, db) %>% 
+    mutate(data = map(path_input, ~rdata2obj(.x))) %>% 
+    dplyr::select(-path_input) %>% 
     group_nest(db) %>% 
-    mutate(data = map(data, ~unnest(.x, "data")))
+    mutate(data = map(data, ~.x %>% unnest(data)))
   
-  names(data$data) <- data$db
-  data <- data$data
   
-  if("regressor" %in% names(data)){
-    data[["regressor"]] <- data[["regressor"]] %>% 
+  names(imported_oc$data) <- imported_oc$db
+  imported_oc <- imported_oc$data
+  
+  if("regressor" %in% names(imported_oc)){
+    imported_oc[["regressor"]] <- imported_oc[["regressor"]] %>% 
       dplyr::select(forecast_item, reg_name, reg_date, reg_value) %>% 
       mutate(reg_name = str_remove(string = reg_name
                                    , pattern = paste0(forecast_item, " - |-"))
       ) %>% 
       dplyr::distinct()
   }
-  data
+  imported_oc
 }
