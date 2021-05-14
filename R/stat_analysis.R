@@ -65,6 +65,14 @@ get_seas_me <- function(.data, min_date = NULL
 #' @param key string: name of the key to be processed.
 #' @param parameter list: parameters and hyperparameters.
 #' 
+#' @import shinyWidgets
+#' @import plotly
+#' @import shinydashboard
+#' @import shinycssloaders
+#' @import shinyjs
+#' @import tidyverse
+#' @import shinyWidgets
+#' @import formattable
 #' @import tidyverse
 #' @import janitor
 #' @import gratia
@@ -87,8 +95,6 @@ get_insight_data <- function(oc_data, key, parameter){
   data_init <- data_init %>% 
     group_split(date <= max(date_vec), .keep = F)
   
-  
-  
   hd <- data_init %>%
     map(~{
       pd <- prescribe_ts(.x, key = "forecast_item", y_var = "sales"
@@ -102,7 +108,40 @@ get_insight_data <- function(oc_data, key, parameter){
       
       fit_in <- fit_ts(.data = pd, ts_model = "gam", parameter = parameter)
       
-      fitted_in <- predict(fit_in, newdata = pd, se.fit = T) %>% 
+      sum_0 <- summary(fit_in)
+      sum_1 <- sum_0$p.table %>%
+        as.data.frame() %>% 
+        tibble::rownames_to_column("term") %>% 
+        as_tibble(.name_repair = janitor::make_clean_names) %>% 
+        mutate(across(where(is.numeric), ~round(.x, 2))
+               , term_type = "fixed") %>% 
+        dplyr::select(term, term_type, estimate, p_value = 5)
+      
+      sum_2 <- tryCatch(
+        {
+          sum_0$s.table %>% 
+            as.data.frame() %>% 
+            tibble::rownames_to_column("term") %>% 
+            as_tibble(.name_repair = janitor::make_clean_names) %>% 
+            mutate(across(where(is.numeric), ~round(.x, 2))) %>% 
+            mutate(term_type = "smoothed", .after = 1) %>% 
+            mutate(term = str_remove_all(term, "^s\\(|\\)$")) %>% 
+            dplyr::select(1, 2, estimate = edf, p_value)
+        }
+        , error = function(x) tibble(term = character()
+                                     , term_type = character()
+                                     , estimate = numeric()
+                                     , p_value = numeric())
+        )
+      
+      sum_join <- bind_rows(sum_1, sum_2) %>% 
+        mutate(is_sig = case_when(
+          p_value < .01 ~ "***"
+          , p_value < .05 ~ "**"
+          , p_value < .1 ~ "*"
+          , TRUE ~ ""))
+      
+      fitted_in <- predict(fit_in, newdata = pd, se.fit = T, type = "response") %>% 
         as.data.frame() %>% 
         as_tibble() %>% 
         rowwise() %>% 
@@ -134,7 +173,8 @@ get_insight_data <- function(oc_data, key, parameter){
            , pd_data = pd
            , fit = fit_in
            , gam_trend_deriv = derivative_in
-           , seas_me = seas_me)
+           , seas_me = seas_me
+           , fit_summary = sum_join)
   })
   
   
@@ -147,37 +187,61 @@ get_insight_data <- function(oc_data, key, parameter){
     dplyr::select(-any_of(c("date_var", "y_var")))
    # mutate(trend = length(unique(date_vec)) +  trend)
 
-  forecast_gam <- predict.gam(object = hd[[2]]$fit, newdata = new_data, se.fit = T) %>% 
+  forecast_gam <- predict.gam(object = hd[[2]]$fit, newdata = new_data
+                              , se.fit = T, type = "response") %>% 
     dplyr::bind_cols() %>% 
     janitor::clean_names() %>% 
     mutate(lwr = fit - 1.96 * se_fit
            , upr = fit + 1.96 * se_fit
            , date = hd[[1]]$pd_data$date_var) %>% 
     set_names(nm = paste0(names(.), "_gam")) %>% 
-    rename(forecast_gam = fit_gam)
+    rename(forecast_gam = fit_gam) %>% 
+    tidyr::unnest(cols = c(1:last_col()))
   
-  forecast_gam_deriv <- forecast_gam %>% 
-    dplyr::select(forecast_gam, date_gam) %>%
-    mutate(key = "fcst", reg_value = NA_real_, reg_name = "") %>% 
-    prescribe_ts(y_var = "forecast_gam"
-                 , reg_name = "reg_name"
-                 , reg_value = "reg_value"
-                 , key = "key"
-                 , date_var = "date_gam"
-                 , freq = 12
-                 , date_format = "ymd") %>% 
-    pull(data) %>% 
-    .[[1]] %>% 
-    validate_ts() %>% 
-    feature_engineering_ts() %>% 
-    mutate(trend = new_data$trend) %>% 
-    fit_ts(ts_model = "gam", parameter = parameter) %>% 
-    gratia::derivatives(n = 100) %>% 
-    as_tibble() %>%
-    rename(trend = data, lwr = lower, upr = upper
-           , fit_se = se, trend_deriv = derivative) %>% 
-    mutate(history = "forecast_gam")
+  # Zero when negative sales
   
+  if(any(forecast_gam$forecast_gam<0)){
+    forecast_gam <- forecast_gam %>% 
+      mutate(across(.cols = 1:4
+                    , .fns = ~if_else(.x<0, 0, .x)))
+  }
+  
+  
+  forecast_gam_deriv <- tryCatch(
+    {
+      forecast_gam %>% 
+        dplyr::select(forecast_gam, date_gam) %>%
+        mutate(key = "fcst", reg_value = NA_real_, reg_name = "") %>% 
+        prescribe_ts(y_var = "forecast_gam"
+                     , reg_name = "reg_name"
+                     , reg_value = "reg_value"
+                     , key = "key"
+                     , date_var = "date_gam"
+                     , freq = 12
+                     , date_format = "ymd") %>% 
+        pull(data) %>% 
+        .[[1]] %>% 
+        validate_ts() %>% 
+        feature_engineering_ts() %>% 
+        mutate(trend = new_data$trend) %>% 
+        fit_ts(ts_model = "gam", parameter = parameter) %>% 
+        gratia::derivatives(n = 100) %>% 
+        as_tibble() %>%
+        rename(trend = data, lwr = lower, upr = upper
+               , fit_se = se, trend_deriv = derivative) %>% 
+        mutate(history = "forecast_gam")
+    }
+    , error = function(err) tibble(smooth = character()
+                                , var = character()
+                                , trend = numeric()
+                                , trend_deriv = numeric()
+                                , fit_se = numeric()
+                                , crit = numeric()
+                                , lwr = numeric()
+                                , upr = numeric()
+                                , history = character()
+    )
+  )
 
   # Features
   
@@ -206,7 +270,7 @@ get_insight_data <- function(oc_data, key, parameter){
     bind_rows(hd[[1]]$seas_me) %>% 
     replace_na(replace = list(history=F))
   
-  # stats
+  # Cummulative difference between forecasts
   
   stats <- gam_fitted %>% 
     filter(history == F) %>% 
@@ -223,21 +287,69 @@ get_insight_data <- function(oc_data, key, parameter){
   gam_fitted <- gam_fitted %>% 
     left_join(stats, by = "date_var")
   
-  
   n_months_ahead_forecast <- length(stats$date_var)
   cuts_month <- c(1, 6, 12, 24)
   cuts_month <- cuts_month[cuts_month <= n_months_ahead_forecast]
-  
-  
-  summary_stats_1 <- stats %>% 
+
+  cum_diff <- stats %>% 
     slice(cuts_month) %>% 
     mutate(months_ahead = cuts_month) %>% 
     dplyr::select(months_ahead, fit_cum_diff_perc)
   
-  list(gam_fitted = gam_fitted
+  # Year aggregation
+  
+  current_year <- hd[[1]]$pd_data %>% 
+    pull(date_var) %>% 
+    min() %>% 
+    lubridate::year()
+  
+  history_year <- gam_fitted %>% 
+    filter(history == T) %>% 
+    pull(date_var) %>% 
+    max() %>% 
+    lubridate::year()
+  
+  completed_years <- gam_fitted %>% 
+    dplyr::select(date_var) %>% 
+    group_by(year = lubridate::year(date_var)) %>% 
+    count() %>% 
+    filter(n == 12) %>% 
+    pull(year)
+  
+  year_agg <- gam_fitted %>% 
+    dplyr::select(date_var, y_var, forecast_gam) %>% 
+    mutate(shared_history = case_when(
+      lubridate::year(date_var) == history_year ~ T
+      , TRUE ~ F)) %>% 
+    mutate(forecast_gam = case_when(
+      shared_history == T & is.na(forecast_gam) ~ y_var
+      , TRUE ~ forecast_gam
+    )) %>% 
+    pivot_longer(cols = c("y_var", "forecast_gam")) %>%
+    group_by(year = lubridate::year(date_var), name) %>% 
+    summarise(sales = sum(value, na.rm = T)
+              , .groups = "drop") %>% 
+    filter(year %in% completed_years) %>% 
+    mutate(sales = case_when(
+      name == "forecast_gam" & year < current_year ~ NA_real_
+      , TRUE ~ sales
+    )) %>% 
+    pivot_wider(names_from = name, values_from = sales) %>% 
+    mutate(ref_vs_gam = y_var - forecast_gam
+           , ref_vs_gam_perc = round(ref_vs_gam/y_var, 4)
+           , ref_diff = round(y_var/lag(y_var)-1, 4)
+           , gam_diff = round(forecast_gam/lag(forecast_gam)-1, 4)) %>%
+    rename(ref = y_var, gam = forecast_gam) %>% 
+    mutate(across(.cols = c("ref", "gam")
+                  , .fns = list(month_mean = ~ round(.x/12,0)))) %>% 
+    dplyr::select(year, ref, gam, everything())
+  
+  list(key = key_in
+       , gam_fitted = gam_fitted
        , gam_deriv_trend = gam_deriv_trend
        , seas_me = seas_me
-       , summary_stats = summary_stats_1)
+       , summary_stats = list(cum_diff = cum_diff
+                              , year_agg = year_agg))
 }
 
 #' Generate graphics for time series insights
@@ -315,7 +427,7 @@ get_graph_stat <- function(insight_data, graph_type, conf = list(min_limit_zero 
       geom_line(aes(date_var, y_var, col = history))+
       geom_line(aes(date_var, fit, col = history), linetype ="dashed", size = 1)+
       scale_x_date(date_breaks = "4 month", date_labels = "%b-%y", minor_breaks = NULL)+
-      labs(y = "Sales", x = "")+
+      labs(y = "Sales", x = "", title = insight_data$key)+
       theme_minimal()+
       theme(axis.text.x = element_text(angle = 90)
             , legend.position="bottom")+
@@ -391,6 +503,11 @@ react_gam_par <- function(parameter, values_list){
     parameter$gam$smoothed_features$trend$k <- values_list$k
   }
   
+  if(values_list$link_function == "gaussian"){
+    parameter$gam$smoothed_features$trend$k <- "gaussian" # poisson does not work well
+    #parameter$gam$smoothed_features$trend$k <- values_list$link_function
+  }
+  
   if(values_list$trend_decay !=1){
     parameter$gam$trend_decay <- values_list$trend_decay
   }
@@ -424,3 +541,120 @@ mod_stat_data <- function(insight_data, date = NULL){
   }
   , error = function(err) insight_data)
 }
+
+
+#' Generate dashboard tables
+#'
+#' @param insight_data tibble
+#' @param table_type character
+#'
+#' @importFrom purrr map_chr
+#' @import formatter
+#' @return
+#' @export
+#'
+#' @examples
+#' \dontrun{
+#' get_tables()
+#' }
+get_tables <- function(insight_data, table_type){
+  
+  get_thousand_int <- function(x){
+    x_abs <- abs(na.omit(x))
+    
+    if(any(x_abs > 999999)){
+      scale_int <- 1/1e6
+      suffix_int <- "M"
+      acc_int <- .01
+    } else if(any(x_abs > 999)){
+      scale_int <- 1/1e3
+      suffix_int <- "K"
+      acc_int <- .01
+    } else {
+      scale_int <- 1
+      suffix_int <- ""
+      acc_int <- 1
+    }
+    
+    func_int <- purrr::possibly(
+      scales::number_format(scale = scale_int
+                                , accuracy = acc_int
+                                , suffix = suffix_int)
+      , otherwise = NA)
+    
+    map_chr(x, ~func_int(.x))
+  }
+  
+  get_perc_int <- function(x, type){
+    if(type == "arrow"){
+      func_int <- purrr::possibly(function(x){
+        if(x > 0){
+          "arrow-up"
+        } else if(x < 0){
+          "arrow-down"
+        } else {
+          ""
+        }
+      }, otherwise = NA)
+    } else {
+      func_int <- purrr::possibly(function(x){
+        if(x > 0){
+          "red"
+        } else if(x < 0){
+          "green"
+        } else {
+          ""
+        }
+      }, otherwise = NA)
+    }
+    map_chr(x, ~func_int(round(.x, 3)))
+  }
+  
+  thousand_format <- formatter("span", x ~ get_thousand_int(x))
+
+  perc_format <- formatter("span"
+                        , x ~ percent(x, digits = 1)
+                        , x ~ icontext(get_perc_int(x, type = "arrow"))
+                        #, style = formattable::style("color" = ~get_perc_int(x, type = "color"))
+                        )
+  
+  # Cummulative difference --------------------------------------------------
+
+  if(table_type == "cum_diff"){
+
+    return(
+    formattable(insight_data$summary_stats$cum_diff
+                , align = c("c", "c")
+                , list(
+                  `fit_cum_diff_perc` = perc_format
+                ))
+    )
+  }
+  
+  if(table_type == "year_agg"){
+    
+    
+    col_names <- colnames(insight_data$summary_stats$year_agg)[-1]
+    f2 <- list(
+      gam = thousand_format
+      , ref = thousand_format
+      , ref_vs_gam = thousand_format
+      , ref_vs_gam_perc = perc_format
+      , ref_diff = perc_format
+      , gam_diff = perc_format
+      , gam_month_mean = thousand_format
+      , ref_month_mean = thousand_format
+    )
+  
+    return(
+    insight_data$summary_stats$year_agg %>%
+      mutate(across(.cols = c("ref", "gam", "ref_vs_gam")
+                    , .fns = ~round(.x))) %>% 
+      mutate(across(.cols = 1:last_col()
+                    , .fns = ~ifelse(is.na(.x) | is.infinite(.x), NA_real_, .x))) %>% 
+      dplyr::select(1:4, 8:9, everything()) %>% 
+      formattable(x = ., f2)
+    )
+  }
+}
+
