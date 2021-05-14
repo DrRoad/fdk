@@ -17,13 +17,12 @@ Depends:
     R (>= 3.6)
 Imports:
     DescTools, stats, changepoint, doSNOW, dvmisc, fastDummies, foreach, forecTheta, forecast, 
-    ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, prophet, purrr, readr, readxl, rlang, plotly,
+    ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, purrr, readr, readxl, rlang, plotly,
     magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tsfeatures, tsibble, 
     e1071, shinydashboard, shinycssloaders, shinyjs, shinyWidgets, shiny, formattable,
     ggeffects, gratia, plyr, slider, MASS, mgcv, utils, tidyverse
 Suggests:
-    knitr,
-    rmarkdown
+    knitr, rmarkdown, prophet
 VignetteBuilder: knitr
 RoxygenNote: 7.1.1
 
