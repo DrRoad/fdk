@@ -1,7 +1,7 @@
 
 # Importing data ----------------------------------------------------------
 
-source_conf = list(source = "oc"
+source_hist = list(source = "oc"
                    , date_cycle = "2021-05-01"
                    , db = list("full_sales"
                                #, "full_forecast"

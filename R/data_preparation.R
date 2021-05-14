@@ -176,4 +176,5 @@ utils::globalVariables(c(".log", ".log_init", "key", "date_var", "y_var", "month
                          , "index", "m_sales", "series_type", "sales", "type"
                          , "ind", "reg_date", "name", ".id", "bs", "k", "y_var_winso_imp"
                          , "forecast_gam", "date_gam", "se", "y_var_cum", "fit_gam_cum"
-                         , "months_ahead", "fit_cum_diff_perc", "trend_deriv"))
+                         , "months_ahead", "fit_cum_diff_perc", "trend_deriv")
+                       , package = "fdk", add = F)
