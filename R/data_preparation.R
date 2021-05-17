@@ -57,30 +57,11 @@ prescribe_ts <- function(.data_init, key = NULL, y_var
       dplyr::select(all_of(old_names)) %>% 
       set_names(nm = new_names)
   }
-  
 
-  # Log init ----------------------------------------------------------------
-
-  keys <- unique(.data_init$key)
-  .log_init <- list()
-  for(i in seq_along(keys)){
-    .log_init[[i]] <- list(NULL)
-  }
-  
-  prescription_log <- list(date_format = date_format
-       , freq = freq
-       , freq_name = freq_name
-       , date_min = as.character(min(.data_init$date_var))
-       , date_max = as.character(max(.data_init$date_var)))
-  
-  .log_init <- append(.log_init, values = list(prescription_log), after = 0)
-  names(.log_init) <- c("prescription", keys)
-  assign(x = ".log_init", value = .log_init, envir = .GlobalEnv)
-  assign(x = ".log", value = .log_init, envir = .GlobalEnv)
   
   # Ouput -------------------------------------------------------------------
 
-  .data_init %>% 
+  out <- .data_init %>% 
     dplyr::select(all_of(c("key", "date_var", "y_var")), everything()) %>% 
     mutate(across(.cols = c("reg_value"), .fns = ~if_else(is.na(.x), 0, .x))) %>%
     arrange(key, date_var) %>%
@@ -88,10 +69,50 @@ prescribe_ts <- function(.data_init, key = NULL, y_var
     mutate(data = map2(data, key, ~{
       .x %>%
         structure(key = .y)
-    }))
+    })) %>% 
+    structure(log = list(date_format = date_format
+                         , freq = freq
+                         , freq_name = freq_name
+                         , date_min = as.character(min(.data_init$date_var))
+                         , date_max = as.character(max(.data_init$date_var))
+                         ))
+
+  
+  init_log(.presc_data = out)
+  
+  return(out)
+  
 }
 
 
+#' Initiate log object
+#'
+#' @param .data_init tibble
+#'
+#' @return
+#' @export
+#'
+#' @examples
+init_log <- function(.presc_data){
+  # Log init ----------------------------------------------------------------
+  keys <- unique(.presc_data$key)
+  .log_init <- list()
+  for(i in seq_along(keys)){
+    .log_init[[i]] <- list(NULL)
+  }
+  
+  prescription_log <- list(date_format = attributes(.presc_data)[["log"]][["date_format"]]
+                           , freq = attributes(.presc_data)[["log"]][["freq"]]
+                           , freq_name = attributes(.presc_data)[["log"]][["freq_name"]]
+                           , date_min = attributes(.presc_data)[["log"]][["date_min"]]
+                           , date_max = attributes(.presc_data)[["log"]][["date_max"]]
+                           )
+  
+  .log_init <- append(.log_init, values = list(prescription_log), after = 0)
+  names(.log_init) <- c("prescription", keys)
+  assign(x = ".log_init", value = .log_init, envir = .GlobalEnv)
+  assign(x = ".log", value = .log_init, envir = .GlobalEnv)
+}
 
 #' Logger updater
 #'
