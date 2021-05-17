@@ -88,7 +88,7 @@ optim_ts <- function(.data, ts_model = character()
       parameter_list <- get_hyperpar_sample(ts_model = ts_model_i
                                         , parameter = get_default_hyperpar()
                                         )
-      best_hyperpar <- map(1:length(parameter_list), function(parameter_i){
+      map(1:length(parameter_list), function(parameter_i){
         optim_int(.data = .data
                   , ts_model = ts_model_i
                   , optim_conf = optim_conf
@@ -101,14 +101,14 @@ optim_ts <- function(.data, ts_model = character()
         mutate(across(.cols = -2, .fns = ~list(unlist(.x)))) %>% 
         unnest(c(mse, mae, spa, mape, model, parameter)) %>% 
         mutate(index = 1:n()
-               , spa_d = abs(round(spa - 1, 2))
-               , across(c("mape", "spa_d", "mse", "mae")
-                        , .fns = list(rank = ~rank(.x
-                                                   , ties.method = "first")
-                        ))
-               , rank_agg = mape_rank + mse_rank + mae_rank) %>% 
-        dplyr::select(index, model, everything(), -matches("_rank"))}) %>% 
+               , spa_d = abs(round(spa - 1, 2)))}) %>% 
       bind_rows() %>% 
+      mutate(across(c("mape", "spa_d", "mse", "mae")
+                      , .fns = list(rank = ~rank(.x
+                                                 , ties.method = "first")
+                      ))
+             , rank_agg = mape_rank + mse_rank + mae_rank) %>% 
+      dplyr::select(index, model, everything(), -matches("_rank")) %>% 
       arrange(mape)
   }
 }
