@@ -15,7 +15,7 @@ source_hist = list(source = "oc"
                    , gbus = c("GEM")
                    , join_hist_forecast = T)
 
-data_init <- import_data(source_conf = source_conf)
+data_init <- import_data(source_conf = source_hist)
 
 
 # Prescribe data ----------------------------------------------------------
@@ -33,7 +33,6 @@ data_presc <- data_init$sales %>%
 
 # Example -----------------------------------------------------------------
 
-
 recipe_1 <- function(.data){
   .data %>% 
   validate_ts() %>% 
@@ -48,5 +47,16 @@ optim_1 <- recipe_1(data_presc$data[[1]])
 
 # Multiple ----------------------------------------------------------------
 
+no_cores <- parallel::detectCores() - 2
+cl <- parallel::makeCluster(no_cores, type = "SOCK")  
+doParallel::registerDoParallel(cl)  
 
-  
+tictoc::tic()
+foreach(i = 1:1
+        , .packages = c("tidyverse", "fdk")
+        , .export = c(".log_init", ".log")) %dopar% {
+          
+          init_log(.presc_data = data_presc)
+          
+          recipe_1(data_presc$data[[i]])}
+tictoc::toc()
