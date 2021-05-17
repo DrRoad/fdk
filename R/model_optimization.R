@@ -418,3 +418,82 @@ get_default_optim_conf <- function(test_size = NULL, lag = NULL, optim_profile =
 }
 
 
+#' Default pipeline configuration
+#'
+#' @return
+#' @export
+#'
+#' @examples
+get_default_pipeline_conf <- function(){
+  pipeline_conf <- list(
+    prescribe = list(.data_init = data_init$sales
+                     , key = "forecast_item"
+                     , y_var = "sales"
+                     , date_var = "date"
+                     , reg_name = "reg_name"
+                     , reg_value = "reg_value"
+                     , freq = 12
+                     , date_format = "ymd")
+    , validate = list(na_values = list(y_var = 0, reg_value = 0, reg_name = ""))
+    , feature_engineering = list(lag_var = list()
+                                 , ma_var = list()
+                                 , numeric_seas = FALSE
+                                 , hierarchy_seas = FALSE
+    )
+    , optim = list(
+      ts_model = c("arima", "glmnet", "gam", "glm", "ets")
+      , optim_conf = get_default_optim_conf()
+      , parameter = get_default_hyperpar()
+      , export_fit = FALSE
+    )
+    , parallel = list(cores = numeric())
+  )
+  
+  
+  return(pipeline_conf)
+}
+
+
+#' Execute pipeline and return optimization results
+#'
+#' @param .data_presc tibble
+#' @param pipeline_conf list: configuration of pipelines' modules
+#'
+#' @return
+#' @export
+#'
+#' @examples
+pipeline_ts <- function(.data_presc, .pipeline_conf = list()){
+  
+  no_cores <- parallel::detectCores() - 2
+  cl <- parallel::makeCluster(no_cores, type = "SOCK")  
+  doParallel::registerDoParallel(cl)
+  
+  out <- foreach(i = 1:seq_along(.data_presc$key)
+          , .packages = c("tidyverse", "fdk")
+          , .export = c(".log_init", ".log")) %dopar% {
+            
+            # initiate log
+            
+            init_log(.presc_data = .data_presc)
+            
+            # pipeline
+            
+            .data_presc$data[[i]] %>% 
+              validate_ts(na_values = .pipeline_conf$validate$na_values) %>% 
+              feature_engineering_ts(lag_var = .pipeline_conf$feature_engineering$lag_var
+                                     , ma_var = .pipeline_conf$feature_engineering$ma_var
+                                     , numeric_seas = .pipeline_conf$feature_engineering$numeric_seas
+                                     , hierarchy_seas = .pipeline_conf$feature_engineering$hierarchy_seas) %>% 
+              optim_ts(ts_model = .pipeline_conf$optim$ts_model
+                       , optim_conf = .pipeline_conf$optim$optim_conf
+                       , parameter = .pipeline_conf$optim$parameter
+                       , export_fit = .pipeline_conf$optim$export_fit)
+          }
+  
+  names(out) <- .data_presc$key
+  return(bind_rows(out, .id = "key"))
+}
+
+
+
