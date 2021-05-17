@@ -31,32 +31,6 @@ data_presc <- data_init$sales %>%
                , date_format = "ymd")
 
 
-# Example -----------------------------------------------------------------
+# Pipeline ----------------------------------------------------------------
 
-recipe_1 <- function(.data){
-  .data %>% 
-  validate_ts() %>% 
-    feature_engineering_ts() %>% 
-    optim_ts(ts_model = c("arima", "glmnet", "gam", "glm", "ets")
-             , optim_conf = get_default_optim_conf()
-             , parameter = get_default_hyperpar()
-             , export_fit = T)
-}
-
-optim_1 <- recipe_1(data_presc$data[[1]])
-
-# Multiple ----------------------------------------------------------------
-
-no_cores <- parallel::detectCores() - 2
-cl <- parallel::makeCluster(no_cores, type = "SOCK")  
-doParallel::registerDoParallel(cl)  
-
-tictoc::tic()
-foreach(i = 1:1
-        , .packages = c("tidyverse", "fdk")
-        , .export = c(".log_init", ".log")) %dopar% {
-          
-          init_log(.presc_data = data_presc)
-          
-          recipe_1(data_presc$data[[i]])}
-tictoc::toc()
+pipeline_ts(data_presc[1:3,], .pipeline_conf = get_default_pipeline_conf())
