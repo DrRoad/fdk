@@ -1,4 +1,11 @@
 
+# Package -----------------------------------------------------------------
+
+library(fdk, attach.required = T)
+library(tidyverse)
+library(parallel)
+library(doParallel)
+
 # Importing data ----------------------------------------------------------
 
 source_hist = list(source = "oc"
@@ -17,7 +24,6 @@ source_hist = list(source = "oc"
 
 data_init <- import_data(source_conf = source_hist)
 
-
 # Prescribe data ----------------------------------------------------------
 
 data_presc <- data_init$sales %>% 
@@ -33,4 +39,4 @@ data_presc <- data_init$sales %>%
 
 # Pipeline ----------------------------------------------------------------
 
-pipeline_ts(data_presc[1:3,], .pipeline_conf = get_default_pipeline_conf())
+pipeline_ts(data_presc[1:1,], .pipeline_conf = get_default_pipeline_conf())
