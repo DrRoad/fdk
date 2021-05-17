@@ -29,9 +29,6 @@
 #' }
 optim_ts <- function(.data, test_size, model, lag, parameter = NULL, tune_parallel = FALSE, metric = "mape"){
   
-  # Notes
-  # y_var_true <- cv_metric <- ranking <- y_var_fcst <- . <- key <- y_var <- type <- date_var <- NULL
-  # globalVariables(c("trend_discount", "time_weight", "lambda", "lambda_cov", "model_i"))
   # Find the best parameter among the vector
   # For strings takes the mode, for numeric average.
   
