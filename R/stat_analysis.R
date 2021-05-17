@@ -549,7 +549,7 @@ mod_stat_data <- function(insight_data, date = NULL){
 #' @param table_type character
 #'
 #' @importFrom purrr map_chr
-#' @import formatter
+#' @import formattable
 #' @return
 #' @export
 #'
