@@ -13,10 +13,7 @@
 #' get_arima()
 #' }
 fit_arima <- function(.data, parameter = NULL){
-  globalVariables(c(".log"))
-
-  freq <- .log$prescription$freq
-  
+  freq <- .log$prescription$freq  
   y_var_int <- ts(.data[["y_var"]], frequency = freq) # maybe not optimal
   
   arima_fit <- tryCatch(

@@ -14,7 +14,6 @@
 #' get_ets()
 #' }
 fit_ets <- function(.data, y_var, parameter = NULL){
-  globalVariables(c(".log"))
   options(warn = -1)
   y_var_int <- ts(.data[["y_var"]], frequency = .log$prescription$freq)
   

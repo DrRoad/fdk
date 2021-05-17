@@ -13,7 +13,6 @@
 #' get_croston()
 #' }
 fit_croston <- function(.data, parameter = NULL){
-  globalVariables(c(".log"))
   horizon <- 1
   # Ts object
   y_var_int <- ts(.data[["y_var"]], frequency = .log$prescription$freq)
