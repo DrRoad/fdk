@@ -26,17 +26,20 @@ fit_arima <- function(.data, parameter = NULL){
         suppressWarnings(Arima(y_var_int
                                             , order = parameter[["arima"]]$pdq[1:3]
                                             , seasonal = parameter[["arima"]][["pdq"]][4:6]
-                                            , method = "ML"))
+                                            #, method = "ML"
+                               ))
       } else {
         suppressWarnings(Arima(y_var_int
                                             , order = parameter[["arima"]]$pdq[1:3]
-                                            , method = "ML"))
+                                            #, method = "ML"
+                               ))
       }
     }
     , error = function(err){
       suppressWarnings(Arima(y_var_int
                              , order = c(0, 0, 0)
-                             , method = "ML"))
+                             #, method = "ML"
+                             ))
     }
   )
   return(arima_fit)
