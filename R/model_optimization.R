@@ -145,7 +145,7 @@ optim_int <- function(.data
   optim_out <- map(1:optim_conf$test_size, function(iter){
     iter_count <<- iter_count + length(iter)
     train <- .data[1:(length(train_index_int) + iter),]
-    if(iter_count == 1){
+    if(iter_count == 1 & ts_model == "glmnet"){
       fit <- fit_ts(.data = train, ts_model = ts_model, parameter = parameter)
       log_update(module = "glmnet_optim"
                  , key = attributes(.data)[["key"]]
@@ -441,15 +441,17 @@ get_default_pipeline_conf <- function(){
                                  , hierarchy_seas = FALSE
     )
     , optim = list(
-      ts_model = c("arima", "glmnet", "gam", "glm", "ets")
+      ts_model = c("arima"
+                   , "glmnet"
+                   , "gam"
+                   , "glm"
+                   , "ets")
       , optim_conf = get_default_optim_conf()
       , parameter = get_default_hyperpar()
       , export_fit = FALSE
     )
     , parallel = list(cores = numeric())
   )
-  
-  
   return(pipeline_conf)
 }
 
@@ -494,6 +496,165 @@ pipeline_ts <- function(.data_presc, .pipeline_conf = list()){
   names(out) <- .data_presc$key
   return(bind_rows(out, .id = "key"))
 }
+
+#' Predicted values from a time series model
+#'
+#' @param fit fit object
+#' @param .data tibble
+#' @param ts_model string
+#' @param parameter list
+#' @param optim_conf list
+#' @param add_fitted logical
+#' @param type string: type of prediction
+#'
+#' @return
+#' @export
+#'
+#' @examples
+predict_ts <- function(fit, .data, ts_model, parameter, optim_conf, add_fitted = logical(), type = "response"){
+  train_index <- 1:(nrow(.data) - (optim_conf$test_size + optim_conf$lag) + 1)
+  test_index <- (nrow(.data) - optim_conf$test_size + 1):nrow(.data)
+  
+  if(ts_model == "glmnet"){
+    if(add_fitted == T){
+      train <- .data
+      key_int <- attributes(train)[["key"]]
+      features <- setdiff(names(train), c("date_var", "y_var", unlist(parameter$glmnet$excluded_features)))
+      features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(train[[x]])))]
+      features_factor <- setdiff(features, c(features_cont))
+      features_matrix <- train %>%
+        dplyr::select(all_of(features)) %>% 
+        fastDummies::dummy_cols(select_columns = features_factor
+                                , remove_selected_columns = T
+                                , remove_first_dummy = T) %>% 
+        as.matrix()
+    } else {
+      #test <- .data
+      test <- .data[test_index, ]
+      key_int <- attributes(test)[["key"]]
+      features <- setdiff(names(test), c("date_var", "y_var", unlist(parameter$glmnet$excluded_features)))
+      features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(test[[x]])))]
+      features_factor <- setdiff(features, c(features_cont))
+      trend_decay_tmp <- get_trend_decay(y_var_length = (max(train_index) + 1)
+                                         , trend_decay = parameter$glmnet$trend_decay
+                                         , horizon = length(test_index)
+                                         , lag = optim_conf$lag) %>% 
+        round(2)# %>% 
+      #.[2:length(.)]
+      
+      test <- test %>% 
+        mutate(trend = trend_decay_tmp)
+      
+      features_matrix <- test %>%
+        dplyr::select(all_of(features)) %>% 
+        fastDummies::dummy_cols(select_columns = features_factor
+                                , remove_selected_columns = T
+                                , remove_first_dummy = T) %>% 
+        as.matrix() 
+    }
+    
+    pred <- round(as.numeric(predict.glmnet(object = fit, newx = features_matrix
+                                            , type = "response")), 2)
+    pred[pred<0] <- 0
+    pred
+    
+  } else if(ts_model == "gam"){
+    if(add_fitted == T){
+      train <- .data
+      key_int <- attributes(train)[["key"]]
+      features <- setdiff(names(train), c("date_var", "y_var", unlist(parameter$gam$excluded_features)))
+      features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(train[[x]])))]
+      features_factor <- setdiff(features, c(features_cont))
+      features_matrix <- train
+    } else {
+      test <- .data[test_index, ]
+      key_int <- attributes(test)[["key"]]
+      features <- setdiff(names(test), c("date_var", "y_var", unlist(parameter$gam$excluded_features)))
+      features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(test[[x]])))]
+      features_factor <- setdiff(features, c(features_cont))
+      trend_decay_tmp <- get_trend_decay(y_var_length = (max(train_index) + 1)
+                                         , trend_decay = parameter$gam$trend_decay
+                                         , horizon = length(test_index)
+                                         , lag = optim_conf$lag) %>% 
+        round(2) #%>% 
+      #.[2:length(.)]
+      
+      test <- test %>% 
+        mutate(trend = trend_decay_tmp)
+      
+      features_matrix <- test %>% 
+        dplyr::select(all_of(c(features_cont,features_factor )))
+    }
+    pred <- round(as.numeric(predict.gam(object = fit, newdata = features_matrix, type = type)), 2)
+    pred[pred<0] <- 0
+    pred
+  } else if(ts_model == "glm"){
+    if(add_fitted == T){
+      train <- .data
+      key_int <- attributes(train)[["key"]]
+      features <- setdiff(names(train), c("date_var", "y_var", unlist(parameter$glm$excluded_features)))
+      features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(train[[x]])))]
+      features_factor <- setdiff(features, c(features_cont))
+      features_matrix <- train
+    } else {
+      test <- .data[test_index, ]
+      key_int <- attributes(test)[["key"]]
+      features <- setdiff(names(test), c("date_var", "y_var", unlist(parameter$glm$excluded_features)))
+      features_cont <- features[unlist(lapply(features, FUN = function(x) is.numeric(test[[x]])))]
+      features_factor <- setdiff(features, c(features_cont))
+      trend_decay_tmp <- get_trend_decay(y_var_length = (max(train_index) + 1)
+                                         , trend_decay = parameter$glm$trend_decay
+                                         , horizon = length(test_index)
+                                         , lag = optim_conf$lag) %>% 
+        round(2) #%>% 
+      #.[2:length(.)]
+      
+      test <- test %>%
+        mutate(trend = trend_decay_tmp)
+      
+      features_matrix <- test %>% 
+        dplyr::select(all_of(c(features_cont,features_factor )))
+    }
+    pred <- round(as.numeric(predict.glm(object = fit, newdata = features_matrix, type = type)), 2)
+    pred[pred<0] <- 0
+    pred
+  } else if(ts_model == "arima"){
+    if(add_fitted == T){
+      pred <- as.numeric(round(fit$fitted, 2))
+      pred[pred<0] <- 0
+      pred
+    } else {
+      n_ahead <- optim_conf$test_size + optim_conf$lag - 1
+      n_test <- seq(from = (optim_conf$lag), to = n_ahead)
+      pred <- round(as.numeric(predict(object = fit, n.ahead = n_ahead)[["pred"]]), 2)
+      pred[pred<0] <- 0
+      pred[n_test]
+      #pred
+    }
+  } else if(ts_model %in% c("croston")){
+    if(add_fitted == T){
+      pred <- as.numeric(fit$fitted) %>% round(2)
+    } else {
+      pred <- rep(round(as.numeric(fit$mean), 2), length(test_index))
+    }
+    pred
+  } else if(ts_model == "ets"){
+    if(add_fitted  == T){
+      pred <- as.numeric(fitted(fit)) %>% round(2)
+    } else {
+      n_ahead <- optim_conf$test_size + optim_conf$lag - 1
+      n_test <- seq(from = (optim_conf$lag), to = n_ahead)
+      pred <- round(as.numeric(predict(object = fit, h = n_ahead)[["mean"]]), 2)
+      pred[pred<0] <- 0
+      pred[n_test]
+    }
+  } else {
+    message("NO MODEL AVAILABLE")
+  }
+}
+
+
+
 
 
 
