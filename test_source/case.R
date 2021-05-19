@@ -1,10 +1,11 @@
 
 # Package -----------------------------------------------------------------
 
-library(fdk, attach.required = T)
+library(fdk)
 library(tidyverse)
 library(parallel)
 library(doParallel)
+library(forecast)
 
 # Importing data ----------------------------------------------------------
 
@@ -37,6 +38,57 @@ data_presc <- data_init$sales %>%
                , date_format = "ymd")
 
 
+# UNique ------------------------------------------------------------------
+
+
+profvis::profvis(
+  {
+    p <- data_presc$data[[1]] %>% 
+      validate_ts() %>% 
+      feature_engineering_ts() %>% 
+      clean_ts() %>% 
+      optim_ts(.data = .
+               , ts_model = c("arima")
+               , optim_conf = get_default_optim_conf()
+               , parameter = get_default_hyperpar()
+               , export_fit = F)
+  }
+)
+
+
+
 # Pipeline ----------------------------------------------------------------
 
-pipeline_ts(data_presc[1:1,], .pipeline_conf = get_default_pipeline_conf())
+pipeline_conf <- list(
+  prescribe = list(.data_init = data_init$sales
+                   , key = "forecast_item"
+                   , y_var = "sales"
+                   , date_var = "date"
+                   , reg_name = "reg_name"
+                   , reg_value = "reg_value"
+                   , freq = 12
+                   , date_format = "ymd")
+  , validate = list(na_values = list(y_var = 0, reg_value = 0, reg_name = ""))
+  , feature_engineering = list(lag_var = list()
+                               , ma_var = list()
+                               , numeric_seas = FALSE
+                               , hierarchy_seas = FALSE
+  )
+  , optim = list(
+    ts_model = c("arima"
+                 #, "glmnet"
+                 #, "gam"
+                 #, "glm"
+                 #, "ets"
+                 )
+    , optim_conf = get_default_optim_conf()
+    , parameter = get_default_hyperpar()
+    , export_fit = FALSE
+    )
+  )
+
+
+
+profvis::profvis(
+  pipeline_ts(data_presc[1:1,], .pipeline_conf = pipeline_conf)
+)

@@ -8,11 +8,11 @@ source_conf = list(source = "oc"
                              , "regressor"
                              #, "forecast_item_info"
                              )
-                 , countries = c("NO", "SE", "DK", "FI", "NL", "BE", "IN", "LV", "LT", "EE")
-                 #, countries = "RU"
+                 #, countries = c("NO", "SE", "DK", "FI", "NL", "BE", "IN", "LV", "LT", "EE")
+                 , countries = c2
                  , filters = list(category = "HistoricalSales"
                                   , cycle_category = "before_cleansing")
-                 , gbus = c("GEM")
+                 , gbus = c("GEM", "CHC", "SPC")
                  , join_hist_forecast = T)
 
 parameter <- get_default_hyperpar()
@@ -32,4 +32,7 @@ get_graph_stat(insight_data = insight_data, graph_type = "seas_me")
 
 
  get_tables(insight_data = insight_data, table_type = "year_agg")
+ 
+ 
+ oc_data$sales %>% data.table::fwrite(file = "C:/Users/I0415596/Desktop/oc_data_210519.csv")
  
