@@ -360,7 +360,7 @@ get_default_hyperpar <- function(){
                     , grid = tidyr::expand_grid(time_weight = seq(from = 0.8
                                                            , to = 1, by = 0.025)
                                          , trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1))
-                    , random_search = .4)
+                    , random_search = .6)
        , glmnet = list(alpha = .9
                        , lambda = numeric()
                        , time_weight = .95
@@ -379,7 +379,7 @@ get_default_hyperpar <- function(){
                        , seed = 123)
        , arima = list(search_seasonal = TRUE
                       , auto_arima = FALSE
-                      , random_search = .4
+                      , random_search = .2
                       , pdq = c(1, 0, 0, 0, 0, 0)
                       , grid = tidyr::expand_grid(p = 0:2, d = 0:1, q = 0:2
                                            , P = 0:1, D = 0:0, Q = 0:1))
