@@ -7,6 +7,7 @@ library(shinyjs)
 library(tidyverse)
 library(shinyWidgets)
 library(formattable)
+library(shinyscreenshot)
 
 
 ui <- dashboardPage(
