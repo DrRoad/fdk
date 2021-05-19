@@ -110,6 +110,9 @@ import_data <- function(source_conf){
 #' @examples
 get_oc_data <- function(db = list(), countries, gbus, date_cycle){
   
+  
+  rdata2obj_safe <- purrr::possibly(rdata2obj, otherwise = NA)
+  
   root_input <- "//E21flsbcnschub/BCN_SC_HUB/3 - Forecast/10 - Kinaxis Operating Cycle/0 - Data/"
   admitted <- c("full_sales", "full_forecast", "forecast_item_info", "regressor")
   
@@ -117,26 +120,33 @@ get_oc_data <- function(db = list(), countries, gbus, date_cycle){
     stop(paste0("Only the following DB's are admitted: ", paste0(admitted, collapse = ", ")))
   }
   
-  imported_oc <- readRDS("data/loc_mapping.rds") %>% 
-    janitor::clean_names() %>% 
-    dplyr::filter(country %in% countries) %>% 
-    rowwise() %>% 
-    mutate(path_input = paste0(root_input
-                               , "Outputs/"
-                               , gbus, "/"
-                               , mco, "/"
-                               , country, "/"
-                               , format(as.Date(date_cycle)
-                                        , format = "%b - %Y"), "/")) %>% 
-    ungroup() %>% 
-    expand_grid(db = unlist(db)) %>% 
-    mutate(path_input = paste0(path_input, "RData/",db, ".RData")) %>% 
-    dplyr::select(path_input, db) %>% 
-    mutate(data = map(path_input, ~rdata2obj(.x))) %>% 
-    dplyr::select(-path_input) %>% 
-    group_nest(db) %>% 
-    mutate(data = map(data, ~.x %>% unnest(data)))
   
+  options(warn = -1)
+  
+  imported_oc <- readRDS("data/loc_mapping.rds") %>% 
+        janitor::clean_names() %>% 
+        dplyr::filter(country %in% countries) %>% 
+        expand_grid(gbus = unlist(gbus)) %>% 
+        rowwise() %>% 
+        mutate(path_input = paste0(root_input
+                                   , "Outputs/"
+                                   , gbus, "/"
+                                   , mco, "/"
+                                   , country, "/"
+                                   , format(as.Date(date_cycle)
+                                            , format = "%b - %Y"), "/")) %>% 
+        ungroup() %>% 
+        expand_grid(db = unlist(db)) %>% 
+        mutate(path_input = paste0(path_input, "RData/", db, ".RData")) %>% 
+        dplyr::select(path_input, db) %>% 
+        mutate(data = map(path_input, ~rdata2obj_safe(.x))) %>% 
+        mutate(check = map_dbl(data, ~length(nrow(.x)>0))) %>% 
+        filter(check == 1) %>% 
+        dplyr::select(-path_input, -check) %>% 
+        group_nest(db) %>% 
+        mutate(data = map(data, ~.x %>% unnest(data)))
+  
+  options(warn = 1)
   
   names(imported_oc$data) <- imported_oc$db
   imported_oc <- imported_oc$data
