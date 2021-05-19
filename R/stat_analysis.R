@@ -59,6 +59,8 @@ get_seas_me <- function(.data, min_date = NULL
            , month_seas = factor(x, levels = month.abb)) %>% 
     dplyr::select(month_seas, everything(), -x, -group)
 }
+
+
 #' Get GAM features
 #'
 #' @param oc_data tibble
@@ -176,7 +178,6 @@ get_insight_data <- function(oc_data, key, parameter){
            , seas_me = seas_me
            , fit_summary = sum_join)
   })
-  
   
   # GAM Forecast
   
