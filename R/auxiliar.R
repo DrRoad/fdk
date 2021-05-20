@@ -235,7 +235,7 @@ summary_ts <- function(.data){
   if("optim_ts" %in% class(.data)){
     mape <- .data$mape %>% format(digits = 2, nsmall = 2)
     spa <- .data$spa %>% format(digits = 2, nsmall = 2)
-    mse <- .data$mse %>% format(digits = 2, nsmall = 2)
+    rmse <- .data$rmse %>% format(digits = 2, nsmall = 2)
     mae <- .data$mae %>% format(digits = 2, nsmall = 2)
     mape_i <- .data$mape_vec %>% format(digits = 2, nsmall = 2)
     spa_i <- .data$spa_vec %>% format(digits = 2, nsmall = 2)
@@ -253,11 +253,11 @@ summary_ts <- function(.data){
     cat(c(paste0("OPTIMIZATION METRICS ", "#######")
           , paste0(rep("#", 28), collapse = "")
           , toupper(.data$model)
-          , mape, spa, mse, mae), fill = 1
+          , mape, spa, rmse, mae), fill = 1
         , labels = paste0("##", c("", "", " MODEL ="
                                   ," MAPE ="
                                   , " SPA ="
-                                  , " MSE ="
+                                  , " RMSE ="
                                   , " MAE =")))
     
     #return(.data)
