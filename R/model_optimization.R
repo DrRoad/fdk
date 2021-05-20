@@ -75,6 +75,12 @@ optim_ts <- function(.data, ts_model = character()
                      , parameter = list()
                      , export_fit = FALSE){
   
+  exported_columns <- c("model","parameter", "mape", "spa", "rmse", "mae")
+  if(export_fit == T){
+    exported_columns <- c(exported_columns, "fit")
+  }
+  
+  
   interm_rule <- (sum(.data$y_var==0)/nrow(.data)>.3)
   size_rule <- (nrow(.data) - optim_conf$test_size - optim_conf$lag)<13
   ts_models_rule <- any(ts_model %in% c("glmnet", "gam", "glm", "arima")) == F
@@ -84,7 +90,7 @@ optim_ts <- function(.data, ts_model = character()
     message(paste0("Too much intermittency or small sample to tune model <"
                    , toupper(paste0(ts_model, collapse = ", ")), ">."))
   } else {
-    map(unlist(ts_model), function(ts_model_i){
+    out <- map(unlist(ts_model), function(ts_model_i){
       parameter_list <- get_hyperpar_sample(ts_model = ts_model_i
                                         , parameter = get_default_hyperpar()
                                         )
@@ -94,22 +100,28 @@ optim_ts <- function(.data, ts_model = character()
                   , optim_conf = optim_conf
                   , parameter = parameter_list[[parameter_i]]
                   , export_fit = export_fit) %>% 
-          .[c("model","parameter", "mape", "spa", "mse", "mae")]}) %>% 
+          .[exported_columns]}) %>% # close parameter_i
         transpose() %>% 
         enframe() %>%
         pivot_wider() %>%
-        mutate(across(.cols = -2, .fns = ~list(unlist(.x)))) %>% 
-        unnest(c(mse, mae, spa, mape, model, parameter)) %>% 
+        mutate(across(.cols = -any_of(c("parameter", "fit"))
+                      , .fns = ~list(unlist(.x)))) %>% 
+        unnest(any_of(c("rmse", "mae", "spa", "mape"
+                        , "model", "parameter", "fit"))) %>% 
         mutate(index = 1:n()
-               , spa_d = abs(round(spa - 1, 2)))}) %>% 
+               , spa_d = abs(round(spa - 1, 2)))}) %>% # close ts_model_i
       bind_rows() %>% 
-      mutate(across(c("mape", "spa_d", "mse", "mae")
+      mutate(across(c("mape", "spa_d", "rmse", "mae")
                       , .fns = list(rank = ~rank(.x
                                                  , ties.method = "first")
                       ))
-             , rank_agg = mape_rank + mse_rank + mae_rank) %>% 
-      dplyr::select(index, model, everything(), -matches("_rank")) %>% 
+             , rank_agg = mape_rank + rmse_rank + mae_rank) %>% 
+      dplyr::select(index, model, any_of("fit")
+                    , everything(), -matches("_rank")) %>% 
       arrange(mape)
+    
+    out %>% 
+      structure(fdk_class = "optim_ts")
   }
 }
 
@@ -186,7 +198,7 @@ optim_int <- function(.data
   spa_vec <- diag(observed_matrix)/diag(predicted_matrix)
   mape <- sum(abs(diag(error_matrix)))/sum(diag(observed_matrix))
   spa <- sum(diag(observed_matrix))/sum(diag(predicted_matrix))
-  mse <- sum((diag(error_matrix))^2)/optim_conf$test_size
+  rmse <- sqrt(sum((diag(error_matrix))^2)/optim_conf$test_size)
   mae <- sum(abs(diag(error_matrix)))/optim_conf$test_size
     
   optim_out <- list(
@@ -204,12 +216,12 @@ optim_int <- function(.data
     , spa_vec = round(spa_vec, 3)
     , mape = round(mape, 3)
     , spa = round(spa, 3)
-    , mse = round(mse, 3)
+    , rmse = round(rmse, 3)
     , mae = round(mae, 3)
   )
     
   if(export_fit == TRUE){
-    optim_out <- append(optim_out, values = list(fit = optim_out_t$fit), after = 0)
+    optim_out <- append(optim_out, values = list(fit = optim_out_t$fit[[1]]), after = 0)
     class(optim_out) <- c("list", "optim_ts")
     optim_out
   } else {
@@ -494,7 +506,11 @@ pipeline_ts <- function(.data_presc, .pipeline_conf = list()){
           }
   
   names(out) <- .data_presc$key
-  return(bind_rows(out, .id = "key"))
+  
+  # Return
+  
+  bind_rows(out, .id = "key") %>% 
+    structure(fdk_class = "pipeline_ts")
 }
 
 #' Predicted values from a time series model
