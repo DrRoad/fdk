@@ -499,6 +499,7 @@ pipeline_ts <- function(.data_presc, .pipeline_conf = list()){
                                      , ma_var = .pipeline_conf$feature_engineering$ma_var
                                      , numeric_seas = .pipeline_conf$feature_engineering$numeric_seas
                                      , hierarchy_seas = .pipeline_conf$feature_engineering$hierarchy_seas) %>% 
+              clean_ts() %>% 
               optim_ts(ts_model = .pipeline_conf$optim$ts_model
                        , optim_conf = .pipeline_conf$optim$optim_conf
                        , parameter = .pipeline_conf$optim$parameter
