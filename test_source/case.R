@@ -6,6 +6,7 @@ library(tidyverse)
 library(parallel)
 library(doParallel)
 library(forecast)
+library(ggrepel)
 
 # Importing data ----------------------------------------------------------
 
@@ -45,7 +46,7 @@ profvis::profvis(
   {
     p <- data_presc$data[[1]] %>% 
       validate_ts() %>% 
-      feature_engineering_ts() %>% 
+      feature_engineering_ts(ma_var = list(y_var  = c(2, 0))) %>% 
       clean_ts() %>% 
       optim_ts(.data = .
                , ts_model = c("arima")
@@ -75,20 +76,21 @@ pipeline_conf <- list(
                                , hierarchy_seas = FALSE
   )
   , optim = list(
-    ts_model = c("arima"
-                 #, "glmnet"
-                 #, "gam"
-                 #, "glm"
-                 #, "ets"
+    ts_model = c("arima",
+                 "glmnet"
+                 , "gam"
+                 , "glm"
+                 , "ets"
                  )
     , optim_conf = get_default_optim_conf()
     , parameter = get_default_hyperpar()
-    , export_fit = FALSE
+    , export_fit = T
     )
   )
 
+optim_results <- pipeline_ts(data_presc[1:1,], .pipeline_conf = pipeline_conf)
 
 
-profvis::profvis(
-  pipeline_ts(data_presc[1:1,], .pipeline_conf = pipeline_conf)
-)
+optim_results %>% 
+  plot_ts()
+
