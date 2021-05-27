@@ -207,7 +207,6 @@ get_insight_data <- function(oc_data, key, parameter){
                     , .fns = ~if_else(.x<0, 0, .x)))
   }
   
-  
   forecast_gam_deriv <- tryCatch(
     {
       forecast_gam %>% 
@@ -345,12 +344,22 @@ get_insight_data <- function(oc_data, key, parameter){
                   , .fns = list(month_mean = ~ round(.x/12,0)))) %>% 
     dplyr::select(year, ref, gam, everything())
   
+  
+
+  # Feature -----------------------------------------------------------------
+
+  feature_imp <- hd[[2]]$fit_summary %>% 
+    filter(!str_detect(term, "_seas|Interce"))
+  
+  # Return ------------------------------------------------------------------
+
   list(key = key_in
        , gam_fitted = gam_fitted
        , gam_deriv_trend = gam_deriv_trend
        , seas_me = seas_me
        , summary_stats = list(cum_diff = cum_diff
-                              , year_agg = year_agg))
+                              , year_agg = year_agg
+                              , feature_imp = feature_imp))
 }
 
 #' Generate graphics for time series insights
@@ -657,5 +666,11 @@ get_tables <- function(insight_data, table_type){
       formattable(x = ., f2)
     )
   }
+  
+  if(table_type == "feature_imp"){
+    insight_data$summary_stats$feature_imp %>% 
+      formattable(x = .)
+  }
+  
 }
 
