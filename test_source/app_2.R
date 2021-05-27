@@ -11,7 +11,7 @@ library(shinyscreenshot)
 
 
 ui <- dashboardPage(
-  dashboardHeader(title = "Dashboard"),
+  dashboardHeader(title = "FDK"),
   dashboardSidebar(),
   dashboardBody(
     tabsetPanel(id = "tabs"
@@ -23,13 +23,16 @@ ui <- dashboardPage(
                                         box(width = 12, withSpinner(plotlyOutput("plot_1"), size = 1, type = 8)) # main graph
                                       )
                                       , fluidRow(
-                                        box(withSpinner(plotlyOutput("plot_2", height = 250), size = 1, type = 8), width = 5)
-                                        , box(withSpinner(plotlyOutput("plot_3", height = 250), size = 1, type = 8), width = 4)
-                                        , box(withSpinner(formattableOutput('cum_diff', height = 250), size = 1, type = 8), width = 3)
+                                        box(withSpinner(plotlyOutput("plot_2", height = 250), size = 1, type = 8), width = 6)
+                                        , box(withSpinner(plotlyOutput("plot_3", height = 250), size = 1, type = 8), width = 6)
+                                        #, box(withSpinner(formattableOutput('cum_diff', height = 250), size = 1, type = 8), width = 3)
                                       )
                                       , fluidRow(
                                         box(withSpinner(formattableOutput('year_agg', height = 100), size = 1, type = 8), width = 12)
                                         )
+                                      , fluidRow(
+                                        box(withSpinner(formattableOutput('feature_imp', height = 250), size = 1, type = 8), width = 6)
+                                      )
                                       )
                                     ) # end graph col
                            , column(width = 3, useShinyjs()
@@ -160,6 +163,14 @@ server <- function(session, input, output) {
       fdk:::get_tables(tmp, table_type = "year_agg")
     }
   )
+  
+  output$feature_imp <- renderFormattable(
+    {
+      tmp <- insight_data()
+      fdk:::get_tables(tmp, table_type = "feature_imp")
+    }
+  )
+  
   
   observeEvent(input$screenshot
                , {
