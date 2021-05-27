@@ -2,13 +2,14 @@ Package: fdk
 Type: Package
 Title: Forecast Development Kit
 Version: 0.2.0
-Authors@R:
-    person(given = "Obryan", family = "Poyser",
-           role = c("aut", "cre"),
-           email = "obryan.poyser@sanofi.com")
-    person(given = "Ignasi", family = "Pascual",
-           role = c("aut","cre"),
-           email = "ignasi.pascual@sanofi.com")
+Authors@R: c(
+    person("Obryan", "Poyser", , "obryan.poyser@sanofi.com", role = c("aut", "cre"),
+      comment = ""
+    ),
+    person("Ignasi", "Pascual", role = c("aut", "cre"),
+      comment = ""
+    )
+  )
 Description: FDK provides a collection of automated procedures to analyze, forecast time series data, and, generate insights for decision makers
 License: GPL 
 Encoding: UTF-8
