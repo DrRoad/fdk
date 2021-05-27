@@ -35,6 +35,9 @@ sales_out <- sales_out_0 %>%
   dplyr::select(names(co_data)) %>% 
   bind_rows(co_data)
 
+
+data.table::fwrite(sales_out, file = "co_sales_out_reg.csv")
+
 # Prescribe ---------------------------------------------------------------
 
 co_presc <- sales_out %>% 
