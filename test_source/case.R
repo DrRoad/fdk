@@ -11,17 +11,17 @@ library(ggrepel)
 # Importing data ----------------------------------------------------------
 
 source_hist = list(source = "oc"
-                   , date_cycle = "2021-05-01"
+                   , date_cycle = "2021-06-01"
                    , db = list("full_sales"
                                #, "full_forecast"
                                , "regressor"
                                #, "forecast_item_info"
                    )
-                   , countries = c("NO", "SE", "DK", "FI", "NL", "BE", "IN", "LV", "LT", "EE")
-                   #, countries = "RU"
+                   #, countries = c("NO", "SE", "DK", "FI", "NL", "BE", "IN", "LV", "LT", "EE")
+                   , countries = "CO"
                    , filters = list(category = "HistoricalSales"
                                     , cycle_category = "before_cleansing")
-                   , gbus = c("GEM")
+                   , gbus = c("GEM", "CHC", "SPC")
                    , join_hist_forecast = T)
 
 data_init <- import_data(source_conf = source_hist)
