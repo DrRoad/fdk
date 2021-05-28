@@ -13,7 +13,9 @@
 #' \dontrun{
 #' get_ets()
 #' }
-fit_ets <- function(.data, y_var, parameter = NULL){
+fit_ets <- function(.data, parameter = NULL){
+  key <- attributes(.data)[["key"]]
+  .log[[key]]$dates_check$date_range[[2]]
   options(warn = -1)
   y_var_int <- ts(.data[["y_var"]], frequency = .log$prescription$freq)
   
@@ -25,5 +27,6 @@ fit_ets <- function(.data, y_var, parameter = NULL){
       ets(y = y_var_int, model = "ZZZ", damped = FALSE, allow.multiplicative.trend = FALSE)
     }
   )
-  return(ets_out)
+  ets_out %>% 
+    structure(.log = list(key = key))
 }

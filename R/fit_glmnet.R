@@ -82,6 +82,12 @@ fit_glmnet <- function(.data, parameter){
     }
   )
   
-  return(fit)
-
+  log_glmnet <- list(key = key_int
+                     , features = features
+                     , features_cont = features_cont
+                     , features_factor = features_factor
+                     , features_matrix_names = colnames(features_matrix))
+  
+  fit %>% 
+    structure(.log = log_glmnet)
 }

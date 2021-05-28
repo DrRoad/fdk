@@ -13,6 +13,8 @@
 #' get_arima()
 #' }
 fit_arima <- function(.data, parameter = NULL){
+  key <- attributes(.data)[["key"]]
+  .log[[key]]$dates_check$date_range[[2]]
   freq <- .log$prescription$freq  
   y_var_int <- ts(.data[["y_var"]], frequency = freq) # maybe not optimal
   
@@ -42,5 +44,6 @@ fit_arima <- function(.data, parameter = NULL){
                              ))
     }
   )
-  return(arima_fit)
+  arima_fit %>% 
+    structure(.log = list(key = key))
 }
