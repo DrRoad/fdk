@@ -19,23 +19,43 @@ plot_ts <- function(.fdk, interactive = FALSE, multiple_keys = FALSE){
   fdk_class <- attributes(.fdk)[["fdk_class"]]
   
   if(fdk_class %in% c("optim_ts", "pipeline_ts")){
-    .fdk %>%
-      mutate(spa_deviation = 1 - spa
+    
+    tmp <- .fdk %>%
+      mutate(spa_deviation = spa - 1
              , rank =  rank(rank_agg)
              , rank = ifelse(rank <= 3
-                             , rank, NA_real_)) %>% 
+                             , rank, NA_real_))
+    
+    means <- tmp %>% 
+      group_by(model) %>% 
+      summarise(across(.cols = c("mape", "spa")
+                       , .fns = ~median(.x))) %>% 
+      mutate(rank = paste0("_", model))
+    
+    tmp %>% 
+      mutate(rank = as.character(rank)) %>% 
+      bind_rows(means) %>% 
       ggplot()+
-      geom_density_2d_filled(aes(mape, spa_deviation), na.rm = T
+      geom_density_2d_filled(aes(mape, spa), na.rm = T
                              , show.legend = F, alpha = .87)+
-      geom_point(aes(mape, spa_deviation, shape = model)
-                 , size = 2, col = "black")+
-      geom_label_repel(aes(mape, spa_deviation, label = rank)
-                       , alpha = .7, na.rm = T)+
-      geom_hline(yintercept = 0, linetype = "dashed"
+      geom_hline(yintercept = 1, linetype = "dashed"
                  , col = "white")+
+      geom_point(aes(mape, spa, shape = model)
+                 , size = 2, col = "black")+
+      geom_label_repel(aes(mape, spa, label = rank)
+                       , alpha = .76, na.rm = T)+
       theme_minimal()+
-      labs(y = "SPA Deviation (1 - SPA)", x = "MAPE"
-           , shape = "Model")
+      labs(y = "SPA", x = "MAPE"
+           , shape = "Model")+
+      scale_x_log10()+
+      scale_y_log10()
+  } else if(fdk_class == "forecast_ts"){
+    .fdk %>% 
+      dplyr::select(index, forecast, mape) %>% 
+      mutate(index = as.character(index)) %>% 
+      unnest(forecast) %>% 
+      ggplot(aes(date_var, forecast, col = index))+
+      geom_line()
   }
   
   # # Prescription
