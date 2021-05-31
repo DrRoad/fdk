@@ -69,7 +69,7 @@ fit_gam <- function(.data, parameter = list()){
   
   # Fitting -----------------------------------------------------------------
   
-  tryCatch(
+  out <- tryCatch(
     {
       gam(formula = gam_formula
           , family = parameter$gam$link_function
@@ -86,4 +86,18 @@ fit_gam <- function(.data, parameter = list()){
           , method = "GCV.Cp")
     }
   )
+  
+  
+  parameter_tmp <- parameter$gam
+  parameter_tmp$grid <- NULL
+  
+  log_gam <- list(key = key
+                  , features = features
+                  , features_cont = features_cont
+                  , features_factor = features_factor
+                  , parameter = parameter_tmp)
+  
+  out %>% 
+    structure(.log = log_gam
+              , fdk_class = "fit")
 }

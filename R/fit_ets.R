@@ -28,5 +28,6 @@ fit_ets <- function(.data, parameter = NULL){
     }
   )
   ets_out %>% 
-    structure(.log = list(key = key))
+    structure(.log = list(key = key)
+              , fdk_class = "fit")
 }

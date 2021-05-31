@@ -27,6 +27,18 @@ fit_glm <- function(.data, parameter) {
     time_weights_tmp <- get_time_weights(y_var = .data$y_var
                                          , time_weight = parameter$glm$time_weight)
   }
+
+  # Matrix ------------------------------------------------------------------
+
+  features_matrix <- .data %>%
+    dplyr::select(all_of(features)) %>%
+    fastDummies::dummy_cols(select_columns = features_factor
+                            , remove_selected_columns = T
+                            , remove_first_dummy = T)
+
+  features_new <- features %>%
+    setdiff(features_factor) %>%
+    c(., setdiff(colnames(features_matrix), features))
   
   # If there are not enough data points perform a simpler model
   if(.log[[key]]$dates_check$n_dates < 13){
@@ -55,20 +67,40 @@ fit_glm <- function(.data, parameter) {
   
   # Fitting -----------------------------------------------------------------
   
-  tryCatch(
+  out <- tryCatch(
     {
       glm(formula = glm_formula
           , family = parameter$glm$link_function
+          #, family = "poisson"
           , weights = time_weights_tmp
-          , data = .data)
+          #, data = bind_cols(.data["y_var"], features_matrix)
+          , data = .data
+          )
     }
     , error = function(err){
       message("Too many parameters, fitting a trend model.")
       glm(formula = as.formula('y_var ~ trend')
+          #, family = "poisson"
           , family = parameter$glm$link_function
           , weights = time_weights_tmp
-          , data = .data)
+          #, data = bind_cols(.data["y_var"], features_matrix)
+          , data = .data
+          )
     }
   )
+  
+  parameter_tmp <- parameter$glm
+  parameter_tmp$grid <- NULL
+  
+  log_glm <- list(key = key
+                  , features = features
+                  , features_cont = features_cont
+                  , features_factor = features_factor
+                  , features_matrix_names = colnames(features_matrix)
+                  , parameter = parameter_tmp)
+  
+  out %>% 
+    structure(.log = log_glm
+              , fdk_class = "fit")
 }
 
