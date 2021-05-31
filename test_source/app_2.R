@@ -8,7 +8,7 @@ library(tidyverse)
 library(shinyWidgets)
 library(formattable)
 library(shinyscreenshot)
-
+library(fdk)
 
 ui <- dashboardPage(
   dashboardHeader(title = "FDK"),
