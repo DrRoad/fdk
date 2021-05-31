@@ -18,6 +18,7 @@ validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_na
                              , to = as.Date(max(.data[["date_var"]]))
                              , by = as.character(.log_init$prescription$freq_name))
     n_missing_dates <- (length(seq_complete) - length(unique(.data[["date_var"]])))
+    date_range <- range(seq_complete)
     missing_dates <- base::setdiff(as.character(seq_complete), as.character(.data[["date_var"]]))
     dates_with_reg <- .data %>% 
       filter(is.na(reg_name)==F | reg_name != "", reg_value !=0) %>% 
@@ -26,6 +27,8 @@ validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_na
       as.character()
     
     duplicated_dates <- .data[["date_var"]][duplicated(.data[["date_var"]])]
+    duplicated_dates <- setdiff(as.character(duplicated_dates), as.character(dates_with_reg))
+    
     
     if(length(duplicated_dates)>0){
       suspicious_cases <- .data %>% 
@@ -44,6 +47,7 @@ validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_na
         log_update(module = "dates_check"
                    , key = attributes(.data)[["key"]]
                    , new_log = list(n_dates = length(seq_complete)
+                                    , date_range = date_range
                                     , duplicated_dates = duplicated_dates
                                     , missing_dates = missing_dates
                                     , dates_with_reg = dates_with_reg
@@ -55,6 +59,7 @@ validate_ts <- function(.data, na_values = list(y_var = 0, reg_value = 0, reg_na
     log_update(module = "dates_check"
                , key = attributes(.data)[["key"]]
                , new_log = list(n_dates = length(seq_complete)
+                                , date_range = date_range
                                 , missing_dates = missing_dates
                                 , duplicated_dates = duplicated_dates
                                 , dates_with_reg = dates_with_reg
