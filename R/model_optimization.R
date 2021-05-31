@@ -358,7 +358,7 @@ get_default_hyperpar <- function(){
                   , formula = NULL
                   , excluded_features = list()
                   , time_weight = 1
-                  , trend_decay = 1
+                  , trend_decay = .75
                   , link_function = "gaussian"
                   , grid = tibble(trend_decay = c(0.7,.75,.8,.85,.9,.95,.99,1)
                                   #, time_weight = seq(from = 1, to = 1, by = 0.025)
@@ -366,8 +366,8 @@ get_default_hyperpar <- function(){
                   , random_search = 1)
        , glm = list(formula = NULL
                     , excluded_features = NULL
-                    , time_weight = 1
-                    , trend_decay = 1
+                    , time_weight = .99
+                    , trend_decay = .75
                     , link_function = "gaussian"
                     , grid = tidyr::expand_grid(time_weight = seq(from = 0.8
                                                            , to = 1, by = 0.025)
