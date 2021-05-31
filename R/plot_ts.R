@@ -14,9 +14,24 @@
 #' \dontrun{
 #' plot_ts()
 #' }
-plot_ts <- function(.fdk, interactive = FALSE, multiple_keys = FALSE){
+plot_ts <- function(.fdk, interactive = FALSE, multiple_keys = FALSE, .prescribed_data = NULL, top_mape = NULL){
   
   fdk_class <- attributes(.fdk)[["fdk_class"]]
+  key_int <- attributes(.fdk)[[".log"]][["key"]]
+  if(is.numeric(top_mape) == FALSE){
+    top_mape <- nrow(.fdk)
+  }
+  
+  if(is.null(.prescribed_data) == F){
+    tmp_data <- get(.prescribed_data) %>% 
+      filter(key == key_int) %>% 
+      pull(data) %>% 
+      .[[1]] %>% 
+      validate_ts() %>% 
+      feature_engineering_ts() %>% 
+      clean_ts() %>% 
+      dplyr::select(date_var, y_var)
+  }
   
   if(fdk_class %in% c("optim_ts", "pipeline_ts")){
     
@@ -25,7 +40,6 @@ plot_ts <- function(.fdk, interactive = FALSE, multiple_keys = FALSE){
              , rank =  rank(rank_agg)
              , rank = ifelse(rank <= 3
                              , rank, NA_real_))
-    
     means <- tmp %>% 
       group_by(model) %>% 
       summarise(across(.cols = c("mape", "spa")
@@ -49,13 +63,52 @@ plot_ts <- function(.fdk, interactive = FALSE, multiple_keys = FALSE){
            , shape = "Model")+
       scale_x_log10()+
       scale_y_log10()
+  } else if(all(c("forecast_ts", "optim_ts") %in% fdk_class)){
+    if(is.null(.prescribed_data)==F){
+      tmp_data %>% 
+        bind_rows(
+          .fdk %>% 
+            dplyr::select(index, forecast, mape) %>% 
+            top_n(n = top_mape, wt = -mape) %>% 
+            mutate(index = as.character(index)) %>% 
+            unnest(forecast)
+        ) %>% 
+        mutate(quantity = case_when(
+          is.na(forecast) ~ y_var
+          , TRUE ~ forecast)
+          , is_history = case_when(
+            is.na(forecast) ~ TRUE
+            , TRUE ~ FALSE
+          )) %>% 
+        ggplot(aes(date_var, quantity, col = index))+
+        geom_line()
+    } else {
+      .fdk %>% 
+        dplyr::select(index, forecast, mape) %>% 
+        mutate(index = as.character(index)) %>% 
+        unnest(forecast) %>% 
+        ggplot(aes(date_var, forecast, col = index))+
+        geom_line()
+    }
   } else if(fdk_class == "forecast_ts"){
-    .fdk %>% 
-      dplyr::select(index, forecast, mape) %>% 
-      mutate(index = as.character(index)) %>% 
-      unnest(forecast) %>% 
-      ggplot(aes(date_var, forecast, col = index))+
-      geom_line()
+    
+    if(is.null(.prescribed_data) == F){
+      tmp_data %>% 
+        bind_rows(.fdk) %>% 
+        mutate(quantity = case_when(
+          is.na(forecast) ~ y_var
+          , TRUE ~ forecast)
+          , is_history = case_when(
+            is.na(forecast) ~ TRUE
+            , TRUE ~ FALSE
+          )) %>% 
+        ggplot()+
+        geom_line(aes(date_var, quantity, col = is_history))
+    } else {
+      .fdk %>% 
+        ggplot()+
+        geom_line(aes(date_var, forecast))
+    }
   }
   
   # # Prescription
