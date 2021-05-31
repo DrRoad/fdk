@@ -3,12 +3,8 @@ Type: Package
 Title: Forecast Development Kit
 Version: 0.2.0
 Authors@R: c(
-    person("Obryan", "Poyser", , "obryan.poyser@sanofi.com", role = c("aut", "cre"),
-      comment = ""
-    ),
-    person("Ignasi", "Pascual", role = c("aut", "cre"),
-      comment = ""
-    )
+    person(given = "Obryan", family = "Poyser", email = "obryan.poyser@sanofi.com", role = c("aut", "cre")),
+    person(given = "Ignasi", family ="Pascual", email = "ignasi.pascual@sanofi.com",  role = c("aut"))
   )
 Description: FDK provides a collection of automated procedures to analyze, forecast time series data, and, generate insights for decision makers
 License: GPL 
@@ -21,7 +17,7 @@ Imports:
     ggplot2, glmnet, imputeTS, janitor, lubridate, pracma, purrr, readr, readxl, rlang, plotly,
     magrittr, furrr, seastests, snow, stlplus, stringr, tibble, tidyr, tsfeatures, tsibble, 
     e1071, shinydashboard, shinycssloaders, shinyjs, shinyWidgets, shiny, formattable,
-    ggeffects, gratia, plyr, slider, MASS, mgcv, utils, tidyverse
+    ggeffects, gratia, plyr, slider, MASS, mgcv, utils, tidyverse, dplyr
 Suggests:
     knitr, rmarkdown, prophet
 VignetteBuilder: knitr

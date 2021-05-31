@@ -4,14 +4,14 @@
 \alias{fit_ets}
 \title{Fit Error Trend Seasonal model}
 \usage{
-fit_ets(.data, y_var, parameter = NULL)
+fit_ets(.data, parameter = NULL)
 }
 \arguments{
 \item{.data}{Data frame or tibble.}
 
-\item{y_var}{String. Column name of the time series to be forecasted.}
-
 \item{parameter}{List. Combination of parameter to estimate the model.}
+
+\item{y_var}{String. Column name of the time series to be forecasted.}
 }
 \value{
 data-frame

@@ -17,7 +17,7 @@ source_conf = list(source = "oc"
 
 parameter <- get_default_hyperpar()
 oc_data <- import_data(source_conf = source_conf)
-oc_data_2 <- import_data(source_conf = source_conf)
+#oc_data_2 <- import_data(source_conf = source_conf)
 forecast_item_list <- oc_data$sales$forecast_item %>% 
   unique() %>% 
   sort()

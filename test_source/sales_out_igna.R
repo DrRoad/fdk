@@ -42,7 +42,6 @@ sales_out <- sales_out_0 %>%
   bind_rows(co_data) %>% 
   filter(date<"2021-05-01")
 
-
 data.table::fwrite(sales_out, file = "co_sales_out_reg.csv")
 
 # Prescribe ---------------------------------------------------------------
@@ -57,10 +56,27 @@ co_presc <- sales_out %>%
                , freq = 12
                , date_format = "ymd")
 
-.fit <- co_presc$data[[1]] %>% 
+.fit <- co_presc$data[[5]] %>% 
   validate_ts() %>% 
   feature_engineering_ts() %>% 
   clean_ts() %>% 
+  # optim_ts(.data = .
+  #          , ts_model = c("glmnet", "gam", "glm", "arima", "ets", "croston")
+  #          , optim_conf = get_default_optim_conf()
+  #          , parameter = get_default_hyperpar()
+  #          , export_fit = T)
+  fit_croston(.data = ., parameter = get_default_hyperpar())
+
+
+.fit %>% 
+  forecast_ts(horizon = 120) %>% 
+  plot_ts(.prescribed_data = "co_presc")
+
+.fdk <- .fit %>% 
+  filter(model=="gam") %>% 
+  forecast_ts(horizon = 120) %>% 
+  plot_ts(.prescribed_data = "co_presc", top_mape = 5)
+  
   optim_ts(.data = .
            , ts_model = c("glmnet", "gam", "glm", "arima", "ets", "croston")
            , optim_conf = get_default_optim_conf()
